@@ -6,3 +6,6 @@ We compare:
 - adaptive opponent profiling agent
 
 Experiments evaluate performance against multiple player archetypes.
+
+Trello project management: https://trello.com/b/jYPwqcUv/poker-adaptive-opponent-model
+
