@@ -1,11 +1,10 @@
-from pypokerengine.players import BasePokerPlayer
+from src.agents.player_template import PlayerTemplate
 import random
 
-class AggressivePlayer(BasePokerPlayer):
+class AggressivePlayer(PlayerTemplate):
 
-    def __init__(self, name):
+    def __init__(self):
         super().__init__()
-        self.name = name
 
     #  we define the logic to make an action through this method. (so this method would be the core of your AI)
     def declare_action(self, valid_actions, hole_card, round_state):
