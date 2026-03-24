@@ -8,7 +8,7 @@ class PlayerTemplate(BasePokerPlayer):
       """
 
     def __init__(self,
-                 player_name=str(super().uuid),
+                 player_name='',
                  roi=0,
                  hands_played=0,
                  win_rate=0,
@@ -42,7 +42,7 @@ class PlayerTemplate(BasePokerPlayer):
         ROI = profit / total buy-ins
         """
         super().__init__()
-        self.player_name = player_name
+        self.player_name = str(self.uuid) if player_name == '' else player_name
         self.roi = roi
         self.hands_played = hands_played
         self.win_rate = win_rate
