@@ -29,7 +29,7 @@ class AggressivePlayer(PlayerTemplate):
         pass
 
     def receive_round_start_message(self, round_count, hole_card, seats):
-        print(f"hole cards of player {self.name} in round {round_count} = "
+        print(f"hole cards of player {self.player_name} in round {round_count} = "
               f"{hole_card}")
 
     def receive_street_start_message(self, street, round_state):
