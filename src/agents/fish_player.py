@@ -7,17 +7,38 @@ class FishPlayer(PlayerTemplate):
         super().__init__(*args, **kwargs)
 
     def declare_action(self, valid_actions, hole_card, round_state):
-        chance_to_call = random.random() * 100 + 1
-        if chance_to_call > 20:
+        if round_state["street"] == 'preflop':
+            hole_card_strength = self.hand_estimator.check_preflop_hole_card_strength(hole_card)
+            print(f"{self.player_name} -> {hole_card} = {hole_card_strength}")
+            if hole_card_strength.value > 2:
+                call_action_info = valid_actions[
+                    1]  # 0 - fold 1 - call 2 - raise
+                action, amount = call_action_info["action"], call_action_info[
+                    "amount"]
+                return action, amount
+            else:
+                fold_action_info = valid_actions[
+                    0]  # 0 - fold 1 - call 2 - raise
+                action, amount = fold_action_info["action"], fold_action_info[
+                    "amount"]
+                return action, amount
+        elif round_state["street"] == 'flop':
             call_action_info = valid_actions[1]  # 0 - fold 1 - call 2 - raise
             action, amount = call_action_info["action"], call_action_info[
                 "amount"]
-        elif 5 < chance_to_call <= 20:
-            fold_action_info = valid_actions[0]  # 0 - fold 1 - call 2 - raise
-            action, amount = fold_action_info["action"], fold_action_info[
+
+            return action, amount
+        elif round_state["street"] == 'turn':
+            call_action_info = valid_actions[1]  # 0 - fold 1 - call 2 - raise
+            action, amount = call_action_info["action"], call_action_info[
                 "amount"]
-        else:
-            raise_action_info = valid_actions[2]  # 0 - fold 1 - call 2 - raise
-            action, amount = raise_action_info["action"], raise_action_info[
-                "amount"]["min"]
-        return action, amount   # action returned here is sent to the poker engine
+
+            return action, amount
+        elif round_state["street"] == 'river':
+            call_action_info = valid_actions[1]  # 0 - fold 1 - call 2 - raise
+            action, amount = call_action_info["action"], call_action_info[
+                    "amount"]
+
+            return action, amount
+
+

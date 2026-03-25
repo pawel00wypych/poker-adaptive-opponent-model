@@ -1,4 +1,6 @@
 from pypokerengine.players import BasePokerPlayer
+from src.cards.hand_estimator import HandEstimator
+from src.cards.hand_estimator import HandStrength
 
 class PlayerTemplate(BasePokerPlayer):
     """Poker player template
@@ -132,6 +134,11 @@ class PlayerTemplate(BasePokerPlayer):
         }
         self.my_position = self.available_positions.items()
 
+        """
+        Hand estimator
+        """
+        self.hand_estimator = HandEstimator()
+
     def set_my_position(self):
         position = [v for k,v in self.available_positions.items() if v ==
                     self.my_index]
@@ -169,6 +176,3 @@ class PlayerTemplate(BasePokerPlayer):
     def receive_round_result_message(self, winners, hand_info, round_state):
         print(f"\n hand_info = {hand_info}")
         print(f"\n winners = {winners}")
-
-
-
