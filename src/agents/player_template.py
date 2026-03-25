@@ -25,6 +25,7 @@ class PlayerTemplate(BasePokerPlayer):
                  steal_attempt=0,
                  fold_to_steal=0,
                  win_rate_by_position=None
+
         ):
         """
         Volume & Results metrics:
@@ -112,11 +113,62 @@ class PlayerTemplate(BasePokerPlayer):
             self.win_rate_by_position={
                          'SB': 0,
                          'BB': 0,
-                         'UTG': 0,
                          'MP': 0,
-                         'CO': 0,
                          'BTN': 0
                      }
         else:
             self.win_rate_by_position = win_rate_by_position
+
+        """
+        Round related parameters
+        """
+        self.hole_card = []
+        self.uuid_to_index = None
+        self.my_index = None
+        self.available_positions = {
+                    "dealer_btn": None,
+                    "small_blind_pos": None,
+                    "big_blind_pos": None
+        }
+        self.my_position = self.available_positions.items()
+
+    def set_my_position(self):
+        position = [v for k,v in self.available_positions.items() if v ==
+                    self.my_index]
+        if len(position) > 1:
+            self.my_position = "big_blind_pos" if "big_blind_pos" in position \
+                else "small_blind_pos"
+
+    def set_available_positions(self, round_state):
+        self.available_positions["dealer_btn"] = round_state["dealer_btn"]
+        self.available_positions["small_blind_pos"] = round_state["small_blind_pos"]
+        self.available_positions["big_blind_pos"] = round_state["big_blind_pos"]
+
+
+
+    """
+    Derived methods without declare_action()
+    """
+    def receive_game_start_message(self, game_info):
+        pass
+
+    def receive_round_start_message(self, round_count, hole_card, seats):
+        self.hole_card = hole_card
+        self.uuid_to_index = {
+            seat['uuid']: i for i, seat in enumerate(seats)
+        }
+        self.my_index = self.uuid_to_index[self.uuid]
+
+    def receive_street_start_message(self, street, round_state):
+        self.set_available_positions(round_state)
+        self.set_my_position()
+
+    def receive_game_update_message(self, action, round_state):
+        pass
+
+    def receive_round_result_message(self, winners, hand_info, round_state):
+        print(f"\n hand_info = {hand_info}")
+        print(f"\n winners = {winners}")
+
+
 
