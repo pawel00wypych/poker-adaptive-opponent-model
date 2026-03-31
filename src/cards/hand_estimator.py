@@ -1,6 +1,6 @@
-from enum import Enum
+from enum import IntEnum
 
-class HandStrength(Enum):
+class HandStrength(IntEnum):
     VERY_STRONG_CARDS = 4
     STRONG_CARDS = 3
     MEDIUM_CARDS = 2
@@ -59,7 +59,8 @@ class HandEstimator:
     """
     Convert hole cards to standard notation
     """
-    def to_notation(self, card1, card2):
+    @staticmethod
+    def to_notation(card1, card2):
         ranks = "23456789TJQKA"
 
         r1, s1 = card1[1], card1[0]
