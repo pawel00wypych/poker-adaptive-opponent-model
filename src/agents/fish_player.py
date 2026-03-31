@@ -12,7 +12,7 @@ class FishPlayer(PlayerTemplate):
         if round_state["street"] == Const.Street.PREFLOP:
             hole_card_strength = self.hand_estimator.check_preflop_hole_card_strength(hole_card)
             print(f"{self.player_name} -> {hole_card} = {hole_card_strength}")
-            if hole_card_strength.value > HandStrength.MEDIUM_CARDS:
+            if hole_card_strength > HandStrength.MEDIUM_CARDS:
                 call_action_info = valid_actions[Const.Action.CALL]
                 action, amount = call_action_info["action"], call_action_info[
                     "amount"]
