@@ -45,7 +45,8 @@ class PlayerTemplate(BasePokerPlayer):
         ROI = profit / total buy-ins
         """
         super().__init__()
-        self.player_name = str(self.uuid) if player_name == '' else player_name
+        current_uuid = getattr(self, "uuid", "unknown_uuid")
+        self.player_name = str(current_uuid) if player_name == '' else player_name
         self.roi = roi
         self.hands_played = hands_played
         self.win_rate = win_rate
