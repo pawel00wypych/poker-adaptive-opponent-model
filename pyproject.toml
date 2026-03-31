@@ -1,0 +1,21 @@
+[tool.ruff]
+# Set the maximum line length to 88 (standard for Black-compatible formatting)
+line-length = 88
+
+# Assume Python 3.14 (change this to match your environment)
+target-version = "py314"
+
+[tool.ruff.lint]
+# Select which rule sets to apply
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort (automatically sorts your imports)
+]
+
+# Ignore specific rules if they are too annoying
+ignore = []
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
