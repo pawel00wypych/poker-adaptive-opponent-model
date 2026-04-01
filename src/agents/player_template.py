@@ -1,4 +1,4 @@
-from pypokerengine.players import BasePokerPlayer
+from PyPokerEngine.pypokerengine.players import BasePokerPlayer
 from src.cards.hand_estimator import HandEstimator
 from src.cards.hand_estimator import HandStrength
 
