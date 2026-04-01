@@ -1,4 +1,4 @@
-from pypokerengine.api.game import setup_config, start_poker
+from PyPokerEngine.pypokerengine.api.game import setup_config, start_poker
 from src.agents.fish_player import FishPlayer
 from src.agents.aggressive_player import AggressivePlayer
 import json
