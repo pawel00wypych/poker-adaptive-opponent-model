@@ -17,3 +17,12 @@ def test_declare_action_medium_preflop(valid_actions_conf):
     fish = FishPlayer()
     action, _ = fish.declare_action(valid_actions,hole_cards,round_state)
     assert action == 'fold'
+
+def test_declare_action_medium_flop(valid_actions_conf):
+    pass
+
+def test_declare_action_medium_turn(valid_actions_conf):
+    pass
+
+def test_declare_action_medium_river(valid_actions_conf):
+    pass
