@@ -32,41 +32,7 @@ The goal of the project is to investigate how adaptive strategies perform compar
 
 ## Project Structure
 
-poker-adaptive-opponent-profiler
 
-│
-
-├── environment
-
-│   poker game simulation
-
-│
-
-├── agents
-
-│   reinforcement learning agent
-
-│
-
-├── opponent_model
-
-│   opponent profiling logic
-
-│
-
-├── training
-
-│   training loop and experiments
-
-│
-
-├── evaluation
-
-│   performance comparison and metrics
-
-│
-
-└── main.py
 
 ## Project Goal
 
