@@ -9,36 +9,39 @@ class FishPlayer(PlayerTemplate):
         super().__init__(*args, **kwargs)
 
     def declare_action(self, valid_actions, hole_card, round_state):
-        if round_state["street"] == Const.Street.PREFLOP:
+        if round_state["street"] == "preflop":
             hole_card_strength = self.hand_estimator.check_preflop_hole_card_strength(hole_card)
             print(f"{self.player_name} -> {hole_card} = {hole_card_strength}")
             if hole_card_strength > HandStrength.MEDIUM_CARDS:
-                call_action_info = valid_actions[1]
+
+                call_action_info = PlayerTemplate.get_action(valid_actions,"call")
                 action, amount = call_action_info["action"], call_action_info[
                     "amount"]
             else:
-                fold_action_info = valid_actions[0]
+                fold_action_info = PlayerTemplate.get_action(valid_actions,
+                                                             "fold")
                 action, amount = fold_action_info["action"], fold_action_info[
                     "amount"]
-            return action, amount
-        elif round_state["street"] == Const.Street.FLOP:
-            call_action_info = valid_actions[1]
+        elif round_state["street"] == "flop":
+            call_action_info = PlayerTemplate.get_action(valid_actions,"call")
             action, amount = call_action_info["action"], call_action_info[
                 "amount"]
 
-            return action, amount
-        elif round_state["street"] == Const.Street.TURN:
-            call_action_info = valid_actions[1]
+        elif round_state["street"] == "turn":
+            call_action_info = PlayerTemplate.get_action(valid_actions,"call")
             action, amount = call_action_info["action"], call_action_info[
                 "amount"]
 
-            return action, amount
-        elif round_state["street"] == Const.Street.RIVER:
-            call_action_info = valid_actions[1]  # 0 - fold 1 - call 2 - raise
+        elif round_state["street"] == "river":
+            call_action_info = PlayerTemplate.get_action(valid_actions,"call")
             action, amount = call_action_info["action"], call_action_info[
                     "amount"]
 
-            return action, amount
-        return None
+        else:
+            call_action_info = PlayerTemplate.get_action(valid_actions, "call")
+            action, amount = call_action_info["action"], call_action_info["amount"]
+
+        return action, amount
+
 
 
