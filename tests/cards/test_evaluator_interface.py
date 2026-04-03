@@ -22,4 +22,49 @@ def test_eval_hand_community_empty():
         "score": 60909,
     }
     result = EvaluatorInterface.evaluate(hole, community)
-    result == expected_result
+    assert result == expected_result
+
+
+def test_eval_hand_weak_preflop():
+    hole = ["C9", "DT"]
+    community = []
+    expected_result = {
+        'hand': {'strength': 'HIGHCARD','high': 10,'low': 9},
+        'hole': {'high': 10,'low': 9},
+        'score': 43433}
+    result = EvaluatorInterface.evaluate(hole, community)
+    assert result == expected_result
+
+def test_eval_hand_weak_flop():
+    hole = ["C9", "DT"]
+    community = ["D2", "CA", "SJ"]
+    expected_result = {
+        'hand': {'strength': 'HIGHCARD','high': 10,'low': 9},
+        'hole': {'high': 10,'low': 9},
+        'score': 43433}
+    result = EvaluatorInterface.evaluate(hole, community)
+    print(result)
+    assert result == expected_result
+
+def test_eval_hand_medium_turn():
+    hole = ["C2", "D3"]
+    community = ["H3", "S2", "SJ", "ST"]
+    expected_result = {
+        'hand': {'strength': 'TWOPAIR', 'high': 3, 'low': 2},
+        'hole': {'high': 3, 'low': 2},
+        'score': 143922
+    }
+    result = EvaluatorInterface.evaluate(hole, community)
+    print(result)
+    assert result == expected_result
+
+def test_eval_hand_medium_river():
+    hole = ["C2", "D8"]
+    community = ["H2", "S8", "SJ", "ST", "H9"]
+    expected_result = {'hand': {'strength': 'TWOPAIR', 'high': 8, 'low': 2},
+                       'hole': {'high': 8, 'low': 2},
+                       'score': 164482
+                       }
+    result = EvaluatorInterface.evaluate(hole, community)
+    print(result)
+    assert result == expected_result
