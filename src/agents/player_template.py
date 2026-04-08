@@ -169,8 +169,7 @@ class PlayerTemplate(BasePokerPlayer):
         pass
 
     def receive_round_result_message(self, winners, hand_info, round_state):
-        print(f"\n hand_info = {hand_info}")
-        print(f"\n winners = {winners}")
+        pass
 
     @classmethod
     def get_action(cls, valid_actions, name):
