@@ -9,7 +9,8 @@ class FishPlayer(PlayerTemplate):
 
     def declare_action(self, valid_actions, hole_card, round_state):
 
-        player_hand_info = EvaluatorInterface.evaluate(hole_card, [])
+        player_hand_info = EvaluatorInterface.evaluate(hole_card,
+                                                       round_state['community_card'])
         print(f"{self.player_name} -> {hole_card}  score = {player_hand_info['score']}")
         rand_num = random.random() * 100 + 1 # [1, 101)
 
