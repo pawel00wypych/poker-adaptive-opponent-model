@@ -16,6 +16,7 @@ class PlayerTemplate(BasePokerPlayer):
         hands_played=0,
         win_rate=0,
         total_profit=0,
+        stack = 0,
         vpip=0,
         pfr=0,
         vpip_pfr_gap=0,
@@ -41,6 +42,9 @@ class PlayerTemplate(BasePokerPlayer):
         - total_profit
         net earnings over time
 
+        - stack
+        total credits
+
         - ROI (return on investment)
         ROI = profit / total buy-ins
         """
@@ -51,6 +55,7 @@ class PlayerTemplate(BasePokerPlayer):
         self.hands_played = hands_played
         self.win_rate = win_rate
         self.total_profit = total_profit
+        self.stack = stack
         """
         Preflop Statistics:
         
@@ -166,7 +171,7 @@ class PlayerTemplate(BasePokerPlayer):
         self.set_my_position()
 
     def receive_game_update_message(self, action, round_state):
-        pass
+        self.stack = round_state['seats'][self.my_index]['stack']
 
     def receive_round_result_message(self, winners, hand_info, round_state):
         pass
