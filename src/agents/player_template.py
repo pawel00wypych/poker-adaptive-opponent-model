@@ -17,6 +17,7 @@ class PlayerTemplate(BasePokerPlayer):
         win_rate=0,
         total_profit=0,
         stack = 0,
+        initial_stack = 0,
         vpip=0,
         pfr=0,
         vpip_pfr_gap=0,
@@ -43,7 +44,10 @@ class PlayerTemplate(BasePokerPlayer):
         net earnings over time
 
         - stack
-        total credits
+        total credits at given moment
+
+        - initial_stack
+        credits at the beginning of the hand
 
         - ROI (return on investment)
         ROI = profit / total buy-ins
@@ -56,6 +60,7 @@ class PlayerTemplate(BasePokerPlayer):
         self.win_rate = win_rate
         self.total_profit = total_profit
         self.stack = stack
+        self.initial_stack = initial_stack
         """
         Preflop Statistics:
         
@@ -165,6 +170,7 @@ class PlayerTemplate(BasePokerPlayer):
         self.hole_card = hole_card
         self.uuid_to_index = {seat["uuid"]: i for i, seat in enumerate(seats)}
         self.my_index = self.uuid_to_index[self.uuid]
+        self.initial_stack = seats[self.my_index]["stack"]
 
     def receive_street_start_message(self, street, round_state):
         self.set_available_positions(round_state)
