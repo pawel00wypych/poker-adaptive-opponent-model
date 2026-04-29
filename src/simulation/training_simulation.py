@@ -3,7 +3,7 @@ from src.simulation.play_game_with_rl_player import play_game_with_rl_player
 
 agent = SimpleAgent()
 
-for episode in range(21):
+for episode in range(1000):
     # 1 hand = 1 episode
     play_game_with_rl_player(agent) # runs PyPokerEngine game
 

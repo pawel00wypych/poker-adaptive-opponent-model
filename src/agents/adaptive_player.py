@@ -2,11 +2,11 @@ from src.agents.player_template import PlayerTemplate
 
 
 def extract_state(player, round_state):
-    return [
+    return (
         player.stack,
         round_state["pot"]["main"]["amount"],
         len(round_state["community_card"])
-    ]
+    )
 
 
 class AdaptivePlayer(PlayerTemplate):
@@ -38,3 +38,4 @@ class AdaptivePlayer(PlayerTemplate):
 
         self.agent.learn()
         self.episode = []
+        print(f"AdaptivePlayer reward = {reward}")
