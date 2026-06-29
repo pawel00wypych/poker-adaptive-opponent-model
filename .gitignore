@@ -6,3 +6,4 @@ __pycache__/
 .venv/
 simulation_results
 .coverage
+*.zip
