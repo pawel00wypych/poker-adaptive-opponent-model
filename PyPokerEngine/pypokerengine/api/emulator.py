@@ -1,10 +1,5 @@
 from PyPokerEngine.pypokerengine.engine.table import Table
-from PyPokerEngine.pypokerengine.engine.seats import Seats
-from PyPokerEngine.pypokerengine.engine.card import Card
-from PyPokerEngine.pypokerengine.engine.deck import Deck
 from PyPokerEngine.pypokerengine.engine.player import Player
-from PyPokerEngine.pypokerengine.engine.pay_info import PayInfo
-from PyPokerEngine.pypokerengine.engine.data_encoder import DataEncoder
 from PyPokerEngine.pypokerengine.engine.poker_constants import (
     PokerConstants as Const)
 from PyPokerEngine.pypokerengine.engine.round_manager import RoundManager

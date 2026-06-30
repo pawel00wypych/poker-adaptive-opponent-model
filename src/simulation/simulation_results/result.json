@@ -1,0 +1,23 @@
+{
+    "rule": {
+        "initial_stack": 100,
+        "max_round": 100,
+        "small_blind_amount": 5,
+        "ante": 0,
+        "blind_structure": {}
+    },
+    "players": [
+        {
+            "name": "p1_fish",
+            "uuid": "bnarssweuqkzsteaslvjir",
+            "stack": 0,
+            "state": "folded"
+        },
+        {
+            "name": "p2_aggressive",
+            "uuid": "ekiaqegkxkzpgltdpojeis",
+            "stack": 200,
+            "state": "participating"
+        }
+    ]
+}
