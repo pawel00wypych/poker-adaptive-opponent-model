@@ -59,11 +59,15 @@ def run_evaluation() -> None:
                     agent_name="adaptive_rl",
                     final_stack=player["stack"],
                     initial_stack=game_config.initial_stack,
-                    hands_played=game_config.max_round,
+                    hands_played=max(adaptive_player.hands_played, 1),
                     big_blind=big_blind,
                 )
 
-        print(f"Finished evaluation game {game_id + 1}/{eval_config.games}")
+        print(
+            f"Finished evaluation game {game_id + 1}/{eval_config.games}, "
+            f"hands_played={adaptive_player.hands_played}, "
+            f"total_reward_bb={adaptive_player.total_reward_bb:.2f}"
+        )
 
     print(f"Saved results to {eval_config.output_path}")
 
