@@ -4,6 +4,6 @@ __pycache__/
 *.pyc
 .env
 .venv/
-simulation_results
+results
 .coverage
 *.zip
