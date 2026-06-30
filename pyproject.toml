@@ -19,3 +19,18 @@ ignore = []
 
 # Allow autofix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = [
+    "PyPokerEngine",
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__"
+]
+pythonpath = [
+    ".",
+    "PyPokerEngine"
+]
+addopts = "-v"

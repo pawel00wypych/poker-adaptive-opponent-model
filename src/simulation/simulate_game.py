@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
-from PyPokerEngine.pypokerengine.api.game import setup_config, start_poker
+from pypokerengine.api.game import setup_config, start_poker
 from src.agents.fish_player import FishPlayer
 from src.agents.aggressive_player import AggressivePlayer
 import json
