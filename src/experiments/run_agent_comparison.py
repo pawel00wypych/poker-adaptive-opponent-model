@@ -1,0 +1,129 @@
+from PyPokerEngine.pypokerengine.api.game import setup_config, start_poker
+
+from src.agents.adaptive_player import AdaptivePlayer
+from src.agents.aggressive_player import AggressivePlayer
+from src.agents.calling_player import CallingPlayer
+from src.agents.fish_player import FishPlayer
+from src.agents.q_learning_agent import QLearningAgent
+from src.agents.rule_based_player import RuleBasedPlayer
+from src.agents.safe_q_player import SafeQPlayer
+from src.config import GameConfig, TrainingConfig
+from src.evaluation.result_logger import ResultLogger
+
+
+OUTPUT_PATH = "results/raw/agent_comparison_results.csv"
+
+
+def build_opponent(opponent_name: str):
+    if opponent_name == "fish":
+        return FishPlayer(player_name="fish")
+
+    if opponent_name == "aggressive":
+        return AggressivePlayer(player_name="aggressive")
+
+    if opponent_name == "calling":
+        return CallingPlayer(player_name="calling")
+
+    raise ValueError(f"Unknown opponent: {opponent_name}")
+
+
+def build_tested_player(agent_name: str):
+    if agent_name == "rule_based":
+        player = RuleBasedPlayer(player_name="rule_based")
+        return player
+
+    if agent_name == "safe_q":
+        q_agent = QLearningAgent.load(TrainingConfig().model_path)
+        q_agent.eval()
+        player = SafeQPlayer(agent=q_agent, player_name="safe_q")
+        return player
+
+    if agent_name == "adaptive_q":
+        q_agent = QLearningAgent.load(TrainingConfig().model_path)
+        q_agent.eval()
+        player = AdaptivePlayer(agent=q_agent, player_name="adaptive_q")
+        return player
+
+    raise ValueError(f"Unknown tested agent: {agent_name}")
+
+
+def get_hands_played(player) -> int:
+    return max(getattr(player, "hands_played", 0), 1)
+
+
+def run_single_game(
+    game_id: int,
+    tested_agent_name: str,
+    opponent_name: str,
+    game_config: GameConfig,
+    logger: ResultLogger,
+) -> None:
+    config = setup_config(
+        max_round=game_config.max_round,
+        initial_stack=game_config.initial_stack,
+        small_blind_amount=game_config.small_blind_amount,
+    )
+
+    tested_player = build_tested_player(tested_agent_name)
+    opponent = build_opponent(opponent_name)
+
+    config.register_player(name=tested_agent_name, algorithm=tested_player)
+    config.register_player(name=opponent_name, algorithm=opponent)
+
+    result = start_poker(config, verbose=0)
+
+    big_blind = game_config.small_blind_amount * 2
+
+    for player_result in result["players"]:
+        if player_result["name"] == tested_agent_name:
+            logger.log_game(
+                experiment_name=f"{tested_agent_name}_vs_{opponent_name}",
+                game_id=game_id,
+                agent_name=tested_agent_name,
+                final_stack=player_result["stack"],
+                initial_stack=game_config.initial_stack,
+                hands_played=get_hands_played(tested_player),
+                big_blind=big_blind,
+            )
+
+
+def run_agent_comparison() -> None:
+    game_config = GameConfig(max_round=100, initial_stack=100, small_blind_amount=5)
+    logger = ResultLogger(OUTPUT_PATH)
+
+    tested_agents = [
+        "rule_based",
+        "safe_q",
+        "adaptive_q",
+    ]
+
+    opponents = [
+        "fish",
+        "aggressive",
+        "calling",
+    ]
+
+    games_per_matchup = 30
+
+    game_id = 0
+
+    for tested_agent in tested_agents:
+        for opponent in opponents:
+            for _ in range(games_per_matchup):
+                run_single_game(
+                    game_id=game_id,
+                    tested_agent_name=tested_agent,
+                    opponent_name=opponent,
+                    game_config=game_config,
+                    logger=logger,
+                )
+
+                game_id += 1
+
+            print(f"Finished matchup: {tested_agent} vs {opponent}")
+
+    print(f"Saved comparison results to {OUTPUT_PATH}")
+
+
+if __name__ == "__main__":
+    run_agent_comparison()
