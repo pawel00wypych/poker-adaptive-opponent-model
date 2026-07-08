@@ -3,7 +3,7 @@ from PyPokerEngine.pypokerengine.api.game import setup_config, start_poker
 from src.agents.adaptive_player import AdaptivePlayer
 from src.agents.aggressive_player import AggressivePlayer
 from src.agents.fish_player import FishPlayer
-from src.agents.q_learning_agent import QLearningAgent
+from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.config import EvaluationConfig, GameConfig
 from src.evaluation.result_logger import ResultLogger
 
@@ -14,7 +14,7 @@ def run_evaluation() -> None:
 
     big_blind = game_config.small_blind_amount * 2
 
-    agent = QLearningAgent.load(eval_config.model_path)
+    agent = MonteCarloAgent.load(eval_config.model_path)
     agent.eval()
 
     logger = ResultLogger(eval_config.output_path)

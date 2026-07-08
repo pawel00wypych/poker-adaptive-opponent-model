@@ -4,9 +4,9 @@ from src.agents.adaptive_player import AdaptivePlayer
 from src.agents.aggressive_player import AggressivePlayer
 from src.agents.calling_player import CallingPlayer
 from src.agents.fish_player import FishPlayer
-from src.agents.q_learning_agent import QLearningAgent
+from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.agents.rule_based_player import RuleBasedPlayer
-from src.agents.safe_q_player import SafeQPlayer
+from src.agents.single_policy_player import SinglePolicyPlayer
 from src.config import GameConfig, TrainingConfig
 from src.evaluation.result_logger import ResultLogger
 
@@ -32,16 +32,16 @@ def build_tested_player(agent_name: str):
         player = RuleBasedPlayer(player_name="rule_based")
         return player
 
-    if agent_name == "safe_q":
-        q_agent = QLearningAgent.load(TrainingConfig().model_path)
-        q_agent.eval()
-        player = SafeQPlayer(agent=q_agent, player_name="safe_q")
+    if agent_name == "safe_mc":
+        mc_agent  = MonteCarloAgent.load(TrainingConfig().model_path)
+        mc_agent .eval()
+        player = SinglePolicyPlayer(agent=mc_agent , player_name="safe_mc")
         return player
 
-    if agent_name == "adaptive_q":
-        q_agent = QLearningAgent.load(TrainingConfig().model_path)
-        q_agent.eval()
-        player = AdaptivePlayer(agent=q_agent, player_name="adaptive_q")
+    if agent_name == "adaptive_mc":
+        mc_agent = MonteCarloAgent.load(TrainingConfig().model_path)
+        mc_agent.eval()
+        player = AdaptivePlayer(agent=mc_agent, player_name="adaptive_mc")
         return player
 
     raise ValueError(f"Unknown tested agent: {agent_name}")
@@ -101,8 +101,8 @@ def run_agent_comparison() -> None:
 
     tested_agents = [
         "rule_based",
-        "safe_q",
-        "adaptive_q",
+        "safe_mc",
+        "adaptive_mc",
     ]
 
     opponents = [
