@@ -12,6 +12,9 @@ def calculate_bb_per_100(results_csv_path: str) -> pd.DataFrame:
             games=("game_id", "count"),
             mean_profit_bb=("profit_bb", "mean"),
             std_profit_bb=("profit_bb", "std"),
+            mean_hands_played=("hands_played", "mean"),
+            min_hands_played=("hands_played", "min"),
+            max_hands_played=("hands_played", "max"),
         )
         .reset_index()
     )
