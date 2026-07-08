@@ -48,7 +48,15 @@ def build_tested_player(agent_name: str):
 
 
 def get_hands_played(player) -> int:
-    return max(getattr(player, "hands_played", 0), 1)
+    hands_played = getattr(player, "hands_played", None)
+
+    if hands_played is None:
+        raise AttributeError(
+            f"Player {player.__class__.__name__} does not expose hands_played. "
+            "Add TrackingPlayerMixin or implement receive_round_result_message."
+        )
+
+    return max(hands_played, 1)
 
 
 def run_single_game(
