@@ -49,7 +49,7 @@ def run_training() -> None:
 
         start_poker(config, verbose=0)
 
-        if (episode + 1) % 10 == 0:
+        if (episode + 1) % 100 == 0:
             print(
                 f"Episode {episode + 1}/{training_config.episodes}, "
                 f"epsilon={agent.epsilon:.4f}, "
