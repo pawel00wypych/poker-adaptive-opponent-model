@@ -34,6 +34,7 @@ class SafeQPlayer(PlayerTemplate):
             player_stack=my_stack,
             valid_actions=valid_actions,
             round_state=round_state,
+            hole_cards=hole_card,
             opponent_type="unknown",
         )
 
