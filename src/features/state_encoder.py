@@ -1,22 +1,19 @@
 from typing import Any
 
+from src.features.preflop_hand_encoder import PreflopHandEncoder
+
 
 class StateEncoder:
-    """
-    Converts PyPokerEngine round state into a discrete state for tabular RL.
-
-    This version intentionally does not modify PyPokerEngine and does not depend
-    on custom hand evaluation.
-    """
-
     @staticmethod
     def encode(
         player_stack: int,
         valid_actions: list[dict[str, Any]],
         round_state: dict[str, Any],
+        hole_cards: list[str],
         opponent_type: str = "unknown",
     ) -> tuple:
         street = StateEncoder._street(round_state)
+        hand_bucket = PreflopHandEncoder.encode(hole_cards)
         pot_bucket = StateEncoder._pot_bucket(round_state)
         stack_bucket = StateEncoder._stack_bucket(player_stack)
         call_bucket = StateEncoder._call_amount_bucket(valid_actions)
@@ -24,6 +21,7 @@ class StateEncoder:
 
         return (
             street,
+            hand_bucket,
             stack_bucket,
             pot_bucket,
             call_bucket,
@@ -36,13 +34,13 @@ class StateEncoder:
         count = len(community_cards)
 
         if count == 0:
-            return 0  # preflop
+            return 0
         if count == 3:
-            return 1  # flop
+            return 1
         if count == 4:
-            return 2  # turn
+            return 2
         if count == 5:
-            return 3  # river
+            return 3
 
         return 0
 
@@ -70,7 +68,14 @@ class StateEncoder:
 
     @staticmethod
     def _call_amount_bucket(valid_actions: list[dict[str, Any]]) -> int:
-        call_action = next((item for item in valid_actions if item["action"] == "call"), None)
+        call_action = next(
+            (
+                item
+                for item in valid_actions
+                if item["action"] == "call"
+            ),
+            None,
+        )
 
         if call_action is None:
             return 0

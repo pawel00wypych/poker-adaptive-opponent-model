@@ -13,8 +13,6 @@ class AdaptivePlayer(PlayerTemplate):
         self.agent = agent
 
         self.opponent_stats = OpponentStats()
-
-        # Na razie celowo nisko, bo przy krótkich grach agent może nie dożyć 20 akcji.
         self.classifier = RuleBasedOpponentClassifier(min_actions=5)
 
         self.initial_stack: int | None = None
@@ -42,6 +40,7 @@ class AdaptivePlayer(PlayerTemplate):
             player_stack=my_stack,
             valid_actions=valid_actions,
             round_state=round_state,
+            hole_cards=hole_card,
             opponent_type=self.current_opponent_type,
         )
 
@@ -79,9 +78,6 @@ class AdaptivePlayer(PlayerTemplate):
             self.previous_stack = my_stack
 
         reward = my_stack - self.previous_stack
-
-        # Przy small blind = 5 big blind = 10.
-        # Docelowo można to brać z configu, ale na razie wystarczy jawnie.
         reward_bb = reward / 10
 
         self.agent.learn_from_episode(reward_bb)
