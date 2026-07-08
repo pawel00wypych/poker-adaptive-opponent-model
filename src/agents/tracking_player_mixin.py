@@ -1,16 +1,10 @@
 class TrackingPlayerMixin:
     """
-    Adds basic tracking for evaluation.
+    Provides reusable tracking logic for poker players.
 
-    This mixin assumes PyPokerEngine calls receive_game_start_message
-    and receive_round_result_message on the player.
+    The mixin intentionally does not define __init__.
+    The concrete player class is responsible for calling reset_tracking().
     """
-
-    def __init__(self):
-        self.initial_stack = None
-        self.previous_stack = None
-        self.total_reward_bb = 0.0
-        self.hands_played = 0
 
     def reset_tracking(self) -> None:
         self.hands_played = 0
@@ -18,7 +12,14 @@ class TrackingPlayerMixin:
         self.previous_stack = None
         self.initial_stack = None
 
-    def update_tracking_after_round(self, current_stack: int, big_blind: int = 10) -> float:
+    def update_tracking_after_round(
+        self,
+        current_stack: int,
+        big_blind: int = 10,
+    ) -> float:
+        if big_blind <= 0:
+            raise ValueError("big_blind must be greater than zero")
+
         if self.initial_stack is None:
             self.initial_stack = current_stack
 

@@ -44,3 +44,27 @@ def test_rule_based_player_calls_cheap_call():
 
     assert action == "call"
     assert amount == 10
+
+def test_rule_based_player_tracks_round_results():
+    player = RuleBasedPlayer(player_name="rule_based")
+    player.uuid = "uuid-rule"
+
+    round_state_1 = {
+        "seats": [
+            {"name": "rule_based", "uuid": "uuid-rule", "stack": 100},
+            {"name": "opponent", "uuid": "uuid-opponent", "stack": 100},
+        ]
+    }
+
+    round_state_2 = {
+        "seats": [
+            {"name": "rule_based", "uuid": "uuid-rule", "stack": 70},
+            {"name": "opponent", "uuid": "uuid-opponent", "stack": 130},
+        ]
+    }
+
+    player.receive_round_result_message([], [], round_state_1)
+    player.receive_round_result_message([], [], round_state_2)
+
+    assert player.hands_played == 2
+    assert player.total_reward_bb == -3.0
