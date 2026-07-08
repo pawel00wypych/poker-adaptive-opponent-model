@@ -2,17 +2,17 @@ from collections import Counter
 
 import numpy as np
 
-from src.agents.q_learning_agent import QLearningAgent
+from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.config import TrainingConfig
 
 
 def diagnose_model() -> None:
     config = TrainingConfig()
 
-    agent = QLearningAgent.load(config.model_path)
+    agent = MonteCarloAgent.load(config.model_path)
 
     print(f"Loaded model from: {config.model_path}")
-    print(f"Number of states: {len(agent.q_table)}")
+    print(f"Number of Monte Carlo states: {len(agent.q_table)}")
     print(f"Epsilon: {agent.epsilon:.4f}")
 
     if not agent.q_table:

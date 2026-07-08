@@ -4,12 +4,9 @@ from src.poker.action_mapper import ActionMapper
 from src.poker.round_state_utils import get_player_stack, get_round_count
 
 
-class SafeQPlayer(PlayerTemplate):
+class SinglePolicyPlayer(PlayerTemplate):
     """
-    Q-learning player without opponent modelling.
-
-    This is the main baseline for checking whether adaptive opponent modelling
-    improves performance over a single shared Q-policy.
+    Poker player using one shared policy without opponent modelling.
     """
 
     def __init__(self, agent, player_name: str = "safe_q"):
@@ -73,7 +70,7 @@ class SafeQPlayer(PlayerTemplate):
         self.hands_played += 1
 
         print(
-            "[SafeQPlayer] "
+            "[SinglePolicyPlayer] "
             f"round={get_round_count(round_state)}, "
             f"stack={my_stack}, "
             f"reward_bb={reward_bb:.2f}, "
