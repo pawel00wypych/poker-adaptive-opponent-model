@@ -10,7 +10,7 @@ class GameConfig:
 
 @dataclass(frozen=True)
 class TrainingConfig:
-    episodes: int = 200
+    episodes: int = 2_000
     alpha: float = 0.1
     gamma: float = 0.9
     epsilon_start: float = 0.5
