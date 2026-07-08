@@ -1,22 +1,25 @@
 from src.agents.player_template import PlayerTemplate
+from src.agents.tracking_player_mixin import TrackingPlayerMixin
+from src.poker.round_state_utils import get_player_stack
 
 
-class RuleBasedPlayer(PlayerTemplate):
+class RuleBasedPlayer(TrackingPlayerMixin, PlayerTemplate):
     """
     Simple rule-based baseline.
 
     Strategy:
-    - fold to expensive calls,
-    - call/check cheap actions,
-    - rarely raise with minimum raise.
+    - check/call if free,
+    - fold expensive calls,
+    - sometimes min-raise,
+    - otherwise call cheap actions.
 
     This player does not use cards, opponent modelling or learning.
-    It is intentionally simple and interpretable.
     """
 
     def __init__(self, player_name: str = "rule_based"):
         super().__init__(player_name=player_name)
         self.action_counter = 0
+        self.reset_tracking()
 
     def declare_action(self, valid_actions, hole_card, round_state):
         self.action_counter += 1
@@ -27,15 +30,12 @@ class RuleBasedPlayer(PlayerTemplate):
 
         call_amount = call_action["amount"] if call_action else 0
 
-        # If checking is free, check/call.
         if call_action and call_amount == 0:
             return "call", 0
 
-        # Fold expensive calls.
         if call_amount >= 30 and fold_action:
             return "fold", fold_action["amount"]
 
-        # Occasionally min-raise.
         if self.action_counter % 10 == 0 and raise_action is not None:
             amount = raise_action["amount"]
 
@@ -46,7 +46,6 @@ class RuleBasedPlayer(PlayerTemplate):
                 if min_raise is not None and max_raise is not None and min_raise != -1 and max_raise != -1:
                     return "raise", min_raise
 
-        # Default: call/check.
         if call_action:
             return "call", call_action["amount"]
 
@@ -55,6 +54,16 @@ class RuleBasedPlayer(PlayerTemplate):
 
         first = valid_actions[0]
         return first["action"], first["amount"]
+
+    def receive_game_start_message(self, game_info):
+        self.reset_tracking()
+
+    def receive_game_update_message(self, action, round_state):
+        pass
+
+    def receive_round_result_message(self, winners, hand_info, round_state):
+        current_stack = get_player_stack(round_state, self.uuid)
+        self.update_tracking_after_round(current_stack=current_stack, big_blind=10)
 
     @staticmethod
     def _find_action(valid_actions, action_name):
