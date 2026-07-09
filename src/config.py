@@ -20,7 +20,7 @@ class TrainingConfig:
 
 @dataclass(frozen=True)
 class EvaluationConfig:
-    games: int = 30
+    games: int = 120
     max_round: int = 100
     model_path: str = "results/models/monte_carlo_agent.pkl"
     output_path: str = "results/raw/evaluation_results.csv"
