@@ -99,6 +99,7 @@ class StateEncoder:
             "tight": 3,
             "balanced": 4,
             "random": 5,
+            "calling": 6,
         }
 
         return mapping.get(opponent_type, 0)

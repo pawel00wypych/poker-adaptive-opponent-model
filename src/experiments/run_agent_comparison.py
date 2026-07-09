@@ -7,7 +7,7 @@ from src.agents.fish_player import FishPlayer
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.agents.rule_based_player import RuleBasedPlayer
 from src.agents.single_policy_player import SinglePolicyPlayer
-from src.config import GameConfig, TrainingConfig
+from src.config import GameConfig, TrainingConfig, EvaluationConfig
 from src.evaluation.result_logger import ResultLogger
 
 
@@ -96,7 +96,12 @@ def run_single_game(
 
 
 def run_agent_comparison() -> None:
-    game_config = GameConfig(max_round=100, initial_stack=100, small_blind_amount=5)
+    game_config = GameConfig(
+        max_round=100,
+        initial_stack=100,
+        small_blind_amount=5
+    )
+    evaluation_config = EvaluationConfig()
     logger = ResultLogger(OUTPUT_PATH)
 
     tested_agents = [
@@ -111,7 +116,7 @@ def run_agent_comparison() -> None:
         "calling",
     ]
 
-    games_per_matchup = 30
+    games_per_matchup = evaluation_config.games
 
     game_id = 0
 
