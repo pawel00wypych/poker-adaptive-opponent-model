@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 
@@ -15,10 +16,34 @@ def calculate_bb_per_100(results_csv_path: str) -> pd.DataFrame:
             mean_hands_played=("hands_played", "mean"),
             min_hands_played=("hands_played", "min"),
             max_hands_played=("hands_played", "max"),
+            win_rate=("won_game", "mean"),
+            bust_rate=("busted", "mean"),
         )
         .reset_index()
     )
 
-    grouped["bb_per_100"] = grouped["total_profit_bb"] / grouped["total_hands"] * 100
+    grouped["bb_per_100"] = (
+        grouped["total_profit_bb"]
+        / grouped["total_hands"]
+        * 100
+    )
+
+    grouped["standard_error"] = (
+        grouped["std_profit_bb"]
+        / np.sqrt(grouped["games"])
+    )
+
+    grouped["ci_95_lower"] = (
+        grouped["mean_profit_bb"]
+        - 1.96 * grouped["standard_error"]
+    )
+
+    grouped["ci_95_upper"] = (
+        grouped["mean_profit_bb"]
+        + 1.96 * grouped["standard_error"]
+    )
+
+    grouped["win_rate"] *= 100
+    grouped["bust_rate"] *= 100
 
     return grouped
