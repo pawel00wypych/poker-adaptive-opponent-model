@@ -28,23 +28,38 @@ def build_opponent(opponent_name: str):
 
 
 def build_tested_player(agent_name: str):
-    if agent_name == "rule_based":
-        player = RuleBasedPlayer(player_name="rule_based")
-        return player
+    training_config = TrainingConfig()
 
-    if agent_name == "safe_mc":
-        mc_agent  = MonteCarloAgent.load(TrainingConfig().model_path)
-        mc_agent .eval()
-        player = SinglePolicyPlayer(agent=mc_agent , player_name="safe_mc")
-        return player
+    if agent_name == "rule_based":
+        return RuleBasedPlayer(
+            player_name="rule_based"
+        )
+
+    if agent_name == "single_policy_mc":
+        agent = MonteCarloAgent.load(
+            training_config.single_policy_model_path
+        )
+        agent.eval()
+
+        return SinglePolicyPlayer(
+            agent=agent,
+            player_name="single_policy_mc",
+        )
 
     if agent_name == "adaptive_mc":
-        mc_agent = MonteCarloAgent.load(TrainingConfig().model_path)
-        mc_agent.eval()
-        player = AdaptivePlayer(agent=mc_agent, player_name="adaptive_mc")
-        return player
+        agent = MonteCarloAgent.load(
+            training_config.adaptive_model_path
+        )
+        agent.eval()
 
-    raise ValueError(f"Unknown tested agent: {agent_name}")
+        return AdaptivePlayer(
+            agent=agent,
+            player_name="adaptive_mc",
+        )
+
+    raise ValueError(
+        f"Unknown tested agent: {agent_name}"
+    )
 
 
 def get_hands_played(player) -> int:
@@ -106,7 +121,7 @@ def run_agent_comparison() -> None:
 
     tested_agents = [
         "rule_based",
-        "safe_mc",
+        "single_policy_mc",
         "adaptive_mc",
     ]
 
