@@ -15,12 +15,20 @@ class TrainingConfig:
     epsilon_start: float = 0.5
     epsilon_min: float = 0.05
     epsilon_decay: float = 0.995
-    model_path: str = "results/models/monte_carlo_agent.pkl"
+    #model_path: str = "results/models/monte_carlo_agent.pkl"
+
+    adaptive_model_path: str = (
+        "results/models/monte_carlo_adaptive.pkl"
+    )
+
+    single_policy_model_path: str = (
+        "results/models/monte_carlo_single_policy.pkl"
+    )
 
 
 @dataclass(frozen=True)
 class EvaluationConfig:
     games: int = 120
     max_round: int = 100
-    model_path: str = "results/models/monte_carlo_agent.pkl"
-    output_path: str = "results/raw/evaluation_results.csv"
+    #model_path: str = "results/models/monte_carlo_agent.pkl"
+    output_path: str = "results/raw/agent_comparison_results.csv"
