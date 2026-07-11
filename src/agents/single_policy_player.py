@@ -9,14 +9,26 @@ class SinglePolicyPlayer(PlayerTemplate):
     Poker player using one shared policy without opponent modelling.
     """
 
-    def __init__(self, agent, player_name: str = "safe_q"):
+    def __init__(
+            self,
+            agent,
+            player_name: str = "single_policy",
+            verbose: bool = False,
+            log_interval: int = 1,
+    ):
         super().__init__(player_name=player_name)
 
+        if log_interval <= 0:
+            raise ValueError("log_interval must be greater than zero")
+
         self.agent = agent
+        self.verbose = verbose
+        self.log_interval = log_interval
+
         self.initial_stack: int | None = None
         self.previous_stack: int | None = None
-        self.hands_played: int = 0
-        self.total_reward_bb: float = 0.0
+        self.hands_played = 0
+        self.total_reward_bb = 0.0
 
     def declare_action(self, valid_actions, hole_card, round_state):
         my_stack = get_player_stack(round_state, self.uuid)
@@ -69,10 +81,14 @@ class SinglePolicyPlayer(PlayerTemplate):
         self.previous_stack = my_stack
         self.hands_played += 1
 
-        print(
-            "[SinglePolicyPlayer] "
-            f"round={get_round_count(round_state)}, "
-            f"stack={my_stack}, "
-            f"reward_bb={reward_bb:.2f}, "
-            f"total_reward_bb={self.total_reward_bb:.2f}"
-        )
+        if (
+                self.verbose
+                and self.hands_played % self.log_interval == 0
+        ):
+            print(
+                "[SinglePolicyPlayer] "
+                f"round={get_round_count(round_state)}, "
+                f"stack={my_stack}, "
+                f"reward_bb={reward_bb:.2f}, "
+                f"total_reward_bb={self.total_reward_bb:.2f}"
+            )

@@ -154,3 +154,14 @@ def test_single_policy_player_resets_tracking_on_game_start():
     assert player.total_reward_bb == 0.0
     assert player.previous_stack is None
     assert player.initial_stack is None
+
+def test_single_policy_player_accepts_verbose_flag():
+    agent = MonteCarloAgent(epsilon=0.0)
+
+    player = SinglePolicyPlayer(
+        agent=agent,
+        player_name="single_policy_mc",
+        verbose=True,
+    )
+
+    assert player.verbose is True

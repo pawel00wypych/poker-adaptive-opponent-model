@@ -7,23 +7,33 @@ from src.poker.round_state_utils import get_player_stack, get_round_count
 
 
 class AdaptivePlayer(PlayerTemplate):
-    def __init__(self, agent, player_name: str = "adaptive_player"):
+    def __init__(
+            self,
+            agent,
+            player_name: str = "adaptive_player",
+            verbose: bool = False,
+            log_interval: int = 1,
+    ):
         super().__init__(player_name=player_name)
 
+        if log_interval <= 0:
+            raise ValueError("log_interval must be greater than zero")
+
         self.agent = agent
+        self.verbose = verbose
+        self.log_interval = log_interval
 
         self.opponent_stats = OpponentStats()
-        self.classifier = RuleBasedOpponentClassifier(min_actions=5)
+        self.classifier = RuleBasedOpponentClassifier(
+            min_actions=5,
+        )
 
         self.initial_stack: int | None = None
         self.previous_stack: int | None = None
 
-        self.hands_played: int = 0
-        self.total_reward_bb: float = 0.0
-        self.current_opponent_type: str = "unknown"
-
-        self.last_state: tuple | None = None
-        self.last_action_id: int | None = None
+        self.hands_played = 0
+        self.total_reward_bb = 0.0
+        self.current_opponent_type = "unknown"
 
     def declare_action(self, valid_actions, hole_card, round_state):
         my_stack = get_player_stack(round_state, self.uuid)
@@ -88,12 +98,16 @@ class AdaptivePlayer(PlayerTemplate):
 
         self.opponent_stats.finish_hand()
 
-        print(
-            "[AdaptivePlayer] "
-            f"round={get_round_count(round_state)}, "
-            f"stack={my_stack}, "
-            f"reward_bb={reward_bb:.2f}, "
-            f"total_reward_bb={self.total_reward_bb:.2f}, "
-            f"opponent_type={self.current_opponent_type}, "
-            f"stats={self.opponent_stats.as_dict()}"
-        )
+        if (
+                self.verbose
+                and self.hands_played % self.log_interval == 0
+        ):
+            print(
+                "[AdaptivePlayer] "
+                f"round={get_round_count(round_state)}, "
+                f"stack={my_stack}, "
+                f"reward_bb={reward_bb:.2f}, "
+                f"total_reward_bb={self.total_reward_bb:.2f}, "
+                f"opponent_type={self.current_opponent_type}, "
+                f"stats={self.opponent_stats.as_dict()}"
+            )
