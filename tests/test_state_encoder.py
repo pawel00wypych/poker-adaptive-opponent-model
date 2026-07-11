@@ -1,3 +1,4 @@
+from src.features.hand_strength_encoder import HandStrengthEncoder
 from src.features.preflop_hand_encoder import PreflopHandEncoder
 from src.features.state_encoder import StateEncoder
 
@@ -62,7 +63,7 @@ def test_flop_state_encoding_with_aggressive_opponent():
 
     assert state == (
         1,
-        PreflopHandEncoder.SPECULATIVE,
+        HandStrengthEncoder.HIGH_CARD,
         1,
         2,
         2,
@@ -130,7 +131,7 @@ def test_state_encoding_with_free_check():
 
     assert state == (
         2,
-        PreflopHandEncoder.STRONG,
+        HandStrengthEncoder.HIGH_CARD,
         1,
         1,
         0,
@@ -164,7 +165,7 @@ def test_state_encoding_on_river():
 
     assert state == (
         3,
-        PreflopHandEncoder.MEDIUM,
+        HandStrengthEncoder.ONE_PAIR,
         0,
         3,
         3,
