@@ -1,6 +1,7 @@
 from typing import Any
 
 from src.features.preflop_hand_encoder import PreflopHandEncoder
+from src.features.hand_strength_encoder import HandStrengthEncoder
 
 
 class StateEncoder:
@@ -13,7 +14,7 @@ class StateEncoder:
         opponent_type: str = "unknown",
     ) -> tuple:
         street = StateEncoder._street(round_state)
-        hand_bucket = PreflopHandEncoder.encode(hole_cards)
+        hand_bucket = HandStrengthEncoder.encode(hole_cards, round_state.get("community_card", []))
         pot_bucket = StateEncoder._pot_bucket(round_state)
         stack_bucket = StateEncoder._stack_bucket(player_stack)
         call_bucket = StateEncoder._call_amount_bucket(valid_actions)
