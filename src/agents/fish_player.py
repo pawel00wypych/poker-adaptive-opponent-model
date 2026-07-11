@@ -11,7 +11,6 @@ class FishPlayer(PlayerTemplate):
 
         player_hand_info = EvaluatorInterface.evaluate(hole_card,
                                                        round_state['community_card'])
-        print(f"{self.player_name} -> {hole_card}  score = {player_hand_info['score']}")
         rand_num = random.random() * 100 + 1 # [1, 101)
 
         if round_state["street"] == "preflop":
