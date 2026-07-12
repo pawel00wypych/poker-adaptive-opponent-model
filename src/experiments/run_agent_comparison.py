@@ -11,9 +11,6 @@ from src.config import GameConfig, TrainingConfig, EvaluationConfig
 from src.evaluation.result_logger import ResultLogger
 
 
-OUTPUT_PATH = "results/raw/agent_comparison_results.csv"
-
-
 def build_opponent(opponent_name: str):
     if opponent_name == "fish":
         return FishPlayer(player_name="fish")
@@ -111,13 +108,9 @@ def run_single_game(
 
 
 def run_agent_comparison() -> None:
-    game_config = GameConfig(
-        max_round=100,
-        initial_stack=100,
-        small_blind_amount=5
-    )
+    game_config = GameConfig()
     evaluation_config = EvaluationConfig()
-    logger = ResultLogger(OUTPUT_PATH)
+    logger = ResultLogger(evaluation_config.output_path)
 
     tested_agents = [
         "rule_based",
@@ -150,7 +143,7 @@ def run_agent_comparison() -> None:
 
             print(f"Finished matchup: {tested_agent} vs {opponent}")
 
-    print(f"Saved comparison results to {OUTPUT_PATH}")
+    print(f"Saved comparison results to {evaluation_config.output_path}")
 
 
 if __name__ == "__main__":
