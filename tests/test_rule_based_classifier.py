@@ -34,7 +34,7 @@ def test_classifier_detects_fish_opponent():
 
 def test_classifier_detects_tight_opponent():
     classifier = RuleBasedOpponentClassifier(min_actions=5)
-    stats = build_stats(["fold", "fold", "fold", "fold", "call"])
+    stats = build_stats(["fold", "fold", "fold", "fold", "call", "raise"])
 
     assert classifier.classify(stats) == "tight"
 
