@@ -145,6 +145,33 @@ def run_agent_comparison() -> None:
 
     print(f"Saved comparison results to {evaluation_config.output_path}")
 
+def load_eval_agent(
+    model_path: str,
+) -> MonteCarloAgent:
+    agent = MonteCarloAgent.load(
+        model_path
+    )
+    agent.eval()
+    return agent
+
+
+def load_adaptive_agents(
+    training_config: TrainingConfig,
+) -> dict[str, MonteCarloAgent]:
+    return {
+        "unknown": load_eval_agent(
+            training_config.single_policy_model_path
+        ),
+        "fish": load_eval_agent(
+            training_config.fish_model_path
+        ),
+        "aggressive": load_eval_agent(
+            training_config.aggressive_model_path
+        ),
+        "calling": load_eval_agent(
+            training_config.calling_model_path
+        ),
+    }
 
 if __name__ == "__main__":
     run_agent_comparison()
