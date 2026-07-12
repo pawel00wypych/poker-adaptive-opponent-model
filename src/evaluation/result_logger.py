@@ -16,11 +16,20 @@ class ResultLogger:
             "profit",
             "profit_bb",
             "hands_played",
+            "won_game",
+            "busted",
         ]
 
         if not self.output_path.exists():
-            with open(self.output_path, "w", newline="", encoding="utf-8") as file:
-                writer = csv.DictWriter(file, fieldnames=self.fieldnames)
+            with self.output_path.open(
+                "w",
+                newline="",
+                encoding="utf-8",
+            ) as file:
+                writer = csv.DictWriter(
+                    file,
+                    fieldnames=self.fieldnames,
+                )
                 writer.writeheader()
 
     def log_game(
@@ -45,8 +54,17 @@ class ResultLogger:
             "profit": profit,
             "profit_bb": profit_bb,
             "hands_played": hands_played,
+            "won_game": int(final_stack > initial_stack),
+            "busted": int(final_stack == 0),
         }
 
-        with open(self.output_path, "a", newline="", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=self.fieldnames)
+        with self.output_path.open(
+            "a",
+            newline="",
+            encoding="utf-8",
+        ) as file:
+            writer = csv.DictWriter(
+                file,
+                fieldnames=self.fieldnames,
+            )
             writer.writerow(row)
