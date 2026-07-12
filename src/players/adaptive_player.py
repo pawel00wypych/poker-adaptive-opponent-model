@@ -94,6 +94,8 @@ class AdaptivePlayer(PlayerTemplate):
 
         self.first_classification_hand: int | None = None
         self.first_correct_classification_hand: int | None = None
+        self.first_classification_action_count: int | None = None
+        self.first_correct_classification_action_count: int | None = None
 
     def declare_action(
         self,
@@ -169,10 +171,11 @@ class AdaptivePlayer(PlayerTemplate):
             valid_actions,
         )
 
-        active_agent.remember(
-            state,
-            action_id,
-        )
+        if active_agent.training:
+            active_agent.remember(
+                state,
+                action_id,
+            )
 
         if self.verbose:
             print(
@@ -218,6 +221,11 @@ class AdaptivePlayer(PlayerTemplate):
                 self.hands_played + 1
             )
 
+        if self.first_classification_action_count is None:
+            self.first_classification_action_count = (
+                self.opponent_stats.total_actions
+            )
+
         if self.expected_opponent_type is None:
             return
 
@@ -230,6 +238,14 @@ class AdaptivePlayer(PlayerTemplate):
             ):
                 self.first_correct_classification_hand = (
                     self.hands_played + 1
+                )
+
+            if (
+                self.first_correct_classification_action_count
+                is None
+            ):
+                self.first_correct_classification_action_count = (
+                    self.opponent_stats.total_actions
                 )
         else:
             self.incorrect_classifications += 1
@@ -333,9 +349,10 @@ class AdaptivePlayer(PlayerTemplate):
             self.active_policy_type
         ]
 
-        active_agent.learn_from_episode(
-            reward_bb
-        )
+        if active_agent.training:
+            active_agent.learn_from_episode(
+                reward_bb
+            )
 
         self.total_reward_bb += reward_bb
         self.previous_stack = my_stack
