@@ -1,4 +1,4 @@
-from src.agents.player_template import PlayerTemplate
+from src.players.player_template import PlayerTemplate
 from src.features.state_encoder import StateEncoder
 from src.poker.action_mapper import ActionMapper
 from src.poker.round_state_utils import get_player_stack, get_round_count

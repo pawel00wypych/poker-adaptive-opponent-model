@@ -1,4 +1,4 @@
-from src.agents.tracking_player_mixin import TrackingPlayerMixin
+from src.players.tracking_player_mixin import TrackingPlayerMixin
 
 
 class DummyTrackedPlayer(TrackingPlayerMixin):

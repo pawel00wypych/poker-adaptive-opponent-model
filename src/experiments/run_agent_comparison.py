@@ -1,12 +1,12 @@
 from PyPokerEngine.pypokerengine.api.game import setup_config, start_poker
 
-from src.agents.adaptive_player import AdaptivePlayer
-from src.agents.aggressive_player import AggressivePlayer
-from src.agents.calling_player import CallingPlayer
-from src.agents.fish_player import FishPlayer
+from src.players.adaptive_player import AdaptivePlayer
+from src.players.aggressive_player import AggressivePlayer
+from src.players.calling_player import CallingPlayer
+from src.players.fish_player import FishPlayer
 from src.agents.monte_carlo_agent import MonteCarloAgent
-from src.agents.rule_based_player import RuleBasedPlayer
-from src.agents.single_policy_player import SinglePolicyPlayer
+from src.players.rule_based_player import RuleBasedPlayer
+from src.players.single_policy_player import SinglePolicyPlayer
 from src.config import GameConfig, TrainingConfig, EvaluationConfig
 from src.evaluation.result_logger import ResultLogger
 

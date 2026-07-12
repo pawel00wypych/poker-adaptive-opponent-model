@@ -6,7 +6,7 @@ from PyPokerEngine.pypokerengine.api.game import (
     start_poker,
 )
 
-from src.agents.adaptive_player import AdaptivePlayer
+from src.players.adaptive_player import AdaptivePlayer
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.config import GameConfig, TrainingConfig
 from src.experiments.cli_utils import parse_training_args

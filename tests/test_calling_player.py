@@ -1,4 +1,4 @@
-from src.agents.calling_player import CallingPlayer
+from src.players.calling_player import CallingPlayer
 
 
 def test_calling_player_calls_when_call_available():

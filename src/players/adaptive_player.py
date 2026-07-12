@@ -1,4 +1,4 @@
-from src.agents.player_template import PlayerTemplate
+from src.players.player_template import PlayerTemplate
 from src.features.opponent_stats import OpponentStats
 from src.features.state_encoder import StateEncoder
 from src.opponent_model.rule_based_classifier import RuleBasedOpponentClassifier

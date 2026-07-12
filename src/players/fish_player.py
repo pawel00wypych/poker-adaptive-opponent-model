@@ -1,4 +1,4 @@
-from src.agents.player_template import PlayerTemplate
+from src.players.player_template import PlayerTemplate
 from src.cards.evaluator_Interface import EvaluatorInterface
 import random
 

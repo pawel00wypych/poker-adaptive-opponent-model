@@ -1,5 +1,5 @@
-from src.agents.player_template import PlayerTemplate
-from src.agents.tracking_player_mixin import TrackingPlayerMixin
+from src.players.player_template import PlayerTemplate
+from src.players.tracking_player_mixin import TrackingPlayerMixin
 from src.poker.round_state_utils import get_player_stack
 
 
