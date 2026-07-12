@@ -4,7 +4,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class GameConfig:
     max_round: int = 100
-    initial_stack: int = 100
+    initial_stack: int = 200
     small_blind_amount: int = 5
 
 
