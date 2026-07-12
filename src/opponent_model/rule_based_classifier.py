@@ -24,7 +24,8 @@ class RuleBasedOpponentClassifier:
         if stats.call_rate >= 0.50 and stats.fold_rate >= 0.30:
             return "fish"
 
-        if stats.fold_rate >= 0.55:
+        if (stats.fold_rate >= 0.55 and stats.raise_rate >= 0.10 and
+                stats.call_rate <= 0.25):
             return "tight"
 
         return 'balanced'
