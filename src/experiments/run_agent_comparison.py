@@ -131,7 +131,7 @@ def run_agent_comparison() -> None:
         "calling",
     ]
 
-    games_per_matchup = evaluation_config.games
+    games_per_matchup = evaluation_config.games_per_matchup
 
     game_id = 0
 

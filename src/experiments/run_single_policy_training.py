@@ -85,15 +85,12 @@ def run_single_policy_training(
 
         start_poker(
             config,
-            verbose=1 if verbose else 0,
+            verbose=1 if engine_verbose else 0,
         )
 
         episode_duration = perf_counter() - episode_start
 
-        if (
-            verbose
-            and (episode + 1) % log_interval == 0
-        ):
+        if progress and (episode + 1) % log_interval == 0:
             elapsed = perf_counter() - training_start
             completed = episode + 1
             average_episode_time = elapsed / completed
