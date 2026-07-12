@@ -1,3 +1,5 @@
+import pytest
+
 from src.features.hand_strength_encoder import HandStrengthEncoder
 from src.features.preflop_hand_encoder import PreflopHandEncoder
 from src.features.state_encoder import StateEncoder
@@ -203,4 +205,37 @@ def test_state_encoding_without_call_action():
         0,
         0,
         5,
+    )
+
+def test_state_encoder_rejects_unknown_opponent_type():
+    with pytest.raises(
+        ValueError,
+        match="Unsupported opponent type",
+    ):
+        StateEncoder._opponent_type_id(
+            "calling_station"
+        )
+
+
+@pytest.mark.parametrize(
+    ("opponent_type", "expected_id"),
+    [
+        ("unknown", 0),
+        ("fish", 1),
+        ("aggressive", 2),
+        ("tight", 3),
+        ("balanced", 4),
+        ("random", 5),
+        ("calling", 6),
+    ],
+)
+def test_state_encoder_maps_supported_opponent_types(
+    opponent_type,
+    expected_id,
+):
+    assert (
+        StateEncoder._opponent_type_id(
+            opponent_type
+        )
+        == expected_id
     )

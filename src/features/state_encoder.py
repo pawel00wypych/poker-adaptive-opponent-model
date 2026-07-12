@@ -92,7 +92,9 @@ class StateEncoder:
         return 3
 
     @staticmethod
-    def _opponent_type_id(opponent_type: str) -> int:
+    def _opponent_type_id(
+            opponent_type: str,
+    ) -> int:
         mapping = {
             "unknown": 0,
             "fish": 1,
@@ -103,4 +105,9 @@ class StateEncoder:
             "calling": 6,
         }
 
-        return mapping.get(opponent_type, 0)
+        if opponent_type not in mapping:
+            raise ValueError(
+                f"Unsupported opponent type: {opponent_type}"
+            )
+
+        return mapping[opponent_type]
