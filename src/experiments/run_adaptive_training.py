@@ -33,11 +33,7 @@ def run_adaptive_training(
     engine_verbose: bool = False,
     log_interval: int = 100,
 ) -> None:
-    game_config = GameConfig(
-        max_round=100,
-        initial_stack=100,
-        small_blind_amount=5,
-    )
+    game_config = GameConfig()
     training_config = TrainingConfig()
 
     agent = MonteCarloAgent(
