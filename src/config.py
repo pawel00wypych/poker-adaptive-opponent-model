@@ -27,6 +27,5 @@ class TrainingConfig:
 
 @dataclass(frozen=True)
 class EvaluationConfig:
-    games: int = 120
-    max_round: int = 100
+    games_per_matchup: int = 200 # games per every agent vs opponent
     output_path: str = "results/raw/agent_comparison_results.csv"
