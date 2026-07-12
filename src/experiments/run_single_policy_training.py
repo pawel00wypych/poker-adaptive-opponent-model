@@ -7,7 +7,7 @@ from PyPokerEngine.pypokerengine.api.game import (
 )
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
-from src.agents.single_policy_player import (
+from src.players.single_policy_player import (
     SinglePolicyPlayer,
 )
 from src.config import GameConfig, TrainingConfig

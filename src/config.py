@@ -16,16 +16,25 @@ class TrainingConfig:
     epsilon_min: float = 0.05
     epsilon_decay: float = 0.995
 
-    adaptive_model_path: str = (
-        "results/models/monte_carlo_adaptive.pkl"
-    )
-
     single_policy_model_path: str = (
         "results/models/monte_carlo_single_policy.pkl"
     )
 
+    fish_model_path: str = (
+        "results/models/monte_carlo_vs_fish.pkl"
+    )
+
+    aggressive_model_path: str = (
+        "results/models/monte_carlo_vs_aggressive.pkl"
+    )
+
+    calling_model_path: str = (
+        "results/models/monte_carlo_vs_calling.pkl"
+    )
+
+
 
 @dataclass(frozen=True)
 class EvaluationConfig:
-    games_per_matchup: int = 200 # games per every agent vs opponent
+    games_per_matchup: int = 200
     output_path: str = "results/raw/agent_comparison_results.csv"

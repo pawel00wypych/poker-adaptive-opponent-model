@@ -1,6 +1,6 @@
-from src.agents.aggressive_player import AggressivePlayer
-from src.agents.calling_player import CallingPlayer
-from src.agents.fish_player import FishPlayer
+from src.players.aggressive_player import AggressivePlayer
+from src.players.calling_player import CallingPlayer
+from src.players.fish_player import FishPlayer
 
 
 def build_training_opponent(episode: int):

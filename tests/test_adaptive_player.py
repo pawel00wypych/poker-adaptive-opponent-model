@@ -1,6 +1,6 @@
 import pytest
 
-from src.agents.adaptive_player import AdaptivePlayer
+from src.players.adaptive_player import AdaptivePlayer
 from src.agents.monte_carlo_agent import MonteCarloAgent
 
 
