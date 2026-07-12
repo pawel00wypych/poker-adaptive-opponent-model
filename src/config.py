@@ -14,7 +14,7 @@ class TrainingConfig:
     alpha: float = 0.1
     epsilon_start: float = 0.5
     epsilon_min: float = 0.05
-    epsilon_decay: float = 0.995
+    epsilon_decay: float = 0.9995
 
     single_policy_model_path: str = (
         "results/models/monte_carlo_single_policy.pkl"
