@@ -40,7 +40,6 @@ def run_adaptive_training(
         alpha=training_config.alpha,
         epsilon=training_config.epsilon_start,
         epsilon_min=training_config.epsilon_min,
-        epsilon_decay=training_config.epsilon_decay,
     )
     agent.train()
 

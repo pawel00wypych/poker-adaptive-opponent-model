@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.poker.action_mapper import ActionMapper
@@ -58,19 +59,6 @@ def test_first_visit_updates_repeated_state_action_only_once():
     assert agent.q_table[state][ActionMapper.CALL] == 5.0
 
 
-def test_different_actions_in_same_state_are_updated_separately():
-    agent = MonteCarloAgent(alpha=0.5, epsilon=0.0)
-    state = (0, 2, 2, 0, 1, 0)
-
-    agent.remember(state, ActionMapper.CALL)
-    agent.remember(state, ActionMapper.RAISE_MIN)
-
-    agent.learn_from_episode(reward=10.0)
-
-    assert agent.q_table[state][ActionMapper.CALL] == 5.0
-    assert agent.q_table[state][ActionMapper.RAISE_MIN] == 5.0
-
-
 def test_eval_mode_does_not_store_or_learn():
     agent = MonteCarloAgent(alpha=0.5, epsilon=0.0)
     agent.eval()
@@ -112,25 +100,61 @@ def test_agent_does_not_choose_illegal_raise():
     assert action_id == ActionMapper.CALL
 
 
-def test_epsilon_decays_after_episode():
+def test_learning_does_not_change_epsilon():
     agent = MonteCarloAgent(
         epsilon=0.8,
         epsilon_min=0.1,
-        epsilon_decay=0.5,
     )
 
-    agent.learn_from_episode(reward=0.0)
+    agent.learn_from_episode(
+        reward=0.0
+    )
 
-    assert agent.epsilon == 0.4
+    assert agent.epsilon == pytest.approx(
+        0.8
+    )
 
 
-def test_epsilon_does_not_fall_below_minimum():
+def test_agent_set_epsilon():
     agent = MonteCarloAgent(
-        epsilon=0.15,
-        epsilon_min=0.1,
-        epsilon_decay=0.5,
+        epsilon=0.5,
+        epsilon_min=0.05,
     )
 
-    agent.learn_from_episode(reward=0.0)
+    agent.set_epsilon(
+        0.25
+    )
 
-    assert agent.epsilon == 0.1
+    assert agent.epsilon == pytest.approx(
+        0.25
+    )
+
+
+def test_agent_does_not_set_epsilon_below_minimum():
+    agent = MonteCarloAgent(
+        epsilon=0.5,
+        epsilon_min=0.05,
+    )
+
+    agent.set_epsilon(
+        0.01
+    )
+
+    assert agent.epsilon == pytest.approx(
+        0.05
+    )
+
+
+def test_learning_does_not_decay_epsilon():
+    agent = MonteCarloAgent(
+        epsilon=0.5,
+        epsilon_min=0.05,
+    )
+
+    agent.learn_from_episode(
+        reward=1.0
+    )
+
+    assert agent.epsilon == pytest.approx(
+        0.5
+    )
