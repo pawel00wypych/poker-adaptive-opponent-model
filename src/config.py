@@ -10,11 +10,21 @@ class GameConfig:
 
 @dataclass(frozen=True)
 class TrainingConfig:
-    episodes: int = 5_000
+    episodes: int = 7_500
     alpha: float = 0.1
+
     epsilon_start: float = 0.5
     epsilon_min: float = 0.05
-    epsilon_decay: float = 0.9995
+    epsilon_schedule: str = "linear"
+
+    default_seed: int = 42
+
+    checkpoint_episodes: tuple[int, ...] = (
+        1_000,
+        2_500,
+        5_000,
+        7_500,
+    )
 
     single_policy_model_path: str = (
         "results/models/monte_carlo_single_policy.pkl"
@@ -29,7 +39,11 @@ class TrainingConfig:
     )
 
     calling_model_path: str = (
-        "results/models/monte_carlo_vs_calling.pkl"
+        "results/models/checkpoints/monte_carlo_vs_calling_episodes_7500_seed_42.pkl"
+    )
+
+    checkpoint_directory: str = (
+        "results/models/checkpoints"
     )
 
 

@@ -65,7 +65,6 @@ def eval_agent() -> MonteCarloAgent:
         alpha=0.1,
         epsilon=0.0,
         epsilon_min=0.0,
-        epsilon_decay=1.0,
     )
     agent.eval()
 
@@ -78,7 +77,6 @@ def training_agent() -> MonteCarloAgent:
         alpha=0.1,
         epsilon=0.0,
         epsilon_min=0.0,
-        epsilon_decay=1.0,
     )
     agent.train()
 
@@ -99,7 +97,6 @@ def adaptive_agents() -> dict[str, MonteCarloAgent]:
             alpha=0.1,
             epsilon=0.0,
             epsilon_min=0.0,
-            epsilon_decay=1.0,
         )
         agent.eval()
         agents[opponent_type] = agent
