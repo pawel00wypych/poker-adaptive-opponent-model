@@ -350,3 +350,82 @@ def test_build_result_row_calculates_profit_fields(
     assert row["model_seed"] == 42
     assert row["checkpoint_episode"] == 5000
     assert row["final_predicted_type"] == "calling"
+
+
+from src.evaluation.checkpoint_evaluator import (
+    CROSS_POLICY_AGENT_TO_POLICY_TYPE,
+    SUPPORTED_TESTED_AGENTS,
+    get_classifier_metrics,
+)
+from src.players.fixed_policy_player import FixedPolicyPlayer
+from src.players.oracle_adaptive_player import OracleAdaptivePlayer
+
+
+def test_supported_agents_include_oracle_and_cross_policy_agents():
+    assert "oracle_adaptive" in SUPPORTED_TESTED_AGENTS
+    assert "policy_unknown" in SUPPORTED_TESTED_AGENTS
+    assert "policy_fish" in SUPPORTED_TESTED_AGENTS
+    assert "policy_aggressive" in SUPPORTED_TESTED_AGENTS
+    assert "policy_calling" in SUPPORTED_TESTED_AGENTS
+
+
+def test_cross_policy_agent_mapping():
+    assert (
+        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_unknown"]
+        == "unknown"
+    )
+    assert (
+        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_fish"]
+        == "fish"
+    )
+    assert (
+        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_aggressive"]
+        == "aggressive"
+    )
+    assert (
+        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_calling"]
+        == "calling"
+    )
+
+
+def test_oracle_classifier_metrics_are_perfect(
+    adaptive_agents,
+):
+    player = OracleAdaptivePlayer(
+        agents=adaptive_agents,
+        oracle_opponent_type="calling",
+    )
+
+    metrics = get_classifier_metrics(
+        player
+    )
+
+    assert metrics["classified_decisions"] == 1
+    assert metrics["correct_classifications"] == 1
+    assert metrics["incorrect_classifications"] == 0
+    assert metrics["unknown_classifications"] == 0
+    assert metrics["classifier_accuracy"] == 1.0
+    assert metrics["classifier_coverage"] == 1.0
+    assert metrics["policy_switches"] == 0
+    assert metrics["final_predicted_type"] == "calling"
+
+
+def test_fixed_policy_classifier_metrics_are_empty(
+    eval_agent,
+):
+    player = FixedPolicyPlayer(
+        agent=eval_agent,
+        policy_type="calling",
+    )
+
+    metrics = get_classifier_metrics(
+        player
+    )
+
+    assert metrics["classified_decisions"] == 0
+    assert metrics["correct_classifications"] == 0
+    assert metrics["incorrect_classifications"] == 0
+    assert metrics["unknown_classifications"] == 0
+    assert metrics["classifier_accuracy"] == 0.0
+    assert metrics["classifier_coverage"] == 0.0
+    assert metrics["final_predicted_type"] == ""

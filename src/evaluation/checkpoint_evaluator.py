@@ -16,6 +16,8 @@ from src.experiments.training_opponents import build_opponent
 from src.players.adaptive_player import AdaptivePlayer
 from src.players.rule_based_player import RuleBasedPlayer
 from src.players.single_policy_player import SinglePolicyPlayer
+from src.players.fixed_policy_player import FixedPolicyPlayer
+from src.players.oracle_adaptive_player import OracleAdaptivePlayer
 
 
 MODEL_DIRECTORIES = {
@@ -36,6 +38,18 @@ SUPPORTED_TESTED_AGENTS = {
     "rule_based",
     "single_policy_mc",
     "adaptive_mc",
+    "oracle_adaptive",
+    "policy_unknown",
+    "policy_fish",
+    "policy_aggressive",
+    "policy_calling",
+}
+
+CROSS_POLICY_AGENT_TO_POLICY_TYPE = {
+    "policy_unknown": "unknown",
+    "policy_fish": "fish",
+    "policy_aggressive": "aggressive",
+    "policy_calling": "calling",
 }
 
 SUPPORTED_OPPONENTS = {
@@ -312,6 +326,30 @@ def build_tested_player(
             verbose=False,
         )
 
+    if tested_agent_name == "oracle_adaptive":
+        return OracleAdaptivePlayer(
+            agents=load_adaptive_agents(bundle),
+            oracle_opponent_type=opponent_name,
+            player_name="oracle_adaptive",
+            verbose=False,
+        )
+
+    if tested_agent_name in CROSS_POLICY_AGENT_TO_POLICY_TYPE:
+        policy_type = CROSS_POLICY_AGENT_TO_POLICY_TYPE[
+            tested_agent_name
+        ]
+
+        agent = load_eval_agent(
+            bundle.agent_paths()[policy_type]
+        )
+
+        return FixedPolicyPlayer(
+            agent=agent,
+            policy_type=policy_type,
+            player_name=tested_agent_name,
+            verbose=False,
+        )
+
     raise ValueError(
         f"Unsupported tested agent: {tested_agent_name}"
     )
@@ -337,61 +375,79 @@ def get_hands_played(player) -> int:
 
 
 def get_classifier_metrics(player) -> dict:
-    if not isinstance(player, AdaptivePlayer):
+    if isinstance(player, AdaptivePlayer):
         return {
-            "classified_decisions": 0,
-            "correct_classifications": 0,
+            "classified_decisions": (
+                player.classified_decisions
+            ),
+            "correct_classifications": (
+                player.correct_classifications
+            ),
+            "incorrect_classifications": (
+                player.incorrect_classifications
+            ),
+            "unknown_classifications": (
+                player.unknown_classifications
+            ),
+            "classifier_accuracy": (
+                player.classifier_accuracy
+            ),
+            "classifier_coverage": (
+                player.classifier_coverage
+            ),
+            "policy_switches": player.policy_switches,
+            "first_classification_hand": (
+                player.first_classification_hand
+            ),
+            "first_correct_classification_hand": (
+                player.first_correct_classification_hand
+            ),
+            "first_classification_action_count": getattr(
+                player,
+                "first_classification_action_count",
+                None,
+            ),
+            "first_correct_classification_action_count": getattr(
+                player,
+                "first_correct_classification_action_count",
+                None,
+            ),
+            "final_predicted_type": (
+                player.final_predicted_type
+            ),
+        }
+
+    if isinstance(player, OracleAdaptivePlayer):
+        return {
+            "classified_decisions": 1,
+            "correct_classifications": 1,
             "incorrect_classifications": 0,
             "unknown_classifications": 0,
-            "classifier_accuracy": 0.0,
-            "classifier_coverage": 0.0,
+            "classifier_accuracy": 1.0,
+            "classifier_coverage": 1.0,
             "policy_switches": 0,
-            "first_classification_hand": None,
-            "first_correct_classification_hand": None,
-            "first_classification_action_count": None,
-            "first_correct_classification_action_count": None,
-            "final_predicted_type": "",
+            "first_classification_hand": 1,
+            "first_correct_classification_hand": 1,
+            "first_classification_action_count": 0,
+            "first_correct_classification_action_count": 0,
+            "final_predicted_type": (
+                player.final_predicted_type
+            ),
         }
 
     return {
-        "classified_decisions": (
-            player.classified_decisions
-        ),
-        "correct_classifications": (
-            player.correct_classifications
-        ),
-        "incorrect_classifications": (
-            player.incorrect_classifications
-        ),
-        "unknown_classifications": (
-            player.unknown_classifications
-        ),
-        "classifier_accuracy": (
-            player.classifier_accuracy
-        ),
-        "classifier_coverage": (
-            player.classifier_coverage
-        ),
-        "policy_switches": player.policy_switches,
-        "first_classification_hand": (
-            player.first_classification_hand
-        ),
-        "first_correct_classification_hand": (
-            player.first_correct_classification_hand
-        ),
-        "first_classification_action_count": getattr(
-            player,
-            "first_classification_action_count",
-            None,
-        ),
-        "first_correct_classification_action_count": getattr(
-            player,
-            "first_correct_classification_action_count",
-            None,
-        ),
-        "final_predicted_type": (
-            player.final_predicted_type
-        ),
+        "classified_decisions": 0,
+        "correct_classifications": 0,
+        "incorrect_classifications": 0,
+        "unknown_classifications": 0,
+        "classifier_accuracy": 0.0,
+        "classifier_coverage": 0.0,
+        "policy_switches": 0,
+        "first_classification_hand": None,
+        "first_correct_classification_hand": None,
+        "first_classification_action_count": None,
+        "first_correct_classification_action_count": None,
+        "final_predicted_type": "",
     }
 
 
