@@ -79,6 +79,7 @@ def build_training_metadata(
     total_episodes: int,
     seed: int,
     epsilon_schedule: str,
+    alpha_mode: str,
     agent: MonteCarloAgent,
     game_config: GameConfig,
     duration_seconds: float,
@@ -103,6 +104,7 @@ def build_training_metadata(
         "total_planned_episodes": total_episodes,
         "seed": seed,
         "epsilon_schedule": epsilon_schedule,
+        "alpha_mode": alpha_mode,
         "current_epsilon": agent.epsilon,
         "alpha": agent.alpha,
         "epsilon_min": agent.epsilon_min,
@@ -126,6 +128,7 @@ def run_specialist_training(
     episodes: int | None = None,
     seed: int | None = None,
     epsilon_schedule: str | None = None,
+    alpha_mode: str | None = None,
     output_path: str | None = None,
     checkpoint_directory: str | None = None,
     checkpoint_episodes: Iterable[int] | None = None,
@@ -168,6 +171,12 @@ def run_specialist_training(
         else training_config.epsilon_schedule
     )
 
+    selected_alpha_mode = (
+        alpha_mode
+        if alpha_mode is not None
+        else training_config.alpha_mode
+    )
+
     final_model_path = (
         output_path
         if output_path is not None
@@ -197,6 +206,7 @@ def run_specialist_training(
         alpha=training_config.alpha,
         epsilon=training_config.epsilon_start,
         epsilon_min=training_config.epsilon_min,
+        alpha_mode=selected_alpha_mode,
     )
     agent.train()
 
@@ -377,6 +387,7 @@ def run_specialist_training(
                     epsilon_schedule=(
                         selected_epsilon_schedule
                     ),
+                    alpha_mode=selected_alpha_mode,
                     agent=agent,
                     game_config=game_config,
                     duration_seconds=elapsed,
@@ -418,6 +429,7 @@ def run_specialist_training(
             epsilon_schedule=(
                 selected_epsilon_schedule
             ),
+            alpha_mode=selected_alpha_mode,
             agent=agent,
             game_config=game_config,
             duration_seconds=(
@@ -465,6 +477,7 @@ def run_specialist_training(
         f"seed={training_seed}\n"
         f"epsilon_schedule="
         f"{selected_epsilon_schedule}\n"
+        f"alpha_mode={selected_alpha_mode}\n"
         f"final_epsilon="
         f"{agent.epsilon:.6f}\n"
         f"duration="
@@ -496,6 +509,7 @@ if __name__ == "__main__":
         epsilon_schedule=(
             args.epsilon_schedule
         ),
+        alpha_mode=args.alpha_mode,
         output_path=args.output_path,
         checkpoint_directory=(
             args.checkpoint_directory

@@ -1,6 +1,9 @@
+import math
 import pickle
 import random
+from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -19,11 +22,18 @@ class MonteCarloAgent:
     automatically decayed after each poker hand.
     """
 
+    SUPPORTED_ALPHA_MODES = {
+        "constant",
+        "visit_count",
+        "sqrt_visit",
+    }
+
     def __init__(
         self,
         alpha: float = 0.1,
         epsilon: float = 0.5,
         epsilon_min: float = 0.05,
+        alpha_mode: str = "constant",
     ):
         if not 0 < alpha <= 1:
             raise ValueError(
@@ -40,19 +50,28 @@ class MonteCarloAgent:
                 "epsilon_min must be in range [0, 1]"
             )
 
+        if alpha_mode not in self.SUPPORTED_ALPHA_MODES:
+            raise ValueError(
+                f"Unsupported alpha_mode: {alpha_mode}"
+            )
+
         self.alpha = alpha
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
+        self.alpha_mode = alpha_mode
 
-        self.q_table: dict[
-            tuple,
-            np.ndarray,
-        ] = {}
+        self.q_table = defaultdict(
+            lambda: np.zeros(
+                ActionMapper.NUM_ACTIONS,
+                dtype=float,
+            )
+        )
 
-        self.episode: list[
-            tuple[tuple, int]
-        ] = []
+        self.visit_counts = defaultdict(
+            lambda: [0] * ActionMapper.NUM_ACTIONS
+        )
 
+        self.episode: list[tuple[tuple, int]] = []
         self.training = True
 
     def train(self) -> None:
@@ -143,9 +162,7 @@ class MonteCarloAgent:
             self.episode.clear()
             return
 
-        visited: set[
-            tuple[tuple, int]
-        ] = set()
+        visited: set[tuple[tuple, int]] = set()
 
         for state, action_id in self.episode:
             state_action = (
@@ -162,13 +179,20 @@ class MonteCarloAgent:
                 state
             )
 
+            self.visit_counts[state][action_id] += 1
+
+            learning_rate = self._learning_rate(
+                state,
+                action_id,
+            )
+
             old_value = (
                 self.q_table[state][action_id]
             )
 
             self.q_table[state][action_id] = (
                 old_value
-                + self.alpha
+                + learning_rate
                 * (reward - old_value)
             )
 
@@ -178,11 +202,58 @@ class MonteCarloAgent:
         self,
         state: tuple,
     ) -> None:
-        if state not in self.q_table:
-            self.q_table[state] = np.zeros(
-                ActionMapper.NUM_ACTIONS,
-                dtype=float,
+        _ = self.q_table[state]
+        _ = self.visit_counts[state]
+
+    def _learning_rate(
+        self,
+        state: tuple,
+        action_id: int,
+    ) -> float:
+        if self.alpha_mode == "constant":
+            return self.alpha
+
+        visits = self.visit_counts[state][action_id]
+
+        if visits <= 0:
+            raise ValueError(
+                "visit count must be positive before "
+                "calculating visit-count alpha"
             )
+
+        if self.alpha_mode == "visit_count":
+            return 1.0 / visits
+
+        if self.alpha_mode == "sqrt_visit":
+            return 1.0 / math.sqrt(visits)
+
+        raise ValueError(
+            f"Unsupported alpha_mode: {self.alpha_mode}"
+        )
+
+    @staticmethod
+    def _to_plain_q_table(
+        q_table: dict,
+    ) -> dict[tuple, list[float]]:
+        return {
+            tuple(state): [
+                float(value)
+                for value in values
+            ]
+            for state, values in q_table.items()
+        }
+
+    @staticmethod
+    def _to_plain_visit_counts(
+        visit_counts: dict,
+    ) -> dict[tuple, list[int]]:
+        return {
+            tuple(state): [
+                int(value)
+                for value in values
+            ]
+            for state, values in visit_counts.items()
+        }
 
     def save(
         self,
@@ -200,10 +271,16 @@ class MonteCarloAgent:
             "algorithm": (
                 "first_visit_monte_carlo_control"
             ),
-            "q_table": self.q_table,
+            "q_table": self._to_plain_q_table(
+                self.q_table
+            ),
+            "visit_counts": self._to_plain_visit_counts(
+                self.visit_counts
+            ),
             "epsilon": self.epsilon,
             "alpha": self.alpha,
             "epsilon_min": self.epsilon_min,
+            "alpha_mode": self.alpha_mode,
             "metadata": metadata or {},
         }
 
@@ -235,15 +312,56 @@ class MonteCarloAgent:
                 file
             )
 
+        if not isinstance(payload, dict):
+            raise TypeError(
+                "Unsupported Monte Carlo model payload: "
+                f"{type(payload)}"
+            )
+
         agent = cls(
-            alpha=payload["alpha"],
-            epsilon=payload["epsilon"],
-            epsilon_min=(
-                payload["epsilon_min"]
+            alpha=payload.get("alpha", 0.1),
+            epsilon=payload.get("epsilon", 0.0),
+            epsilon_min=payload.get(
+                "epsilon_min",
+                0.05,
+            ),
+            alpha_mode=payload.get(
+                "alpha_mode",
+                "constant",
             ),
         )
 
-        agent.q_table = payload["q_table"]
+        q_table = payload.get(
+            "q_table",
+            {},
+        )
+
+        agent.q_table.update(
+            {
+                tuple(state): np.array(
+                    values,
+                    dtype=float,
+                )
+                for state, values in q_table.items()
+            }
+        )
+
+        visit_counts = payload.get(
+            "visit_counts",
+            {},
+        )
+
+        agent.visit_counts.update(
+            {
+                tuple(state): [
+                    int(value)
+                    for value in values
+                ]
+                for state, values in visit_counts.items()
+            }
+        )
+
+        agent.eval()
 
         return agent
 
@@ -265,6 +383,9 @@ class MonteCarloAgent:
             payload = pickle.load(
                 file
             )
+
+        if not isinstance(payload, dict):
+            return {}
 
         return payload.get(
             "metadata",

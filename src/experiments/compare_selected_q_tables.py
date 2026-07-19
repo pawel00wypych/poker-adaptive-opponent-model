@@ -26,9 +26,39 @@ def parse_args() -> argparse.Namespace:
         required=True,
         type=str,
         help=(
-            "For example: "
-            "results/training_runs/state_v2_linear_4000"
+            "Directory with training run checkpoints, for example: "
+            "results/training_runs/state_v2_linear_2000_sqrt_visit"
         ),
+    )
+
+    parser.add_argument(
+        "--unknown-checkpoint",
+        type=int,
+        default=4000,
+        help="Checkpoint episode for policy_unknown models.",
+    )
+
+    parser.add_argument(
+        "--calling-checkpoint",
+        type=int,
+        default=4000,
+        help="Checkpoint episode for policy_calling models.",
+    )
+
+    parser.add_argument(
+        "--unknown-seeds",
+        type=int,
+        nargs="+",
+        default=[42, 456],
+        help="Seeds for policy_unknown models.",
+    )
+
+    parser.add_argument(
+        "--calling-seeds",
+        type=int,
+        nargs="+",
+        default=[42, 456, 123],
+        help="Seeds for policy_calling models.",
     )
 
     parser.add_argument(
@@ -45,8 +75,17 @@ def parse_args() -> argparse.Namespace:
 
     args = parser.parse_args()
 
-    if args.top_n <= 0:
-        parser.error("--top-n must be greater than zero")
+    if args.unknown_checkpoint <= 0:
+        parser.error("--unknown-checkpoint must be greater than zero")
+
+    if args.calling_checkpoint <= 0:
+        parser.error("--calling-checkpoint must be greater than zero")
+
+    if any(seed < 0 for seed in args.unknown_seeds):
+        parser.error("--unknown-seeds must be non-negative")
+
+    if any(seed < 0 for seed in args.calling_seeds):
+        parser.error("--calling-seeds must be non-negative")
 
     return args
 
@@ -122,7 +161,14 @@ def main() -> None:
     args = parse_args()
 
     targets = build_selected_targets(
-        args.training_run_dir
+        training_run_directory=args.training_run_dir,
+        unknown_checkpoint_episode=args.unknown_checkpoint,
+        calling_checkpoint_episode=args.calling_checkpoint,
+        unknown_seeds=args.unknown_seeds,
+        calling_targets=[
+            (seed, args.calling_checkpoint)
+            for seed in args.calling_seeds
+        ],
     )
 
     validate_targets_exist(targets)

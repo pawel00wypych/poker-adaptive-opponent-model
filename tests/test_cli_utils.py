@@ -105,3 +105,36 @@ def test_training_args_reject_zero_player_log_interval(
         SystemExit,
     ):
         parse_training_args()
+
+def test_training_args_parse_alpha_mode(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "program",
+            "--alpha-mode",
+            "sqrt_visit",
+        ],
+    )
+
+    args = parse_training_args()
+
+    assert args.alpha_mode == "sqrt_visit"
+
+
+def test_specialist_args_parse_alpha_mode(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "program",
+            "--opponent",
+            "calling",
+            "--alpha-mode",
+            "visit_count",
+        ],
+    )
+
+    args = parse_specialist_training_args()
+
+    assert args.alpha_mode == "visit_count"

@@ -391,61 +391,65 @@ def find_largest_disagreements(
 
 def build_selected_targets(
     training_run_directory: str | Path,
+    unknown_checkpoint_episode: int,
+    calling_checkpoint_episode: int,
+    unknown_seeds: Iterable[int] = (42, 456),
+    calling_targets: Iterable[tuple[int, int]] | None = None,
 ) -> list[QTableTarget]:
     root = Path(training_run_directory)
 
-    return [
-        QTableTarget(
-            name="policy_unknown_seed_42_cp_4000",
-            path=(
-                root
-                / "seed_42"
-                / "single_policy"
-                / "checkpoints"
-                / "single_policy_episodes_4000_seed_42.pkl"
-            ),
-        ),
-        QTableTarget(
-            name="policy_unknown_seed_456_cp_4000",
-            path=(
-                root
-                / "seed_456"
-                / "single_policy"
-                / "checkpoints"
-                / "single_policy_episodes_4000_seed_456.pkl"
-            ),
-        ),
-        QTableTarget(
-            name="policy_calling_seed_42_cp_4000",
-            path=(
-                root
-                / "seed_42"
-                / "specialist_calling"
-                / "checkpoints"
-                / "specialist_calling_episodes_4000_seed_42.pkl"
-            ),
-        ),
-        QTableTarget(
-            name="policy_calling_seed_456_cp_4000",
-            path=(
-                root
-                / "seed_456"
-                / "specialist_calling"
-                / "checkpoints"
-                / "specialist_calling_episodes_4000_seed_456.pkl"
-            ),
-        ),
-        QTableTarget(
-            name="policy_calling_seed_123_cp_2500",
-            path=(
-                root
-                / "seed_123"
-                / "specialist_calling"
-                / "checkpoints"
-                / "specialist_calling_episodes_2500_seed_123.pkl"
-            ),
-        ),
-    ]
+    targets: list[QTableTarget] = []
+
+    for seed in unknown_seeds:
+        targets.append(
+            QTableTarget(
+                name=(
+                    f"policy_unknown_seed_{seed}"
+                    f"_cp_{unknown_checkpoint_episode}"
+                ),
+                path=(
+                    root
+                    / f"seed_{seed}"
+                    / "single_policy"
+                    / "checkpoints"
+                    / (
+                        "single_policy"
+                        f"_episodes_{unknown_checkpoint_episode}"
+                        f"_seed_{seed}.pkl"
+                    )
+                ),
+            )
+        )
+
+    if calling_targets is None:
+        calling_targets = (
+            (42, calling_checkpoint_episode),
+            (456, calling_checkpoint_episode),
+            (123, calling_checkpoint_episode),
+        )
+
+    for seed, checkpoint_episode in calling_targets:
+        targets.append(
+            QTableTarget(
+                name=(
+                    f"policy_calling_seed_{seed}"
+                    f"_cp_{checkpoint_episode}"
+                ),
+                path=(
+                    root
+                    / f"seed_{seed}"
+                    / "specialist_calling"
+                    / "checkpoints"
+                    / (
+                        "specialist_calling"
+                        f"_episodes_{checkpoint_episode}"
+                        f"_seed_{seed}.pkl"
+                    )
+                ),
+            )
+        )
+
+    return targets
 
 
 def validate_targets_exist(targets: Iterable[QTableTarget]) -> None:
