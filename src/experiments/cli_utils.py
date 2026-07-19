@@ -1,5 +1,11 @@
 import argparse
 
+from src.poker.constants import TRAINING_OPPONENT_TYPES
+from src.training.constants import (
+    SUPPORTED_ALPHA_MODES,
+    SUPPORTED_EPSILON_SCHEDULES,
+)
+
 
 def add_common_training_arguments(
     parser: argparse.ArgumentParser,
@@ -71,10 +77,7 @@ def add_common_training_arguments(
 
     parser.add_argument(
         "--epsilon-schedule",
-        choices=[
-            "linear",
-            "exponential",
-        ],
+        choices=SUPPORTED_EPSILON_SCHEDULES,
         default=None,
         help=(
             "Override the epsilon schedule "
@@ -84,11 +87,7 @@ def add_common_training_arguments(
 
     parser.add_argument(
         "--alpha-mode",
-        choices=[
-            "constant",
-            "visit_count",
-            "sqrt_visit",
-        ],
+        choices=SUPPORTED_ALPHA_MODES,
         default=None,
         help=(
             "Override the Monte Carlo alpha mode "
@@ -243,11 +242,7 @@ def parse_specialist_training_args(
     parser.add_argument(
         "--opponent",
         required=True,
-        choices=[
-            "fish",
-            "aggressive",
-            "calling",
-        ],
+        choices=TRAINING_OPPONENT_TYPES,
         help=(
             "Opponent type used during specialist "
             "training."

@@ -21,8 +21,25 @@ from src.config import (
 from src.evaluation.result_logger import (
     ResultLogger,
 )
+from src.experiments.constants import (
+    TESTED_AGENT_ADAPTIVE_MC,
+    TESTED_AGENT_RULE_BASED,
+    TESTED_AGENT_SINGLE_POLICY_MC,
+    TESTED_AGENTS,
+)
 from src.experiments.training_opponents import (
     build_opponent,
+)
+from src.players.constants import (
+    PLAYER_NAME_ADAPTIVE_MC,
+    PLAYER_NAME_SINGLE_POLICY_MC,
+)
+from src.poker.constants import (
+    OPPONENT_TYPE_AGGRESSIVE,
+    OPPONENT_TYPE_CALLING,
+    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_UNKNOWN,
+    TRAINING_OPPONENT_TYPES,
 )
 
 
@@ -41,16 +58,16 @@ def load_adaptive_agents(
     training_config: TrainingConfig,
 ) -> dict[str, MonteCarloAgent]:
     return {
-        "unknown": load_eval_agent(
+        OPPONENT_TYPE_UNKNOWN: load_eval_agent(
             training_config.single_policy_model_path
         ),
-        "fish": load_eval_agent(
+        OPPONENT_TYPE_FISH: load_eval_agent(
             training_config.fish_model_path
         ),
-        "aggressive": load_eval_agent(
+        OPPONENT_TYPE_AGGRESSIVE: load_eval_agent(
             training_config.aggressive_model_path
         ),
-        "calling": load_eval_agent(
+        OPPONENT_TYPE_CALLING: load_eval_agent(
             training_config.calling_model_path
         ),
     }
@@ -62,27 +79,27 @@ def build_tested_player(
 ):
     training_config = TrainingConfig()
 
-    if agent_name == "rule_based":
+    if agent_name == TESTED_AGENT_RULE_BASED:
         return RuleBasedPlayer(
-            player_name="rule_based"
+            player_name=TESTED_AGENT_RULE_BASED
         )
 
-    if agent_name == "single_policy_mc":
+    if agent_name == TESTED_AGENT_SINGLE_POLICY_MC:
         agent = load_eval_agent(
             training_config.single_policy_model_path
         )
 
         return SinglePolicyPlayer(
             agent=agent,
-            player_name="single_policy_mc",
+            player_name=PLAYER_NAME_SINGLE_POLICY_MC,
         )
 
-    if agent_name == "adaptive_mc":
+    if agent_name == TESTED_AGENT_ADAPTIVE_MC:
         return AdaptivePlayer(
             agents=load_adaptive_agents(
                 training_config
             ),
-            player_name="adaptive_mc",
+            player_name=PLAYER_NAME_ADAPTIVE_MC,
             expected_opponent_type=opponent_name,
             verbose=False,
         )
@@ -265,17 +282,8 @@ def run_agent_comparison() -> None:
         evaluation_config.output_path
     )
 
-    tested_agents = [
-        "rule_based",
-        "single_policy_mc",
-        "adaptive_mc",
-    ]
-
-    opponents = [
-        "fish",
-        "aggressive",
-        "calling",
-    ]
+    tested_agents = TESTED_AGENTS
+    opponents = TRAINING_OPPONENT_TYPES
 
     game_id = 0
 

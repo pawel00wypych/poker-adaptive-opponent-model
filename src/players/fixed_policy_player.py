@@ -1,10 +1,12 @@
 from src.features.state_encoder import StateEncoder
 from src.players.player_template import PlayerTemplate
 from src.poker.action_mapper import ActionMapper
+from src.poker.constants import POLICY_TYPES
 from src.poker.round_state_utils import (
     get_player_stack,
     get_round_count,
 )
+from src.players.constants import PLAYER_NAME_FIXED_POLICY
 
 
 class FixedPolicyPlayer(PlayerTemplate):
@@ -18,18 +20,13 @@ class FixedPolicyPlayer(PlayerTemplate):
         calling policy vs calling opponent
     """
 
-    SUPPORTED_POLICY_TYPES = {
-        "unknown",
-        "fish",
-        "aggressive",
-        "calling",
-    }
+    SUPPORTED_POLICY_TYPES = set(POLICY_TYPES)
 
     def __init__(
         self,
         agent,
         policy_type: str,
-        player_name: str = "fixed_policy",
+        player_name: str = PLAYER_NAME_FIXED_POLICY,
         verbose: bool = False,
         log_interval: int = 1,
     ):

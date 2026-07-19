@@ -6,6 +6,15 @@ from pathlib import Path
 from statistics import mean, median, pstdev
 from typing import Any, Iterable
 
+from src.evaluation.constants import (
+    CHECKPOINT_PREFIX_BY_POLICY_TYPE,
+    MODEL_DIRECTORY_BY_POLICY_TYPE,
+)
+from src.poker.constants import (
+    OPPONENT_TYPE_CALLING,
+    OPPONENT_TYPE_UNKNOWN,
+)
+
 
 ACTION_LABELS = {
     0: "fold",
@@ -399,6 +408,18 @@ def build_selected_targets(
     root = Path(training_run_directory)
 
     targets: list[QTableTarget] = []
+    unknown_directory = MODEL_DIRECTORY_BY_POLICY_TYPE[
+        OPPONENT_TYPE_UNKNOWN
+    ]
+    unknown_prefix = CHECKPOINT_PREFIX_BY_POLICY_TYPE[
+        OPPONENT_TYPE_UNKNOWN
+    ]
+    calling_directory = MODEL_DIRECTORY_BY_POLICY_TYPE[
+        OPPONENT_TYPE_CALLING
+    ]
+    calling_prefix = CHECKPOINT_PREFIX_BY_POLICY_TYPE[
+        OPPONENT_TYPE_CALLING
+    ]
 
     for seed in unknown_seeds:
         targets.append(
@@ -410,10 +431,10 @@ def build_selected_targets(
                 path=(
                     root
                     / f"seed_{seed}"
-                    / "single_policy"
+                    / unknown_directory
                     / "checkpoints"
                     / (
-                        "single_policy"
+                        f"{unknown_prefix}"
                         f"_episodes_{unknown_checkpoint_episode}"
                         f"_seed_{seed}.pkl"
                     )
@@ -438,10 +459,10 @@ def build_selected_targets(
                 path=(
                     root
                     / f"seed_{seed}"
-                    / "specialist_calling"
+                    / calling_directory
                     / "checkpoints"
                     / (
-                        "specialist_calling"
+                        f"{calling_prefix}"
                         f"_episodes_{checkpoint_episode}"
                         f"_seed_{seed}.pkl"
                     )

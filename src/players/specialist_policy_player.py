@@ -1,10 +1,12 @@
 from src.players.player_template import PlayerTemplate
 from src.features.state_encoder import StateEncoder
 from src.poker.action_mapper import ActionMapper
+from src.poker.constants import TRAINING_OPPONENT_TYPES
 from src.poker.round_state_utils import (
     get_player_stack,
     get_round_count,
 )
+from src.players.constants import PLAYER_NAME_SPECIALIST_MC
 
 
 class SpecialistPolicyPlayer(PlayerTemplate):
@@ -15,17 +17,13 @@ class SpecialistPolicyPlayer(PlayerTemplate):
     directly into every state.
     """
 
-    SUPPORTED_OPPONENT_TYPES = {
-        "fish",
-        "aggressive",
-        "calling",
-    }
+    SUPPORTED_OPPONENT_TYPES = set(TRAINING_OPPONENT_TYPES)
 
     def __init__(
         self,
         agent,
         opponent_type: str,
-        player_name: str = "specialist_mc",
+        player_name: str = PLAYER_NAME_SPECIALIST_MC,
         verbose: bool = False,
         log_interval: int = 1,
     ):

@@ -12,51 +12,24 @@ from PyPokerEngine.pypokerengine.api.game import (
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.config import GameConfig
+from src.evaluation.constants import (
+    CHECKPOINT_PREFIX_BY_POLICY_TYPE,
+    CROSS_POLICY_AGENT_TO_POLICY_TYPE,
+    MODEL_DIRECTORY_BY_POLICY_TYPE,
+    SUPPORTED_TESTED_AGENTS,
+)
 from src.experiments.training_opponents import build_opponent
 from src.players.adaptive_player import AdaptivePlayer
 from src.players.rule_based_player import RuleBasedPlayer
 from src.players.single_policy_player import SinglePolicyPlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.players.oracle_adaptive_player import OracleAdaptivePlayer
-
-
-MODEL_DIRECTORIES = {
-    "unknown": "single_policy",
-    "fish": "specialist_fish",
-    "aggressive": "specialist_aggressive",
-    "calling": "specialist_calling",
-}
-
-CHECKPOINT_PREFIXES = {
-    "unknown": "single_policy",
-    "fish": "specialist_fish",
-    "aggressive": "specialist_aggressive",
-    "calling": "specialist_calling",
-}
-
-SUPPORTED_TESTED_AGENTS = {
-    "rule_based",
-    "single_policy_mc",
-    "adaptive_mc",
-    "oracle_adaptive",
-    "policy_unknown",
-    "policy_fish",
-    "policy_aggressive",
-    "policy_calling",
-}
-
-CROSS_POLICY_AGENT_TO_POLICY_TYPE = {
-    "policy_unknown": "unknown",
-    "policy_fish": "fish",
-    "policy_aggressive": "aggressive",
-    "policy_calling": "calling",
-}
-
-SUPPORTED_OPPONENTS = {
-    "fish",
-    "aggressive",
-    "calling",
-}
+from src.poker.constants import (
+    OPPONENT_TYPE_AGGRESSIVE,
+    OPPONENT_TYPE_CALLING,
+    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_UNKNOWN,
+)
 
 
 @dataclass(frozen=True)
@@ -85,10 +58,10 @@ class ModelBundle:
 
     def agent_paths(self) -> dict[str, Path]:
         return {
-            "unknown": self.unknown_model_path,
-            "fish": self.fish_model_path,
-            "aggressive": self.aggressive_model_path,
-            "calling": self.calling_model_path,
+            OPPONENT_TYPE_UNKNOWN: self.unknown_model_path,
+            OPPONENT_TYPE_FISH: self.fish_model_path,
+            OPPONENT_TYPE_AGGRESSIVE: self.aggressive_model_path,
+            OPPONENT_TYPE_CALLING: self.calling_model_path,
         }
 
 
@@ -107,7 +80,7 @@ def checkpoint_filename(
     checkpoint_episode: int,
     seed: int,
 ) -> str:
-    prefix = CHECKPOINT_PREFIXES[policy_type]
+    prefix = CHECKPOINT_PREFIX_BY_POLICY_TYPE[policy_type]
 
     return (
         f"{prefix}"
@@ -122,7 +95,7 @@ def final_model_path(
 ) -> Path:
     return (
         seed_directory
-        / MODEL_DIRECTORIES[policy_type]
+        / MODEL_DIRECTORY_BY_POLICY_TYPE[policy_type]
         / "final.pkl"
     )
 
@@ -135,7 +108,7 @@ def checkpoint_model_path(
 ) -> Path:
     return (
         seed_directory
-        / MODEL_DIRECTORIES[policy_type]
+        / MODEL_DIRECTORY_BY_POLICY_TYPE[policy_type]
         / "checkpoints"
         / checkpoint_filename(
             policy_type=policy_type,
@@ -198,7 +171,7 @@ def build_model_bundle(
                 seed_directory=seed_directory,
                 policy_type=policy_type,
             )
-            for policy_type in MODEL_DIRECTORIES
+            for policy_type in MODEL_DIRECTORY_BY_POLICY_TYPE
         }
     else:
         paths = {
@@ -208,7 +181,7 @@ def build_model_bundle(
                 checkpoint_episode=checkpoint_episode,
                 seed=seed,
             )
-            for policy_type in MODEL_DIRECTORIES
+            for policy_type in MODEL_DIRECTORY_BY_POLICY_TYPE
         }
 
     missing_paths = [
@@ -232,10 +205,10 @@ def build_model_bundle(
         training_run_directory=root,
         seed=seed,
         checkpoint_episode=checkpoint_episode,
-        unknown_model_path=paths["unknown"],
-        fish_model_path=paths["fish"],
-        aggressive_model_path=paths["aggressive"],
-        calling_model_path=paths["calling"],
+        unknown_model_path=paths[OPPONENT_TYPE_UNKNOWN],
+        fish_model_path=paths[OPPONENT_TYPE_FISH],
+        aggressive_model_path=paths[OPPONENT_TYPE_AGGRESSIVE],
+        calling_model_path=paths[OPPONENT_TYPE_CALLING],
     )
 
 

@@ -1,5 +1,10 @@
 import math
 
+from src.training.constants import (
+    EPSILON_SCHEDULE_EXPONENTIAL,
+    EPSILON_SCHEDULE_LINEAR,
+)
+
 
 def linear_epsilon(
     episode: int,
@@ -94,8 +99,8 @@ def calculate_epsilon(
     epsilon_min: float,
 ) -> float:
     schedules = {
-        "linear": linear_epsilon,
-        "exponential": exponential_epsilon,
+        EPSILON_SCHEDULE_LINEAR: linear_epsilon,
+        EPSILON_SCHEDULE_EXPONENTIAL: exponential_epsilon,
     }
 
     if schedule not in schedules:

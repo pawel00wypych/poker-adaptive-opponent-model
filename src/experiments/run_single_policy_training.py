@@ -10,6 +10,7 @@ from PyPokerEngine.pypokerengine.api.game import (
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.config import GameConfig, TrainingConfig
+from src.experiments.constants import MODEL_TYPE_SINGLE_POLICY
 from src.experiments.cli_utils import parse_training_args
 from src.experiments.training_opponents import (
     build_training_opponent,
@@ -50,7 +51,7 @@ def build_metadata(
     opponent_counter: Counter,
 ) -> dict:
     return {
-        "model_type": "single_policy",
+        "model_type": MODEL_TYPE_SINGLE_POLICY,
         "opponent_type": "mixed",
         "completed_episodes": completed_episodes,
         "total_planned_episodes": total_episodes,
@@ -251,7 +252,7 @@ def run_single_policy_training(
                 checkpoint_directory=(
                     selected_checkpoint_directory
                 ),
-                model_name="single_policy",
+                model_name=MODEL_TYPE_SINGLE_POLICY,
                 completed_episodes=completed_episodes,
                 seed=training_seed,
             )

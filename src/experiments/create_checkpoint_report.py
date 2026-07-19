@@ -4,6 +4,8 @@ from src.evaluation.checkpoint_report import (
     write_checkpoint_html_report,
     write_checkpoint_markdown_report,
 )
+from src.evaluation.constants import SUPPORTED_TESTED_AGENTS
+from src.poker.constants import TRAINING_OPPONENT_TYPES
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -16,21 +18,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--opponent",
         default=None,
-        choices=["fish", "aggressive", "calling"],
+        choices=TRAINING_OPPONENT_TYPES,
     )
     parser.add_argument(
         "--agent",
         default=None,
-        choices=[
-            "rule_based",
-            "single_policy_mc",
-            "adaptive_mc",
-            "oracle_adaptive",
-            "policy_unknown",
-            "policy_fish",
-            "policy_aggressive",
-            "policy_calling",
-        ],
+        choices=sorted(SUPPORTED_TESTED_AGENTS),
     )
     parser.add_argument(
         "--format",

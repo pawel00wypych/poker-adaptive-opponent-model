@@ -14,12 +14,14 @@ from pathlib import Path
 from time import perf_counter
 from typing import Sequence
 
-
-MODEL_TYPES = (
-    "single_policy",
-    "fish",
-    "aggressive",
-    "calling",
+from src.experiments.constants import (
+    MODEL_TYPE_SINGLE_POLICY,
+    MODEL_TYPES,
+)
+from src.training.constants import (
+    ALPHA_MODE_CONSTANT,
+    SUPPORTED_ALPHA_MODES,
+    SUPPORTED_EPSILON_SCHEDULES,
 )
 
 
@@ -32,12 +34,12 @@ class TrainingJob:
     checkpoint_episodes: tuple[int, ...]
     experiment_directory: str
     log_interval: int
-    alpha_mode: str = "constant"
+    alpha_mode: str = ALPHA_MODE_CONSTANT
 
     @property
     def run_name(self) -> str:
-        if self.model_type == "single_policy":
-            return "single_policy"
+        if self.model_type == MODEL_TYPE_SINGLE_POLICY:
+            return MODEL_TYPE_SINGLE_POLICY
 
         return f"specialist_{self.model_type}"
 
@@ -124,21 +126,14 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--epsilon-schedule",
-        choices=[
-            "linear",
-            "exponential",
-        ],
-        default="linear",
+        choices=SUPPORTED_EPSILON_SCHEDULES,
+        default=SUPPORTED_EPSILON_SCHEDULES[0],
     )
 
     parser.add_argument(
         "--alpha-mode",
-        choices=[
-            "constant",
-            "visit_count",
-            "sqrt_visit",
-        ],
-        default="constant",
+        choices=SUPPORTED_ALPHA_MODES,
+        default=ALPHA_MODE_CONSTANT,
         help=(
             "Monte Carlo learning-rate mode. constant uses fixed alpha, "
             "visit_count uses 1/N(s,a), and sqrt_visit uses "
@@ -268,7 +263,7 @@ def build_command(job: TrainingJob) -> list[str]:
         "--no-engine-verbose",
     ]
 
-    if job.model_type == "single_policy":
+    if job.model_type == MODEL_TYPE_SINGLE_POLICY:
         return [
             sys.executable,
             "-m",
@@ -378,7 +373,7 @@ def build_jobs(
     experiment_directory: str,
     log_interval: int,
     rerun_existing: bool,
-    alpha_mode: str = "constant",
+    alpha_mode: str = ALPHA_MODE_CONSTANT,
 ) -> tuple[list[TrainingJob], list[TrainingJob]]:
     runnable: list[TrainingJob] = []
     skipped: list[TrainingJob] = []

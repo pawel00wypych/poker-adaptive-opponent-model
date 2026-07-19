@@ -2,8 +2,8 @@
 # Set the maximum line length to 88 (standard for Black-compatible formatting)
 line-length = 88
 
-# Assume Python 3.14 (change this to match your environment)
-target-version = "py314"
+# Match the project runtime documented in README.md.
+target-version = "py311"
 
 [tool.ruff.lint]
 # Select which rule sets to apply

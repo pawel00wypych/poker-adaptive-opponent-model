@@ -12,6 +12,7 @@ from src.players.specialist_policy_player import (
     SpecialistPolicyPlayer,
 )
 from src.config import GameConfig, TrainingConfig
+from src.experiments.constants import MODEL_TYPE_SPECIALIST
 from src.experiments.cli_utils import (
     parse_specialist_training_args,
 )
@@ -30,6 +31,11 @@ from src.training.random_utils import (
 )
 from src.training.training_metadata import (
     save_json,
+)
+from src.poker.constants import (
+    OPPONENT_TYPE_AGGRESSIVE,
+    OPPONENT_TYPE_CALLING,
+    OPPONENT_TYPE_FISH,
 )
 
 
@@ -56,11 +62,11 @@ def get_default_model_path(
     opponent_type: str,
 ) -> str:
     model_paths = {
-        "fish": training_config.fish_model_path,
-        "aggressive": (
+        OPPONENT_TYPE_FISH: training_config.fish_model_path,
+        OPPONENT_TYPE_AGGRESSIVE: (
             training_config.aggressive_model_path
         ),
-        "calling": (
+        OPPONENT_TYPE_CALLING: (
             training_config.calling_model_path
         ),
     }
@@ -98,7 +104,7 @@ def build_training_metadata(
     )
 
     return {
-        "model_type": "specialist",
+        "model_type": MODEL_TYPE_SPECIALIST,
         "opponent_type": opponent_type,
         "completed_episodes": completed_episodes,
         "total_planned_episodes": total_episodes,

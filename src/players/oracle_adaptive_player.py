@@ -3,10 +3,15 @@ from collections import Counter
 from src.features.state_encoder import StateEncoder
 from src.players.player_template import PlayerTemplate
 from src.poker.action_mapper import ActionMapper
+from src.poker.constants import (
+    POLICY_TYPES,
+    TRAINING_OPPONENT_TYPES,
+)
 from src.poker.round_state_utils import (
     get_player_stack,
     get_round_count,
 )
+from src.players.constants import PLAYER_NAME_ORACLE_ADAPTIVE
 
 
 class OracleAdaptivePlayer(PlayerTemplate):
@@ -19,24 +24,15 @@ class OracleAdaptivePlayer(PlayerTemplate):
     It does not use the classifier.
     """
 
-    REQUIRED_AGENTS = {
-        "unknown",
-        "fish",
-        "aggressive",
-        "calling",
-    }
+    REQUIRED_AGENTS = set(POLICY_TYPES)
 
-    SUPPORTED_ORACLE_TYPES = {
-        "fish",
-        "aggressive",
-        "calling",
-    }
+    SUPPORTED_ORACLE_TYPES = set(TRAINING_OPPONENT_TYPES)
 
     def __init__(
         self,
         agents: dict,
         oracle_opponent_type: str,
-        player_name: str = "oracle_adaptive",
+        player_name: str = PLAYER_NAME_ORACLE_ADAPTIVE,
         verbose: bool = False,
         log_interval: int = 1,
     ):

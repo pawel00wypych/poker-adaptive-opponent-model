@@ -3,6 +3,8 @@ import argparse
 from src.evaluation.checkpoint_metrics import (
     calculate_checkpoint_metrics,
 )
+from src.experiments.constants import TESTED_AGENTS
+from src.poker.constants import TRAINING_OPPONENT_TYPES
 
 
 def parse_args() -> argparse.Namespace:
@@ -23,9 +25,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         choices=[
-            "fish",
-            "aggressive",
-            "calling",
+            *TRAINING_OPPONENT_TYPES,
         ],
     )
 
@@ -33,11 +33,7 @@ def parse_args() -> argparse.Namespace:
         "--agent",
         type=str,
         default=None,
-        choices=[
-            "rule_based",
-            "single_policy_mc",
-            "adaptive_mc",
-        ],
+        choices=TESTED_AGENTS,
     )
 
     return parser.parse_args()

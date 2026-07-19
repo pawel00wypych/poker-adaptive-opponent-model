@@ -1,5 +1,10 @@
 from dataclasses import dataclass
 
+from src.training.constants import (
+    ALPHA_MODE_CONSTANT,
+    EPSILON_SCHEDULE_LINEAR,
+)
+
 
 @dataclass(frozen=True)
 class GameConfig:
@@ -12,11 +17,11 @@ class GameConfig:
 class TrainingConfig:
     episodes: int = 7_500
     alpha: float = 0.1
-    alpha_mode: str = "constant"
+    alpha_mode: str = ALPHA_MODE_CONSTANT
 
     epsilon_start: float = 0.5
     epsilon_min: float = 0.05
-    epsilon_schedule: str = "linear"
+    epsilon_schedule: str = EPSILON_SCHEDULE_LINEAR
 
     default_seed: int = 42
 
