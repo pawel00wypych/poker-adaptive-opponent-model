@@ -42,6 +42,7 @@ def build_metadata(
     total_episodes: int,
     seed: int,
     epsilon_schedule: str,
+    alpha_mode: str,
     agent: MonteCarloAgent,
     game_config: GameConfig,
     duration_seconds: float,
@@ -55,6 +56,7 @@ def build_metadata(
         "total_planned_episodes": total_episodes,
         "seed": seed,
         "epsilon_schedule": epsilon_schedule,
+        "alpha_mode": alpha_mode,
         "current_epsilon": agent.epsilon,
         "alpha": agent.alpha,
         "epsilon_min": agent.epsilon_min,
@@ -74,6 +76,7 @@ def run_single_policy_training(
     episodes: int | None = None,
     seed: int | None = None,
     epsilon_schedule: str | None = None,
+    alpha_mode: str | None = None,
     output_path: str | None = None,
     checkpoint_directory: str | None = None,
     checkpoint_episodes: Iterable[int] | None = None,
@@ -106,6 +109,12 @@ def run_single_policy_training(
         else training_config.epsilon_schedule
     )
 
+    selected_alpha_mode = (
+        alpha_mode
+        if alpha_mode is not None
+        else training_config.alpha_mode
+    )
+
     final_model_path = (
         output_path
         if output_path is not None
@@ -130,6 +139,7 @@ def run_single_policy_training(
         alpha=training_config.alpha,
         epsilon=training_config.epsilon_start,
         epsilon_min=training_config.epsilon_min,
+        alpha_mode=selected_alpha_mode,
     )
     agent.train()
 
@@ -251,6 +261,7 @@ def run_single_policy_training(
                 total_episodes=total_episodes,
                 seed=training_seed,
                 epsilon_schedule=selected_schedule,
+                alpha_mode=selected_alpha_mode,
                 agent=agent,
                 game_config=game_config,
                 duration_seconds=elapsed,
@@ -272,6 +283,7 @@ def run_single_policy_training(
         total_episodes=total_episodes,
         seed=training_seed,
         epsilon_schedule=selected_schedule,
+        alpha_mode=selected_alpha_mode,
         agent=agent,
         game_config=game_config,
         duration_seconds=training_duration,
@@ -298,6 +310,7 @@ def run_single_policy_training(
         f"episodes={total_episodes}\n"
         f"seed={training_seed}\n"
         f"epsilon_schedule={selected_schedule}\n"
+        f"alpha_mode={selected_alpha_mode}\n"
         f"final_epsilon={agent.epsilon:.6f}\n"
         f"duration={format_duration(training_duration)}\n"
         f"duration_seconds={training_duration:.3f}\n"
@@ -317,6 +330,7 @@ if __name__ == "__main__":
         episodes=args.episodes,
         seed=args.seed,
         epsilon_schedule=args.epsilon_schedule,
+        alpha_mode=args.alpha_mode,
         output_path=args.output_path,
         checkpoint_directory=(
             args.checkpoint_directory

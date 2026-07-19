@@ -32,6 +32,7 @@ class TrainingJob:
     checkpoint_episodes: tuple[int, ...]
     experiment_directory: str
     log_interval: int
+    alpha_mode: str = "constant"
 
     @property
     def run_name(self) -> str:
@@ -128,6 +129,21 @@ def parse_args() -> argparse.Namespace:
             "exponential",
         ],
         default="linear",
+    )
+
+    parser.add_argument(
+        "--alpha-mode",
+        choices=[
+            "constant",
+            "visit_count",
+            "sqrt_visit",
+        ],
+        default="constant",
+        help=(
+            "Monte Carlo learning-rate mode. constant uses fixed alpha, "
+            "visit_count uses 1/N(s,a), and sqrt_visit uses "
+            "1/sqrt(N(s,a))."
+        ),
     )
 
     parser.add_argument(
@@ -234,6 +250,8 @@ def build_command(job: TrainingJob) -> list[str]:
         str(job.seed),
         "--epsilon-schedule",
         job.epsilon_schedule,
+        "--alpha-mode",
+        job.alpha_mode,
         "--output-path",
         str(job.final_model_path),
         "--checkpoint-directory",
@@ -360,6 +378,7 @@ def build_jobs(
     experiment_directory: str,
     log_interval: int,
     rerun_existing: bool,
+    alpha_mode: str = "constant",
 ) -> tuple[list[TrainingJob], list[TrainingJob]]:
     runnable: list[TrainingJob] = []
     skipped: list[TrainingJob] = []
@@ -371,6 +390,7 @@ def build_jobs(
                 seed=seed,
                 episodes=episodes,
                 epsilon_schedule=epsilon_schedule,
+                alpha_mode=alpha_mode,
                 checkpoint_episodes=tuple(
                     sorted(
                         set(checkpoint_episodes)
@@ -408,6 +428,8 @@ def save_manifest(
                 "model_type": job.model_type,
                 "seed": job.seed,
                 "episodes": job.episodes,
+                "epsilon_schedule": job.epsilon_schedule,
+                "alpha_mode": job.alpha_mode,
                 "final_model_path": str(
                     job.final_model_path
                 ),
@@ -475,6 +497,7 @@ def main() -> None:
         seeds=args.seeds,
         episodes=args.episodes,
         epsilon_schedule=args.epsilon_schedule,
+        alpha_mode=args.alpha_mode,
         checkpoint_episodes=(
             args.checkpoint_episodes
         ),
@@ -504,6 +527,7 @@ def main() -> None:
         f"Models: {args.models}\n"
         f"Seeds: {args.seeds}\n"
         f"Episodes: {args.episodes}\n"
+        f"Alpha mode: {args.alpha_mode}\n"
         f"Checkpoints: "
         f"{sorted(set(args.checkpoint_episodes) | {args.episodes})}\n"
         f"Workers: {args.workers}\n"

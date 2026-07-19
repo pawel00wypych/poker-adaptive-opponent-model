@@ -124,7 +124,17 @@ def test_compare_q_tables_counts_action_agreement():
 
 
 def test_build_selected_targets_uses_expected_paths(tmp_path):
-    targets = build_selected_targets(tmp_path)
+    targets = build_selected_targets(
+        training_run_directory=tmp_path,
+        unknown_checkpoint_episode=2000,
+        calling_checkpoint_episode=2000,
+        unknown_seeds=[42, 456],
+        calling_targets=[
+            (42, 2000),
+            (456, 2000),
+            (123, 1500),
+        ],
+    )
 
     names = [
         target.name
@@ -132,11 +142,11 @@ def test_build_selected_targets_uses_expected_paths(tmp_path):
     ]
 
     assert names == [
-        "policy_unknown_seed_42_cp_4000",
-        "policy_unknown_seed_456_cp_4000",
-        "policy_calling_seed_42_cp_4000",
-        "policy_calling_seed_456_cp_4000",
-        "policy_calling_seed_123_cp_2500",
+        "policy_unknown_seed_42_cp_2000",
+        "policy_unknown_seed_456_cp_2000",
+        "policy_calling_seed_42_cp_2000",
+        "policy_calling_seed_456_cp_2000",
+        "policy_calling_seed_123_cp_1500",
     ]
 
     assert targets[0].path == (
@@ -144,7 +154,7 @@ def test_build_selected_targets_uses_expected_paths(tmp_path):
         / "seed_42"
         / "single_policy"
         / "checkpoints"
-        / "single_policy_episodes_4000_seed_42.pkl"
+        / "single_policy_episodes_2000_seed_42.pkl"
     )
 
     assert targets[4].path == (
@@ -152,16 +162,20 @@ def test_build_selected_targets_uses_expected_paths(tmp_path):
         / "seed_123"
         / "specialist_calling"
         / "checkpoints"
-        / "specialist_calling_episodes_2500_seed_123.pkl"
+        / "specialist_calling_episodes_1500_seed_123.pkl"
     )
 
 
 def test_validate_targets_exist_raises_for_missing_files(tmp_path):
-    targets = build_selected_targets(tmp_path)
+    targets = build_selected_targets(
+        training_run_directory=tmp_path,
+        unknown_checkpoint_episode=2000,
+        calling_checkpoint_episode=2000,
+    )
 
     with pytest.raises(
-        FileNotFoundError,
-        match="Missing Q-table model files",
+            FileNotFoundError,
+            match="Missing Q-table model files",
     ):
         validate_targets_exist(targets)
 

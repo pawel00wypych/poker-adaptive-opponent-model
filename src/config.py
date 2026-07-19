@@ -12,6 +12,7 @@ class GameConfig:
 class TrainingConfig:
     episodes: int = 7_500
     alpha: float = 0.1
+    alpha_mode: str = "constant"
 
     epsilon_start: float = 0.5
     epsilon_min: float = 0.05

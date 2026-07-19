@@ -159,3 +159,23 @@ def test_existing_final_model_is_skipped(
 
     assert runnable == []
     assert len(skipped) == 1
+
+def test_training_command_contains_alpha_mode(tmp_path):
+    job = TrainingJob(
+        model_type="calling",
+        seed=42,
+        episodes=4_000,
+        epsilon_schedule="linear",
+        alpha_mode="sqrt_visit",
+        checkpoint_episodes=(
+            500,
+            4_000,
+        ),
+        experiment_directory=str(tmp_path),
+        log_interval=1_000,
+    )
+
+    command = build_command(job)
+
+    alpha_mode_index = command.index("--alpha-mode")
+    assert command[alpha_mode_index + 1] == "sqrt_visit"

@@ -83,6 +83,22 @@ def add_common_training_arguments(
     )
 
     parser.add_argument(
+        "--alpha-mode",
+        choices=[
+            "constant",
+            "visit_count",
+            "sqrt_visit",
+        ],
+        default=None,
+        help=(
+            "Override the Monte Carlo alpha mode "
+            "from TrainingConfig. constant uses fixed alpha, "
+            "visit_count uses 1/N(s,a), and sqrt_visit "
+            "uses 1/sqrt(N(s,a))."
+        ),
+    )
+
+    parser.add_argument(
         "--checkpoints",
         action=argparse.BooleanOptionalAction,
         default=True,

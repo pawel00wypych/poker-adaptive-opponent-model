@@ -158,3 +158,222 @@ def test_learning_does_not_decay_epsilon():
     assert agent.epsilon == pytest.approx(
         0.5
     )
+
+def test_agent_rejects_unknown_alpha_mode():
+    with pytest.raises(
+        ValueError,
+        match="Unsupported alpha_mode",
+    ):
+        MonteCarloAgent(
+            alpha_mode="linear_decay",
+        )
+
+
+def test_constant_alpha_updates_visit_counts():
+    agent = MonteCarloAgent(
+        alpha=0.1,
+        epsilon=0.0,
+        alpha_mode="constant",
+    )
+
+    state = (0, 4, 0, 0, 3, 3, 0)
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.learn_from_episode(
+        reward=10.0,
+    )
+
+    assert agent.q_table[state][ActionMapper.CALL] == pytest.approx(
+        1.0
+    )
+    assert agent.visit_counts[state][ActionMapper.CALL] == 1
+
+
+def test_visit_count_alpha_uses_inverse_visit_count():
+    agent = MonteCarloAgent(
+        alpha=0.1,
+        epsilon=0.0,
+        alpha_mode="visit_count",
+    )
+
+    state = (0, 4, 0, 0, 3, 3, 0)
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.learn_from_episode(
+        reward=10.0,
+    )
+
+    assert agent.visit_counts[state][ActionMapper.CALL] == 1
+    assert agent.q_table[state][ActionMapper.CALL] == pytest.approx(
+        10.0
+    )
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.learn_from_episode(
+        reward=0.0,
+    )
+
+    assert agent.visit_counts[state][ActionMapper.CALL] == 2
+    assert agent.q_table[state][ActionMapper.CALL] == pytest.approx(
+        5.0
+    )
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.learn_from_episode(
+        reward=5.0,
+    )
+
+    assert agent.visit_counts[state][ActionMapper.CALL] == 3
+    assert agent.q_table[state][ActionMapper.CALL] == pytest.approx(
+        5.0
+    )
+
+
+def test_sqrt_visit_alpha_uses_inverse_square_root_visit_count():
+    agent = MonteCarloAgent(
+        alpha=0.1,
+        epsilon=0.0,
+        alpha_mode="sqrt_visit",
+    )
+
+    state = (0, 4, 0, 0, 3, 3, 0)
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.learn_from_episode(
+        reward=10.0,
+    )
+
+    assert agent.visit_counts[state][ActionMapper.CALL] == 1
+    assert agent.q_table[state][ActionMapper.CALL] == pytest.approx(
+        10.0
+    )
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.learn_from_episode(
+        reward=0.0,
+    )
+
+    expected = 10.0 + (1 / np.sqrt(2)) * (0.0 - 10.0)
+
+    assert agent.visit_counts[state][ActionMapper.CALL] == 2
+    assert agent.q_table[state][ActionMapper.CALL] == pytest.approx(
+        expected
+    )
+
+
+def test_visit_counts_are_tracked_per_state_action_pair():
+    agent = MonteCarloAgent(
+        alpha=0.1,
+        epsilon=0.0,
+        alpha_mode="visit_count",
+    )
+
+    state = (0, 4, 0, 0, 3, 3, 0)
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.learn_from_episode(
+        reward=10.0,
+    )
+
+    agent.remember(
+        state,
+        ActionMapper.RAISE_MIN,
+    )
+    agent.learn_from_episode(
+        reward=4.0,
+    )
+
+    assert agent.visit_counts[state][ActionMapper.CALL] == 1
+    assert agent.visit_counts[state][ActionMapper.RAISE_MIN] == 1
+    assert agent.q_table[state][ActionMapper.CALL] == pytest.approx(
+        10.0
+    )
+    assert agent.q_table[state][ActionMapper.RAISE_MIN] == pytest.approx(
+        4.0
+    )
+
+
+def test_first_visit_updates_visit_count_only_once_for_repeated_pair():
+    agent = MonteCarloAgent(
+        alpha=0.1,
+        epsilon=0.0,
+        alpha_mode="visit_count",
+    )
+
+    state = (0, 4, 0, 0, 3, 3, 0)
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.learn_from_episode(
+        reward=10.0,
+    )
+
+    assert agent.visit_counts[state][ActionMapper.CALL] == 1
+    assert agent.q_table[state][ActionMapper.CALL] == pytest.approx(
+        10.0
+    )
+
+
+def test_agent_save_and_load_preserves_alpha_mode_and_visit_counts(tmp_path):
+    path = tmp_path / "agent.pkl"
+
+    agent = MonteCarloAgent(
+        alpha=0.1,
+        epsilon=0.0,
+        epsilon_min=0.05,
+        alpha_mode="sqrt_visit",
+    )
+
+    state = (0, 4, 0, 0, 3, 3, 0)
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.learn_from_episode(
+        reward=10.0,
+    )
+
+    agent.save(
+        str(path),
+        metadata={"test": True},
+    )
+
+    loaded = MonteCarloAgent.load(
+        str(path)
+    )
+
+    assert loaded.training is False
+    assert loaded.alpha_mode == "sqrt_visit"
+    assert loaded.visit_counts[state][ActionMapper.CALL] == 1
+    assert loaded.q_table[state][ActionMapper.CALL] == pytest.approx(
+        10.0
+    )
+    assert MonteCarloAgent.load_metadata(str(path)) == {"test": True}
