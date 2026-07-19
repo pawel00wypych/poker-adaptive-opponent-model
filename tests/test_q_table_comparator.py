@@ -174,8 +174,8 @@ def test_validate_targets_exist_raises_for_missing_files(tmp_path):
     )
 
     with pytest.raises(
-            FileNotFoundError,
-            match="Missing Q-table model files",
+        FileNotFoundError,
+        match="Missing Q-table model files",
     ):
         validate_targets_exist(targets)
 
