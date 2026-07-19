@@ -8,12 +8,13 @@ from src.evaluation.q_table_comparator import (
     find_largest_disagreements,
     load_q_table,
     save_json,
+    strip_opponent_type,
     summarize_q_table,
-    validate_targets_exist, strip_opponent_type,
+    validate_targets_exist,
 )
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Compare selected Q-tables for policy_unknown and "
@@ -73,7 +74,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.unknown_checkpoint <= 0:
         parser.error("--unknown-checkpoint must be greater than zero")
@@ -86,6 +87,9 @@ def parse_args() -> argparse.Namespace:
 
     if any(seed < 0 for seed in args.calling_seeds):
         parser.error("--calling-seeds must be non-negative")
+
+    if args.top_n <= 0:
+        parser.error("--top-n must be greater than zero")
 
     return args
 

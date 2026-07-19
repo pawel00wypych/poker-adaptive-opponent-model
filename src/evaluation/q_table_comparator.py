@@ -391,8 +391,8 @@ def find_largest_disagreements(
 
 def build_selected_targets(
     training_run_directory: str | Path,
-    unknown_checkpoint_episode: int,
-    calling_checkpoint_episode: int,
+    unknown_checkpoint_episode: int = 4000,
+    calling_checkpoint_episode: int = 4000,
     unknown_seeds: Iterable[int] = (42, 456),
     calling_targets: Iterable[tuple[int, int]] | None = None,
 ) -> list[QTableTarget]:
@@ -425,7 +425,7 @@ def build_selected_targets(
         calling_targets = (
             (42, calling_checkpoint_episode),
             (456, calling_checkpoint_episode),
-            (123, calling_checkpoint_episode),
+            (123, 2500 if calling_checkpoint_episode == 4000 else calling_checkpoint_episode),
         )
 
     for seed, checkpoint_episode in calling_targets:
@@ -450,7 +450,6 @@ def build_selected_targets(
         )
 
     return targets
-
 
 def validate_targets_exist(targets: Iterable[QTableTarget]) -> None:
     missing = [
