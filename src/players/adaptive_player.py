@@ -7,10 +7,15 @@ from src.opponent_model.rule_based_classifier import (
     RuleBasedOpponentClassifier,
 )
 from src.poker.action_mapper import ActionMapper
+from src.poker.constants import (
+    OPPONENT_TYPE_UNKNOWN,
+    POLICY_TYPES,
+)
 from src.poker.round_state_utils import (
     get_player_stack,
     get_round_count,
 )
+from src.players.constants import PLAYER_NAME_ADAPTIVE_MC
 
 
 class AdaptivePlayer(PlayerTemplate):
@@ -18,21 +23,16 @@ class AdaptivePlayer(PlayerTemplate):
     Adaptive player selecting a specialist policy based on the
     classified opponent type.
 
-    Before classification, the general policy identified as "unknown"
+    Before classification, the general policy identified as unknown
     is used.
     """
 
-    REQUIRED_AGENTS = {
-        "unknown",
-        "fish",
-        "aggressive",
-        "calling",
-    }
+    REQUIRED_AGENTS = set(POLICY_TYPES)
 
     def __init__(
         self,
         agents: dict,
-        player_name: str = "adaptive_mc",
+        player_name: str = PLAYER_NAME_ADAPTIVE_MC,
         expected_opponent_type: str | None = None,
         verbose: bool = False,
         log_interval: int = 1,
@@ -79,8 +79,8 @@ class AdaptivePlayer(PlayerTemplate):
         self.hands_played = 0
         self.total_reward_bb = 0.0
 
-        self.current_opponent_type = "unknown"
-        self.active_policy_type = "unknown"
+        self.current_opponent_type = OPPONENT_TYPE_UNKNOWN
+        self.active_policy_type = OPPONENT_TYPE_UNKNOWN
 
         self.classification_counts = Counter()
         self.policy_usage_counts = Counter()
@@ -200,7 +200,7 @@ class AdaptivePlayer(PlayerTemplate):
         if predicted_type in self.agents:
             return predicted_type
 
-        return "unknown"
+        return OPPONENT_TYPE_UNKNOWN
 
     def _record_classification(
         self,
@@ -210,7 +210,7 @@ class AdaptivePlayer(PlayerTemplate):
             predicted_type
         ] += 1
 
-        if predicted_type == "unknown":
+        if predicted_type == OPPONENT_TYPE_UNKNOWN:
             self.unknown_classifications += 1
             return
 
@@ -293,8 +293,8 @@ class AdaptivePlayer(PlayerTemplate):
         self.hands_played = 0
         self.total_reward_bb = 0.0
 
-        self.current_opponent_type = "unknown"
-        self.active_policy_type = "unknown"
+        self.current_opponent_type = OPPONENT_TYPE_UNKNOWN
+        self.active_policy_type = OPPONENT_TYPE_UNKNOWN
 
         self.opponent_stats = OpponentStats()
 

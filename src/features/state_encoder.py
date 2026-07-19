@@ -6,6 +6,10 @@ from src.features.hand_strength_encoder import (
 from src.features.poker_context_encoder import (
     PokerContextEncoder,
 )
+from src.poker.constants import (
+    OPPONENT_TYPE_UNKNOWN,
+    STATE_ENCODER_OPPONENT_TYPE_IDS,
+)
 
 
 class StateEncoder:
@@ -15,7 +19,7 @@ class StateEncoder:
         valid_actions: list[dict[str, Any]],
         round_state: dict[str, Any],
         hole_cards: list[str],
-        opponent_type: str = "unknown",
+        opponent_type: str = OPPONENT_TYPE_UNKNOWN,
     ) -> tuple:
         community_cards = round_state.get(
             "community_card",
@@ -133,15 +137,7 @@ class StateEncoder:
     def _opponent_type_id(
         opponent_type: str,
     ) -> int:
-        mapping = {
-            "unknown": 0,
-            "fish": 1,
-            "aggressive": 2,
-            "tight": 3,
-            "balanced": 4,
-            "random": 5,
-            "calling": 6,
-        }
+        mapping = STATE_ENCODER_OPPONENT_TYPE_IDS
 
         if opponent_type not in mapping:
             raise ValueError(

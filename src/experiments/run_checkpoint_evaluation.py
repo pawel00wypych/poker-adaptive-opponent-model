@@ -4,18 +4,22 @@ from concurrent.futures import (
     ProcessPoolExecutor,
     as_completed,
 )
-from dataclasses import asdict
 from pathlib import Path
 from time import perf_counter
 
+from src.experiments.constants import (
+    TESTED_AGENT_ADAPTIVE_MC,
+    TESTED_AGENT_RULE_BASED,
+    TESTED_AGENT_SINGLE_POLICY_MC,
+)
 from src.evaluation.checkpoint_evaluator import (
-    SUPPORTED_OPPONENTS,
     SUPPORTED_TESTED_AGENTS,
     CheckpointEvaluationConfig,
     discover_model_bundles,
     evaluate_bundle,
     write_rows,
 )
+from src.poker.constants import TRAINING_OPPONENT_TYPES
 
 
 def parse_args() -> argparse.Namespace:
@@ -71,21 +75,17 @@ def parse_args() -> argparse.Namespace:
         choices=sorted(SUPPORTED_TESTED_AGENTS),
         nargs="+",
         default=[
-            "single_policy_mc",
-            "adaptive_mc",
-            "rule_based",
+            TESTED_AGENT_SINGLE_POLICY_MC,
+            TESTED_AGENT_ADAPTIVE_MC,
+            TESTED_AGENT_RULE_BASED,
         ],
     )
 
     parser.add_argument(
         "--opponents",
-        choices=sorted(SUPPORTED_OPPONENTS),
+        choices=sorted(TRAINING_OPPONENT_TYPES),
         nargs="+",
-        default=[
-            "fish",
-            "aggressive",
-            "calling",
-        ],
+        default=list(TRAINING_OPPONENT_TYPES),
     )
 
     parser.add_argument(

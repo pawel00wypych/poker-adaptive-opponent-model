@@ -3,11 +3,16 @@ import pickle
 import random
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
 from src.poker.action_mapper import ActionMapper
+from src.training.constants import (
+    ALPHA_MODE_CONSTANT,
+    ALPHA_MODE_SQRT_VISIT,
+    ALPHA_MODE_VISIT_COUNT,
+    SUPPORTED_ALPHA_MODES,
+)
 
 
 class MonteCarloAgent:
@@ -22,18 +27,14 @@ class MonteCarloAgent:
     automatically decayed after each poker hand.
     """
 
-    SUPPORTED_ALPHA_MODES = {
-        "constant",
-        "visit_count",
-        "sqrt_visit",
-    }
+    SUPPORTED_ALPHA_MODES = set(SUPPORTED_ALPHA_MODES)
 
     def __init__(
         self,
         alpha: float = 0.1,
         epsilon: float = 0.5,
         epsilon_min: float = 0.05,
-        alpha_mode: str = "constant",
+        alpha_mode: str = ALPHA_MODE_CONSTANT,
     ):
         if not 0 < alpha <= 1:
             raise ValueError(
@@ -210,7 +211,7 @@ class MonteCarloAgent:
         state: tuple,
         action_id: int,
     ) -> float:
-        if self.alpha_mode == "constant":
+        if self.alpha_mode == ALPHA_MODE_CONSTANT:
             return self.alpha
 
         visits = self.visit_counts[state][action_id]
@@ -221,10 +222,10 @@ class MonteCarloAgent:
                 "calculating visit-count alpha"
             )
 
-        if self.alpha_mode == "visit_count":
+        if self.alpha_mode == ALPHA_MODE_VISIT_COUNT:
             return 1.0 / visits
 
-        if self.alpha_mode == "sqrt_visit":
+        if self.alpha_mode == ALPHA_MODE_SQRT_VISIT:
             return 1.0 / math.sqrt(visits)
 
         raise ValueError(
@@ -327,7 +328,7 @@ class MonteCarloAgent:
             ),
             alpha_mode=payload.get(
                 "alpha_mode",
-                "constant",
+                ALPHA_MODE_CONSTANT,
             ),
         )
 

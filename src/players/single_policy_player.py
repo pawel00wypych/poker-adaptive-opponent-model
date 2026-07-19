@@ -1,5 +1,7 @@
 from src.players.player_template import PlayerTemplate
 from src.features.state_encoder import StateEncoder
+from src.poker.constants import OPPONENT_TYPE_UNKNOWN
+from src.players.constants import PLAYER_NAME_SINGLE_POLICY
 from src.poker.action_mapper import ActionMapper
 from src.poker.round_state_utils import get_player_stack, get_round_count
 
@@ -12,7 +14,7 @@ class SinglePolicyPlayer(PlayerTemplate):
     def __init__(
             self,
             agent,
-            player_name: str = "single_policy",
+            player_name: str = PLAYER_NAME_SINGLE_POLICY,
             verbose: bool = False,
             log_interval: int = 1,
     ):
@@ -44,7 +46,7 @@ class SinglePolicyPlayer(PlayerTemplate):
             valid_actions=valid_actions,
             round_state=round_state,
             hole_cards=hole_card,
-            opponent_type="unknown",
+            opponent_type=OPPONENT_TYPE_UNKNOWN,
         )
 
         action_id = self.agent.act(state, valid_actions)

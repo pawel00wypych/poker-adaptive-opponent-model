@@ -1,29 +1,31 @@
 from src.players.aggressive_player import AggressivePlayer
 from src.players.calling_player import CallingPlayer
 from src.players.fish_player import FishPlayer
+from src.poker.constants import (
+    OPPONENT_TYPE_AGGRESSIVE,
+    OPPONENT_TYPE_CALLING,
+    OPPONENT_TYPE_FISH,
+    TRAINING_OPPONENT_TYPES,
+)
 
 
-SUPPORTED_OPPONENTS = {
-    "fish",
-    "aggressive",
-    "calling",
-}
+SUPPORTED_OPPONENTS = set(TRAINING_OPPONENT_TYPES)
 
 
 def build_opponent(opponent_type: str):
-    if opponent_type == "fish":
+    if opponent_type == OPPONENT_TYPE_FISH:
         return FishPlayer(
-            player_name="fish",
+            player_name=OPPONENT_TYPE_FISH,
         )
 
-    if opponent_type == "aggressive":
+    if opponent_type == OPPONENT_TYPE_AGGRESSIVE:
         return AggressivePlayer(
-            player_name="aggressive",
+            player_name=OPPONENT_TYPE_AGGRESSIVE,
         )
 
-    if opponent_type == "calling":
+    if opponent_type == OPPONENT_TYPE_CALLING:
         return CallingPlayer(
-            player_name="calling",
+            player_name=OPPONENT_TYPE_CALLING,
         )
 
     raise ValueError(
@@ -32,11 +34,7 @@ def build_opponent(opponent_type: str):
 
 
 def build_training_opponent(episode: int):
-    opponent_types = [
-        "fish",
-        "aggressive",
-        "calling",
-    ]
+    opponent_types = TRAINING_OPPONENT_TYPES
 
     opponent_type = opponent_types[
         episode % len(opponent_types)
