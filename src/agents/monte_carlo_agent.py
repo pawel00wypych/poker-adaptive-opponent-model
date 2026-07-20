@@ -1,51 +1,78 @@
+import math
 import pickle
 import random
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
 
 from src.poker.action_mapper import ActionMapper
+from src.training.constants import (
+    ALPHA_MODE_CONSTANT,
+    ALPHA_MODE_SQRT_VISIT,
+    ALPHA_MODE_VISIT_COUNT,
+    SUPPORTED_ALPHA_MODES,
+)
 
 
 class MonteCarloAgent:
     """
-    Tabular Monte Carlo control agent.
+    Tabular first-visit Monte Carlo control agent.
 
-    The agent stores all state-action pairs visited during one poker hand.
-    After the hand ends, the final reward is propagated to every visited
-    state-action pair.
+    The agent stores state-action pairs visited during one poker hand.
+    After the hand ends, the terminal hand reward is propagated to every
+    first-visited state-action pair.
 
-    This is not classical Q-learning because updates do not use next_state
-    or max Q(next_state).
+    Epsilon is controlled externally by the training script. It is not
+    automatically decayed after each poker hand.
     """
+
+    SUPPORTED_ALPHA_MODES = set(SUPPORTED_ALPHA_MODES)
 
     def __init__(
         self,
         alpha: float = 0.1,
         epsilon: float = 0.5,
         epsilon_min: float = 0.05,
-        epsilon_decay: float = 0.995,
+        alpha_mode: str = ALPHA_MODE_CONSTANT,
     ):
         if not 0 < alpha <= 1:
-            raise ValueError("alpha must be in range (0, 1]")
+            raise ValueError(
+                "alpha must be in range (0, 1]"
+            )
 
         if not 0 <= epsilon <= 1:
-            raise ValueError("epsilon must be in range [0, 1]")
+            raise ValueError(
+                "epsilon must be in range [0, 1]"
+            )
 
         if not 0 <= epsilon_min <= 1:
-            raise ValueError("epsilon_min must be in range [0, 1]")
+            raise ValueError(
+                "epsilon_min must be in range [0, 1]"
+            )
 
-        if not 0 < epsilon_decay <= 1:
-            raise ValueError("epsilon_decay must be in range (0, 1]")
+        if alpha_mode not in self.SUPPORTED_ALPHA_MODES:
+            raise ValueError(
+                f"Unsupported alpha_mode: {alpha_mode}"
+            )
 
         self.alpha = alpha
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
-        self.epsilon_decay = epsilon_decay
+        self.alpha_mode = alpha_mode
 
-        self.q_table: dict[tuple, np.ndarray] = {}
+        self.q_table = defaultdict(
+            lambda: np.zeros(
+                ActionMapper.NUM_ACTIONS,
+                dtype=float,
+            )
+        )
+
+        self.visit_counts = defaultdict(
+            lambda: [0] * ActionMapper.NUM_ACTIONS
+        )
+
         self.episode: list[tuple[tuple, int]] = []
-
         self.training = True
 
     def train(self) -> None:
@@ -53,6 +80,21 @@ class MonteCarloAgent:
 
     def eval(self) -> None:
         self.training = False
+        self.episode.clear()
+
+    def set_epsilon(
+        self,
+        epsilon: float,
+    ) -> None:
+        if not 0 <= epsilon <= 1:
+            raise ValueError(
+                "epsilon must be in range [0, 1]"
+            )
+
+        self.epsilon = max(
+            self.epsilon_min,
+            epsilon,
+        )
 
     def act(
         self,
@@ -61,10 +103,19 @@ class MonteCarloAgent:
     ) -> int:
         self._ensure_state_exists(state)
 
-        legal_action_ids = ActionMapper.get_legal_action_ids(valid_actions)
+        legal_action_ids = (
+            ActionMapper.get_legal_action_ids(
+                valid_actions
+            )
+        )
 
-        if self.training and random.random() < self.epsilon:
-            return random.choice(legal_action_ids)
+        if (
+            self.training
+            and random.random() < self.epsilon
+        ):
+            return random.choice(
+                legal_action_ids
+            )
 
         q_values = self.q_table[state]
 
@@ -73,27 +124,40 @@ class MonteCarloAgent:
             for action_id in legal_action_ids
         }
 
-        max_q_value = max(legal_q_values.values())
+        max_q_value = max(
+            legal_q_values.values()
+        )
 
         best_actions = [
             action_id
-            for action_id, value in legal_q_values.items()
+            for action_id, value
+            in legal_q_values.items()
             if value == max_q_value
         ]
 
-        return random.choice(best_actions)
+        return random.choice(
+            best_actions
+        )
 
-    def remember(self, state: tuple, action_id: int) -> None:
+    def remember(
+        self,
+        state: tuple,
+        action_id: int,
+    ) -> None:
         if self.training:
-            self.episode.append((state, action_id))
+            self.episode.append(
+                (state, action_id)
+            )
 
-    def learn_from_episode(self, reward: float) -> None:
+    def learn_from_episode(
+        self,
+        reward: float,
+    ) -> None:
         """
-        Applies the terminal hand reward to all state-action pairs visited
-        during the hand.
+        Update all first-visited state-action pairs from one poker hand.
 
-        First-visit Monte Carlo is used: if the same state-action pair appears
-        multiple times in one hand, it is updated only once.
+        Epsilon is intentionally not changed here because this method is
+        called once per poker hand, not once per training game.
         """
         if not self.training:
             self.episode.clear()
@@ -102,72 +166,229 @@ class MonteCarloAgent:
         visited: set[tuple[tuple, int]] = set()
 
         for state, action_id in self.episode:
-            state_action = (state, action_id)
+            state_action = (
+                state,
+                action_id,
+            )
 
             if state_action in visited:
                 continue
 
             visited.add(state_action)
-            self._ensure_state_exists(state)
 
-            old_value = self.q_table[state][action_id]
+            self._ensure_state_exists(
+                state
+            )
+
+            self.visit_counts[state][action_id] += 1
+
+            learning_rate = self._learning_rate(
+                state,
+                action_id,
+            )
+
+            old_value = (
+                self.q_table[state][action_id]
+            )
 
             self.q_table[state][action_id] = (
                 old_value
-                + self.alpha * (reward - old_value)
+                + learning_rate
+                * (reward - old_value)
             )
 
         self.episode.clear()
-        self._decay_epsilon()
 
-    def _ensure_state_exists(self, state: tuple) -> None:
-        if state not in self.q_table:
-            self.q_table[state] = np.zeros(
-                ActionMapper.NUM_ACTIONS,
-                dtype=float,
+    def _ensure_state_exists(
+        self,
+        state: tuple,
+    ) -> None:
+        _ = self.q_table[state]
+        _ = self.visit_counts[state]
+
+    def _learning_rate(
+        self,
+        state: tuple,
+        action_id: int,
+    ) -> float:
+        if self.alpha_mode == ALPHA_MODE_CONSTANT:
+            return self.alpha
+
+        visits = self.visit_counts[state][action_id]
+
+        if visits <= 0:
+            raise ValueError(
+                "visit count must be positive before "
+                "calculating visit-count alpha"
             )
 
-    def _decay_epsilon(self) -> None:
-        self.epsilon = max(
-            self.epsilon_min,
-            self.epsilon * self.epsilon_decay,
+        if self.alpha_mode == ALPHA_MODE_VISIT_COUNT:
+            return 1.0 / visits
+
+        if self.alpha_mode == ALPHA_MODE_SQRT_VISIT:
+            return 1.0 / math.sqrt(visits)
+
+        raise ValueError(
+            f"Unsupported alpha_mode: {self.alpha_mode}"
         )
 
-    def save(self, path: str) -> None:
+    @staticmethod
+    def _to_plain_q_table(
+        q_table: dict,
+    ) -> dict[tuple, list[float]]:
+        return {
+            tuple(state): [
+                float(value)
+                for value in values
+            ]
+            for state, values in q_table.items()
+        }
+
+    @staticmethod
+    def _to_plain_visit_counts(
+        visit_counts: dict,
+    ) -> dict[tuple, list[int]]:
+        return {
+            tuple(state): [
+                int(value)
+                for value in values
+            ]
+            for state, values in visit_counts.items()
+        }
+
+    def save(
+        self,
+        path: str,
+        metadata: dict | None = None,
+    ) -> None:
         model_path = Path(path)
-        model_path.parent.mkdir(parents=True, exist_ok=True)
+
+        model_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
         payload = {
-            "algorithm": "first_visit_monte_carlo_control",
-            "q_table": self.q_table,
+            "algorithm": (
+                "first_visit_monte_carlo_control"
+            ),
+            "q_table": self._to_plain_q_table(
+                self.q_table
+            ),
+            "visit_counts": self._to_plain_visit_counts(
+                self.visit_counts
+            ),
             "epsilon": self.epsilon,
             "alpha": self.alpha,
             "epsilon_min": self.epsilon_min,
-            "epsilon_decay": self.epsilon_decay,
+            "alpha_mode": self.alpha_mode,
+            "metadata": metadata or {},
         }
 
-        with model_path.open("wb") as file:
-            pickle.dump(payload, file)
+        with model_path.open(
+            "wb"
+        ) as file:
+            pickle.dump(
+                payload,
+                file,
+            )
 
     @classmethod
-    def load(cls, path: str) -> "MonteCarloAgent":
+    def load(
+        cls,
+        path: str,
+    ) -> "MonteCarloAgent":
         model_path = Path(path)
 
         if not model_path.exists():
             raise FileNotFoundError(
-                f"Monte Carlo model does not exist: {model_path}"
+                "Monte Carlo model does not exist: "
+                f"{model_path}"
             )
 
-        with model_path.open("rb") as file:
-            payload = pickle.load(file)
+        with model_path.open(
+            "rb"
+        ) as file:
+            payload = pickle.load(
+                file
+            )
+
+        if not isinstance(payload, dict):
+            raise TypeError(
+                "Unsupported Monte Carlo model payload: "
+                f"{type(payload)}"
+            )
 
         agent = cls(
-            alpha=payload["alpha"],
-            epsilon=payload["epsilon"],
-            epsilon_min=payload["epsilon_min"],
-            epsilon_decay=payload["epsilon_decay"],
+            alpha=payload.get("alpha", 0.1),
+            epsilon=payload.get("epsilon", 0.0),
+            epsilon_min=payload.get(
+                "epsilon_min",
+                0.05,
+            ),
+            alpha_mode=payload.get(
+                "alpha_mode",
+                ALPHA_MODE_CONSTANT,
+            ),
         )
 
-        agent.q_table = payload["q_table"]
+        q_table = payload.get(
+            "q_table",
+            {},
+        )
+
+        agent.q_table.update(
+            {
+                tuple(state): np.array(
+                    values,
+                    dtype=float,
+                )
+                for state, values in q_table.items()
+            }
+        )
+
+        visit_counts = payload.get(
+            "visit_counts",
+            {},
+        )
+
+        agent.visit_counts.update(
+            {
+                tuple(state): [
+                    int(value)
+                    for value in values
+                ]
+                for state, values in visit_counts.items()
+            }
+        )
+
+        agent.eval()
 
         return agent
+
+    @staticmethod
+    def load_metadata(
+        path: str,
+    ) -> dict:
+        model_path = Path(path)
+
+        if not model_path.exists():
+            raise FileNotFoundError(
+                "Monte Carlo model does not exist: "
+                f"{model_path}"
+            )
+
+        with model_path.open(
+            "rb"
+        ) as file:
+            payload = pickle.load(
+                file
+            )
+
+        if not isinstance(payload, dict):
+            return {}
+
+        return payload.get(
+            "metadata",
+            {},
+        )

@@ -1,309 +1,29 @@
 import pytest
 
-from src.agents.adaptive_player import AdaptivePlayer
-from src.agents.monte_carlo_agent import MonteCarloAgent
+from src.players.adaptive_player import AdaptivePlayer
 
 
-def sample_round_state(
-    player_stack: int = 100,
-    opponent_stack: int = 100,
-    community_cards: list[str] | None = None,
-    round_count: int = 1,
-) -> dict:
-    return {
-        "round_count": round_count,
-        "community_card": community_cards or [],
-        "seats": [
-            {
-                "name": "adaptive_mc",
-                "uuid": "uuid-adaptive",
-                "stack": player_stack,
-                "state": "participating",
-            },
-            {
-                "name": "opponent",
-                "uuid": "uuid-opponent",
-                "stack": opponent_stack,
-                "state": "participating",
-            },
-        ],
-        "pot": {
-            "main": {
-                "amount": 15,
-            }
-        },
-    }
-
-
-def sample_valid_actions() -> list[dict]:
-    return [
-        {"action": "fold", "amount": 0},
-        {"action": "call", "amount": 10},
-        {"action": "raise", "amount": {"min": 20, "max": 100}},
-    ]
-
-
-def test_adaptive_player_verbose_is_disabled_by_default():
-    agent = MonteCarloAgent(epsilon=0.0)
-
+def create_player(
+    adaptive_agents,
+    expected_opponent_type: str = "calling",
+    verbose: bool = False,
+) -> AdaptivePlayer:
     player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
+        agents=adaptive_agents,
+        player_name="tested_player",
+        expected_opponent_type=expected_opponent_type,
+        verbose=verbose,
     )
+    player.uuid = "uuid-tested"
 
-    assert player.verbose is False
-
-
-def test_adaptive_player_accepts_verbose_flag():
-    agent = MonteCarloAgent(epsilon=0.0)
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-        verbose=True,
-    )
-
-    assert player.verbose is True
+    return player
 
 
-def test_adaptive_player_declares_legal_action():
-    agent = MonteCarloAgent(epsilon=0.0)
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-    )
-    player.uuid = "uuid-adaptive"
-
-    action, amount = player.declare_action(
-        valid_actions=sample_valid_actions(),
-        hole_card=["HA", "DA"],
-        round_state=sample_round_state(),
-    )
-
-    assert action in {"fold", "call", "raise"}
-
-    if action == "fold":
-        assert amount == 0
-    elif action == "call":
-        assert amount == 10
-    elif action == "raise":
-        assert amount == 20
-
-
-def test_adaptive_player_updates_opponent_stats():
-    agent = MonteCarloAgent(epsilon=0.0)
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-    )
-    player.uuid = "uuid-adaptive"
-
-    player.receive_game_update_message(
-        action={
-            "player_uuid": "uuid-opponent",
-            "action": "raise",
-            "amount": 20,
-        },
-        round_state=sample_round_state(),
-    )
-
-    assert player.opponent_stats.raises == 1
-    assert player.opponent_stats.total_actions == 1
-
-
-def test_adaptive_player_ignores_own_action_in_opponent_stats():
-    agent = MonteCarloAgent(epsilon=0.0)
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-    )
-    player.uuid = "uuid-adaptive"
-
-    player.receive_game_update_message(
-        action={
-            "player_uuid": "uuid-adaptive",
-            "action": "raise",
-            "amount": 20,
-        },
-        round_state=sample_round_state(),
-    )
-
-    assert player.opponent_stats.total_actions == 0
-
-
-def test_adaptive_player_updates_positive_reward_after_round():
-    agent = MonteCarloAgent(
-        alpha=0.5,
-        epsilon=0.0,
-    )
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-    )
-    player.uuid = "uuid-adaptive"
-
-    player.declare_action(
-        valid_actions=sample_valid_actions(),
-        hole_card=["HA", "DA"],
-        round_state=sample_round_state(
-            player_stack=100,
-            opponent_stack=100,
-        ),
-    )
-
-    player.receive_round_result_message(
-        winners=[],
-        hand_info=[],
-        round_state=sample_round_state(
-            player_stack=120,
-            opponent_stack=80,
-        ),
-    )
-
-    assert player.hands_played == 1
-    assert player.total_reward_bb == 2.0
-    assert player.previous_stack == 120
-
-
-def test_adaptive_player_updates_negative_reward_after_round():
-    agent = MonteCarloAgent(
-        alpha=0.5,
-        epsilon=0.0,
-    )
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-    )
-    player.uuid = "uuid-adaptive"
-
-    player.declare_action(
-        valid_actions=sample_valid_actions(),
-        hole_card=["H7", "D2"],
-        round_state=sample_round_state(
-            player_stack=100,
-            opponent_stack=100,
-        ),
-    )
-
-    player.receive_round_result_message(
-        winners=[],
-        hand_info=[],
-        round_state=sample_round_state(
-            player_stack=80,
-            opponent_stack=120,
-        ),
-    )
-
-    assert player.hands_played == 1
-    assert player.total_reward_bb == -2.0
-    assert player.previous_stack == 80
-
-
-def test_adaptive_player_resets_state_on_game_start():
-    agent = MonteCarloAgent(epsilon=0.0)
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-    )
-
-    player.hands_played = 5
-    player.total_reward_bb = 4.5
-    player.previous_stack = 140
-    player.initial_stack = 100
-    player.current_opponent_type = "aggressive"
-
-    player.opponent_stats.update_action("raise")
-    player.opponent_stats.finish_hand()
-
-    player.receive_game_start_message(game_info={})
-
-    assert player.hands_played == 0
-    assert player.total_reward_bb == 0.0
-    assert player.previous_stack is None
-    assert player.initial_stack is None
-    assert player.current_opponent_type == "unknown"
-    assert player.opponent_stats.total_actions == 0
-    assert player.opponent_stats.hands_observed == 0
-
-
-def test_adaptive_player_initially_uses_unknown_opponent_type():
-    agent = MonteCarloAgent(epsilon=0.0)
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-    )
-    player.uuid = "uuid-adaptive"
-
-    player.declare_action(
-        valid_actions=sample_valid_actions(),
-        hole_card=["HA", "DA"],
-        round_state=sample_round_state(),
-    )
-
-    assert player.current_opponent_type == "unknown"
-    assert len(agent.q_table) == 1
-
-    state = next(iter(agent.q_table))
-
-    assert state[-1] == 0
-
-
-def test_adaptive_player_detects_aggressive_opponent_after_enough_actions():
-    agent = MonteCarloAgent(epsilon=0.0)
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-    )
-    player.uuid = "uuid-adaptive"
-
-    for _ in range(5):
-        player.receive_game_update_message(
-            action={
-                "player_uuid": "uuid-opponent",
-                "action": "raise",
-                "amount": 20,
-            },
-            round_state=sample_round_state(),
-        )
-
-    player.declare_action(
-        valid_actions=sample_valid_actions(),
-        hole_card=["HA", "DA"],
-        round_state=sample_round_state(),
-    )
-
-    assert player.current_opponent_type == "aggressive"
-
-    state = next(iter(agent.q_table))
-
-    assert state[-1] == 2
-
-
-def test_adaptive_player_detects_calling_opponent_after_enough_actions():
-    agent = MonteCarloAgent(epsilon=0.0)
-
-    player = AdaptivePlayer(
-        agent=agent,
-        player_name="adaptive_mc",
-    )
-    player.uuid = "uuid-adaptive"
-
-    actions = [
-        "call",
-        "call",
-        "call",
-        "call",
-        "fold",
-    ]
-
+def send_opponent_actions(
+    player: AdaptivePlayer,
+    actions: list[str],
+    round_state: dict,
+) -> None:
     for action_name in actions:
         player.receive_game_update_message(
             action={
@@ -311,29 +31,471 @@ def test_adaptive_player_detects_calling_opponent_after_enough_actions():
                 "action": action_name,
                 "amount": 10,
             },
-            round_state=sample_round_state(),
+            round_state=round_state,
         )
 
-    player.declare_action(
-        valid_actions=sample_valid_actions(),
-        hole_card=["HK", "DQ"],
-        round_state=sample_round_state(),
-    )
 
-    assert player.current_opponent_type == "calling"
+def test_adaptive_player_requires_all_agents(
+    adaptive_agents,
+):
+    del adaptive_agents["calling"]
 
-    state = next(iter(agent.q_table))
+    with pytest.raises(
+        ValueError,
+        match="Missing adaptive agents",
+    ):
+        AdaptivePlayer(
+            agents=adaptive_agents,
+        )
 
-    assert state[-1] == 6
 
-def test_adaptive_player_rejects_invalid_log_interval():
-    agent = MonteCarloAgent(epsilon=0.0)
-
+def test_adaptive_player_rejects_invalid_log_interval(
+    adaptive_agents,
+):
     with pytest.raises(
         ValueError,
         match="log_interval must be greater than zero",
     ):
         AdaptivePlayer(
-            agent=agent,
+            agents=adaptive_agents,
             log_interval=0,
         )
+
+
+def test_adaptive_player_starts_with_unknown_policy(
+    adaptive_agents,
+):
+    player = create_player(
+        adaptive_agents,
+    )
+
+    assert player.current_opponent_type == "unknown"
+    assert player.active_policy_type == "unknown"
+
+
+def test_adaptive_player_uses_general_policy_before_classification(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state_factory(),
+    )
+
+    assert player.current_opponent_type == "unknown"
+    assert player.active_policy_type == "unknown"
+    assert player.unknown_classifications == 1
+    assert player.classified_decisions == 0
+    assert player.policy_usage_counts["unknown"] == 1
+
+    unknown_agent = adaptive_agents["unknown"]
+
+    assert len(unknown_agent.q_table) == 1
+
+    state = next(
+        iter(unknown_agent.q_table)
+    )
+
+    assert state[-1] == 0
+
+
+def test_adaptive_player_switches_to_aggressive_policy(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="aggressive",
+    )
+
+    round_state = round_state_factory()
+
+    send_opponent_actions(
+        player,
+        [
+            "raise",
+            "raise",
+            "raise",
+            "raise",
+            "raise",
+        ],
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+    assert player.current_opponent_type == "aggressive"
+    assert player.active_policy_type == "aggressive"
+    assert player.policy_switches == 1
+    assert player.correct_classifications == 1
+    assert player.incorrect_classifications == 0
+
+    aggressive_agent = adaptive_agents[
+        "aggressive"
+    ]
+
+    assert len(aggressive_agent.q_table) == 1
+
+    state = next(
+        iter(aggressive_agent.q_table)
+    )
+
+    assert state[-1] == 2
+
+
+def test_adaptive_player_switches_to_calling_policy(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="calling",
+    )
+
+    round_state = round_state_factory()
+
+    send_opponent_actions(
+        player,
+        [
+            "call",
+            "call",
+            "call",
+            "call",
+            "fold",
+        ],
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HK", "DQ"],
+        round_state=round_state,
+    )
+
+    assert player.current_opponent_type == "calling"
+    assert player.active_policy_type == "calling"
+    assert player.correct_classifications == 1
+
+    state = next(
+        iter(
+            adaptive_agents[
+                "calling"
+            ].q_table
+        )
+    )
+
+    assert state[-1] == 6
+
+
+def test_adaptive_player_records_incorrect_classification(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="calling",
+    )
+
+    round_state = round_state_factory()
+
+    send_opponent_actions(
+        player,
+        [
+            "raise",
+            "raise",
+            "raise",
+            "raise",
+            "raise",
+        ],
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+    assert player.current_opponent_type == "aggressive"
+    assert player.correct_classifications == 0
+    assert player.incorrect_classifications == 1
+    assert player.classifier_accuracy == 0.0
+
+
+def test_classifier_accuracy_is_one_for_correct_prediction(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="aggressive",
+    )
+
+    round_state = round_state_factory()
+
+    send_opponent_actions(
+        player,
+        ["raise"] * 5,
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+    assert player.correct_classifications == 1
+    assert player.incorrect_classifications == 0
+    assert player.classifier_accuracy == 1.0
+
+
+def test_classifier_accuracy_ignores_unknown_predictions(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="calling",
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state_factory(),
+    )
+
+    assert player.unknown_classifications == 1
+    assert player.correct_classifications == 0
+    assert player.incorrect_classifications == 0
+    assert player.classifier_accuracy == 0.0
+
+
+def test_classifier_coverage_counts_unknown_and_classified_decisions(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="aggressive",
+    )
+
+    round_state = round_state_factory()
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+    send_opponent_actions(
+        player,
+        ["raise"] * 5,
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+    assert player.unknown_classifications == 1
+    assert player.classified_decisions == 1
+    assert player.classifier_coverage == 0.5
+
+
+def test_policy_switch_is_counted_only_when_policy_changes(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="aggressive",
+    )
+
+    round_state = round_state_factory()
+
+    send_opponent_actions(
+        player,
+        ["raise"] * 5,
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HK", "DK"],
+        round_state=round_state,
+    )
+
+    assert player.active_policy_type == "aggressive"
+    assert player.policy_switches == 1
+    assert player.policy_usage_counts["aggressive"] == 2
+
+
+def test_first_classification_hand_is_recorded(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="aggressive",
+    )
+
+    round_state = round_state_factory()
+
+    send_opponent_actions(
+        player,
+        ["raise"] * 5,
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+    assert player.first_classification_hand == 1
+    assert player.first_correct_classification_hand == 1
+
+
+def test_first_correct_classification_is_not_set_for_wrong_prediction(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="calling",
+    )
+
+    round_state = round_state_factory()
+
+    send_opponent_actions(
+        player,
+        ["raise"] * 5,
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+    assert player.first_classification_hand == 1
+    assert player.first_correct_classification_hand is None
+
+
+def test_adaptive_player_ignores_own_actions(
+    adaptive_agents,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+    )
+
+    player.receive_game_update_message(
+        action={
+            "player_uuid": "uuid-tested",
+            "action": "raise",
+            "amount": 20,
+        },
+        round_state=round_state_factory(),
+    )
+
+    assert player.opponent_stats.total_actions == 0
+
+
+def test_adaptive_player_records_opponent_actions(
+    adaptive_agents,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+    )
+
+    player.receive_game_update_message(
+        action={
+            "player_uuid": "uuid-opponent",
+            "action": "call",
+            "amount": 10,
+        },
+        round_state=round_state_factory(),
+    )
+
+    assert player.opponent_stats.calls == 1
+    assert player.opponent_stats.total_actions == 1
+
+
+def test_adaptive_player_resets_classifier_statistics(
+    adaptive_agents,
+):
+    player = create_player(
+        adaptive_agents,
+    )
+
+    player.current_opponent_type = "calling"
+    player.active_policy_type = "calling"
+    player.classification_counts["calling"] = 5
+    player.policy_usage_counts["calling"] = 5
+    player.correct_classifications = 5
+    player.incorrect_classifications = 2
+    player.unknown_classifications = 3
+    player.classified_decisions = 7
+    player.policy_switches = 2
+    player.first_classification_hand = 2
+    player.first_correct_classification_hand = 3
+
+    player.receive_game_start_message(
+        game_info={},
+    )
+
+    assert player.current_opponent_type == "unknown"
+    assert player.active_policy_type == "unknown"
+    assert player.classification_counts == {}
+    assert player.policy_usage_counts == {}
+    assert player.correct_classifications == 0
+    assert player.incorrect_classifications == 0
+    assert player.unknown_classifications == 0
+    assert player.classified_decisions == 0
+    assert player.policy_switches == 0
+    assert player.first_classification_hand is None
+    assert player.first_correct_classification_hand is None
+
+
+def test_final_predicted_type_returns_current_type(
+    adaptive_agents,
+):
+    player = create_player(
+        adaptive_agents,
+    )
+
+    player.current_opponent_type = "fish"
+
+    assert player.final_predicted_type == "fish"

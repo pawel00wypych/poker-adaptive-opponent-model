@@ -6,7 +6,7 @@ from PyPokerEngine.pypokerengine.api.game import (
     start_poker,
 )
 
-from src.agents.adaptive_player import AdaptivePlayer
+from src.players.adaptive_player import AdaptivePlayer
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.config import GameConfig, TrainingConfig
 from src.experiments.cli_utils import parse_training_args
@@ -33,18 +33,13 @@ def run_adaptive_training(
     engine_verbose: bool = False,
     log_interval: int = 100,
 ) -> None:
-    game_config = GameConfig(
-        max_round=100,
-        initial_stack=100,
-        small_blind_amount=5,
-    )
+    game_config = GameConfig()
     training_config = TrainingConfig()
 
     agent = MonteCarloAgent(
         alpha=training_config.alpha,
         epsilon=training_config.epsilon_start,
         epsilon_min=training_config.epsilon_min,
-        epsilon_decay=training_config.epsilon_decay,
     )
     agent.train()
 

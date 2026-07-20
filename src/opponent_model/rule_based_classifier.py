@@ -1,4 +1,12 @@
 from src.features.opponent_stats import OpponentStats
+from src.poker.constants import (
+    OPPONENT_TYPE_AGGRESSIVE,
+    OPPONENT_TYPE_BALANCED,
+    OPPONENT_TYPE_CALLING,
+    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_TIGHT,
+    OPPONENT_TYPE_UNKNOWN,
+)
 
 
 class RuleBasedOpponentClassifier:
@@ -13,19 +21,19 @@ class RuleBasedOpponentClassifier:
 
     def classify(self, stats: OpponentStats) -> str:
         if stats.total_actions < self.min_actions:
-            return "unknown"
+            return OPPONENT_TYPE_UNKNOWN
 
         if stats.raise_rate >= 0.35:
-            return "aggressive"
+            return OPPONENT_TYPE_AGGRESSIVE
 
         if stats.call_rate >= 0.80 and stats.raise_rate <= 0.05:
-            return "calling"
+            return OPPONENT_TYPE_CALLING
 
         if stats.call_rate >= 0.50 and stats.fold_rate >= 0.30:
-            return "fish"
+            return OPPONENT_TYPE_FISH
 
         if (stats.fold_rate >= 0.55 and stats.raise_rate >= 0.10 and
                 stats.call_rate <= 0.25):
-            return "tight"
+            return OPPONENT_TYPE_TIGHT
 
-        return 'balanced'
+        return OPPONENT_TYPE_BALANCED
