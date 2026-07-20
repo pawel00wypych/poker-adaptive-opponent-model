@@ -1,295 +1,267 @@
-# Adaptive Opponent Modelling in Heads-Up Poker
+# Poker Adaptive Opponent Model
 
-A research project investigating dynamic strategy adaptation in heads-up Texas Hold'em using reinforcement learning and behavioural opponent classification.
+Research project for testing dynamic strategy adaptation in heads-up Texas
+Hold'em. The project combines tabular Monte Carlo reinforcement learning with
+behavioural opponent classification.
 
 The project is developed as part of a master's thesis:
 
-> **Dynamic Strategy Adaptation in Imperfect-Information Games Using Reinforcement Learning and Behavioral Classification**
+> Dynamic strategy adaptation in imperfect-information games using
+> reinforcement learning and behavioural classification
 
-## Project Overview
+## Project Goal
 
-The goal of the project is to evaluate whether a poker agent that identifies its opponent's playing style and adapts its policy can outperform non-adaptive agents and fixed rule-based strategies.
+The main goal is to evaluate whether an agent that identifies the opponent's
+playing style and switches to a matching policy can perform better than
+non-adaptive agents and rule-based baselines.
 
-The experiments are conducted in heads-up Texas Hold'em, where two players compete against each other. This setup allows the agent to focus on learning and adapting to the behaviour of a single opponent.
+The experiments are run in heads-up poker, where one evaluated agent plays
+against one fixed opponent. This keeps the environment focused on opponent
+modelling instead of multi-player table dynamics.
 
-## Implemented Features
+## Implemented Scope
 
-The current implementation includes:
-
-* heads-up Texas Hold'em simulation based on `PyPokerEngine`,
-* Monte Carlo reinforcement learning agents,
-* an adaptive agent using the estimated opponent type as part of the state,
-* a single-policy reinforcement learning agent used as a non-adaptive baseline,
-* predefined opponent strategies:
-
-  * aggressive player,
-  * calling player,
-  * fish player,
-* behavioral opponent classification based on observed actions,
-* discretised state representation,
-* configurable training and evaluation experiments,
-* saving and loading trained models,
-* game-level results exported to CSV,
-* aggregated agent comparison,
-* statistical evaluation using confidence intervals,
-* automated tests for agents, state encoding and evaluation metrics.
-
-## State Representation
-
-The reinforcement learning agents use a discretised state representation containing information such as:
-
-* pot size,
-* amount required to call,
-* current community-card stage,
-* player stack size,
-* estimated opponent type.
-
-The adaptive agent includes the classified opponent type in its state, allowing it to learn different actions against different playing styles.
+- Heads-up Texas Hold'em simulation based on a local `PyPokerEngine` dependency.
+- First-visit tabular Monte Carlo control agent.
+- Single-policy Monte Carlo agent trained against mixed opponents.
+- Specialist Monte Carlo policies trained against one opponent type.
+- Adaptive player that uses behavioural classification to select a policy.
+- Oracle adaptive baseline that knows the opponent type from the start.
+- Rule-based baseline player.
+- Fixed opponent strategies: fish, aggressive and calling.
+- Discretised state representation with hand strength, poker context, pot
+  information, stack-to-pot ratio and opponent type.
+- Checkpoint training, checkpoint evaluation and readable HTML/Markdown reports.
+- CSV/JSON result outputs and plots for analysis.
+- Automated tests for agents, state encoding, metrics, reports and training
+  helpers.
 
 ## Project Structure
 
 ```text
 src/
-├── agents/          # Reinforcement learning agents and opponent strategies
-├── cards/           # Card and hand-strength evaluation
-├── config/          # Game, training and evaluation configuration
-├── evaluation/      # Metrics and result aggregation
-└── experiments/     # Training and evaluation scripts
+├── agents/           # Reinforcement learning agents
+├── cards/            # Card and hand-strength utilities
+├── evaluation/       # Metrics, checkpoint evaluation, reports and plots
+├── experiments/      # CLI scripts for training, evaluation and reporting
+├── features/         # State encoding and opponent statistics
+├── opponent_model/   # Behavioural opponent classifier
+├── players/          # PyPokerEngine player implementations
+├── poker/            # Poker action and round-state helpers
+├── training/         # Training schedules, checkpointing and metadata
+└── config.py         # Main game, training and evaluation configuration
 
-results/models/      # Saved trained models
-tests/               # Automated tests
-results/raw/         # Generated CSV experiment results
-PyPokerEngine/       # Local poker engine dependency
+tests/                # Automated test suite
+PyPokerEngine/        # Local poker engine dependency
+results/              # Generated models and experiment results
+reports/              # Generated readable reports
 ```
+
+Shared enum-like values are kept in small `constants.py` files inside the
+relevant packages, for example `src/poker/constants.py`,
+`src/training/constants.py`, `src/experiments/constants.py`,
+`src/evaluation/constants.py` and `src/players/constants.py`.
 
 ## Requirements
 
-* Python 3.11
-* pip
-* Git
+- Python 3.11
+- pip
+- Git
 
 ## Installation
 
-Clone the repository:
+Clone the repository and enter the project directory:
 
 ```bash
 git clone <repository-url>
 cd poker-adaptive-opponent-model
 ```
 
-If `PyPokerEngine` is included as a Git submodule, initialise it with:
-
-```bash
-git submodule update --init --recursive
-```
-
-Create a virtual environment:
+Create and activate a virtual environment:
 
 ```bash
 python -m venv .venv
 ```
 
-Activate it on Windows:
+Windows:
 
 ```bash
 .venv\Scripts\activate
 ```
 
-Activate it on Linux or macOS:
+Linux/macOS:
 
 ```bash
 source .venv/bin/activate
 ```
 
-Install the project dependencies:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-```
-
-Install the local `PyPokerEngine` package:
-
-```bash
 pip install -e ./PyPokerEngine
 ```
 
-All commands should be executed from the project root directory.
+All commands below should be run from the project root.
 
-## Running Training Experiments
+## Configuration
 
-### Train the adaptive agent
+Default parameters are defined in `src/config.py`:
 
-```bash
-python -m src.experiments.train_adaptive_agent
-```
+- `GameConfig`: number of rounds, initial stack and blind size.
+- `TrainingConfig`: episodes, alpha, epsilon settings, seed, checkpoints and
+  model paths.
+- `EvaluationConfig`: number of evaluation games and output CSV path.
 
-The adaptive agent is trained against multiple opponent types. The estimated opponent category is included in its state representation.
+Most training scripts also expose CLI flags such as `--episodes`, `--seed`,
+`--epsilon-schedule`, `--alpha-mode`, `--checkpoint-episodes`,
+`--output-path` and `--checkpoint-directory`.
 
-### Train the single-policy agent
+## Training
 
-```bash
-python -m src.experiments.train_single_policy_agent
-```
-
-The single-policy agent is trained against multiple opponents but does not explicitly include the opponent type in its state.
-
-Training parameters such as the number of episodes, learning rate, exploration rate and exploration decay are defined in the project configuration.
-
-## Running Evaluation Experiments
-
-Run the configured evaluation experiments:
+Train the general single-policy model:
 
 ```bash
-python -m src.experiments.evaluate_agents
+python -m src.experiments.run_single_policy_training
 ```
 
-The evaluation compares trained agents against the available opponent strategies and saves game-level results to CSV files.
+Train one specialist policy:
 
-To display the aggregated agent comparison, run:
+```bash
+python -m src.experiments.run_specialist_training --opponent calling
+```
+
+Supported specialist opponents are `fish`, `aggressive` and `calling`.
+
+Run a reproducible multi-seed training suite for the general policy and all
+specialists:
+
+```bash
+python -m src.experiments.run_training_suite \
+  --seeds 42 123 456 \
+  --episodes 10000 \
+  --checkpoint-episodes 1000 2500 5000 7500 10000 \
+  --epsilon-schedule linear \
+  --alpha-mode sqrt_visit
+```
+
+Useful options:
+
+- `--models single_policy fish aggressive calling` chooses which policies to
+  train.
+- `--workers 4` runs multiple training jobs in parallel.
+- `--rerun-existing` retrains jobs even if their final model already exists.
+- `--no-progress` disables periodic progress logs.
+- `--player-verbose` enables detailed player decisions.
+
+## Evaluation
+
+Run the default agent comparison:
+
+```bash
+python -m src.experiments.run_agent_comparison
+```
+
+Show aggregated comparison metrics:
 
 ```bash
 python -m src.experiments.show_agent_comparison
 ```
 
-The generated comparison includes profitability, variance, win rate, bust rate and the number of hands played.
+Evaluate checkpoint models from a training suite:
 
-## Running Tests
+```bash
+python -m src.experiments.run_checkpoint_evaluation \
+  --training-run-dir results/training_runs/<experiment_name> \
+  --checkpoint-episodes 1000 2500 5000 7500 10000 \
+  --games 200
+```
 
-Run the complete test suite:
+Display checkpoint evaluation results:
+
+```bash
+python -m src.experiments.show_checkpoint_evaluation \
+  --input-path results/training_runs/<experiment_name>/checkpoint_evaluation.csv
+```
+
+## Reports and Plots
+
+Create a readable checkpoint report:
+
+```bash
+python -m src.experiments.create_checkpoint_report \
+  --input-path results/training_runs/<experiment_name>/checkpoint_evaluation.csv \
+  --output-dir reports/<experiment_name> \
+  --format both
+```
+
+Compare selected Q-tables:
+
+```bash
+python -m src.experiments.compare_selected_q_tables \
+  --training-run-dir results/training_runs/<experiment_name>
+```
+
+Create a readable Q-table comparison report:
+
+```bash
+python -m src.experiments.create_q_table_report \
+  --input-path results/evaluation/q_table_comparison_selected.json \
+  --output-dir reports/q_table_comparison \
+  --format both
+```
+
+## Metrics
+
+The main evaluation metrics are:
+
+- `total_profit_bb`: total profit or loss expressed in big blinds.
+- `mean_profit_bb`: average game-level profit in big blinds.
+- `bb_per_100`: profit normalised to 100 hands.
+- `win_rate`: fraction of games won.
+- `bust_rate`: fraction of games where the evaluated agent lost its stack.
+- `standard_error`: uncertainty of the sample mean.
+- `ci_95_lower` and `ci_95_upper`: approximate 95% confidence interval.
+- `classifier_accuracy`: correctness of classified non-unknown decisions.
+- `classifier_coverage`: fraction of decisions where the classifier returned a
+  known opponent type.
+- `policy_switches`: number of times the adaptive player changed active policy.
+
+`BB/100` is usually the most useful profitability metric because games can end
+after different numbers of hands.
+
+## Testing and Quality
+
+Run the full test suite:
 
 ```bash
 pytest
 ```
 
-Run tests with more detailed output:
-
-```bash
-pytest -v
-```
-
 Run a selected test file:
 
 ```bash
-pytest tests/path/to/test_file.py
+pytest tests/test_state_encoder.py
 ```
-
-## Evaluation Metrics
-
-### Total profit in big blinds
-
-The total profit or loss accumulated across all evaluated games, expressed in big blinds.
-
-```text
-total_profit_bb = sum(profit_bb)
-```
-
-A positive value indicates an overall profit, while a negative value indicates an overall loss.
-
-### Mean profit in big blinds
-
-The average profit obtained in one evaluated game.
-
-```text
-mean_profit_bb = total_profit_bb / number_of_games
-```
-
-This metric is useful for comparing average game-level performance.
-
-### Standard deviation of profit
-
-The standard deviation measures the variability of the agent's game results.
-
-A high standard deviation indicates that the results are unstable or highly dependent on individual games. A lower value indicates more consistent performance.
-
-### Big blinds per 100 hands
-
-`BB/100` measures the number of big blinds won or lost per 100 played hands.
-
-```text
-bb_per_100 = total_profit_bb / total_hands_played * 100
-```
-
-This is the primary profitability metric because it normalises the result by the number of hands played.
-
-A positive value indicates a profitable strategy. A negative value indicates a losing strategy.
-
-### Win rate
-
-The proportion of evaluated games won by the agent.
-
-```text
-win_rate = won_games / total_games
-```
-
-A game is considered won when the agent finishes with more chips than its opponent.
-
-Win rate should not be interpreted independently from profit because an agent may win many small games while losing fewer but significantly larger games.
-
-### Bust rate
-
-The proportion of games in which the agent loses its entire stack.
-
-```text
-bust_rate = busted_games / total_games
-```
-
-A high bust rate may indicate excessive risk-taking or an inability to adapt before losing the available stack.
-
-### Mean number of hands played
-
-The average number of hands completed during one game.
-
-This metric helps determine whether an agent tends to win or lose quickly and whether the game configuration gives it enough time to identify the opponent's strategy.
-
-### Minimum and maximum hands played
-
-These metrics show the shortest and longest evaluated games.
-
-They help identify unusually short games, early bankruptcies and differences in game duration between opponent types.
-
-### 95% confidence interval
-
-The 95% confidence interval estimates the range in which the true mean performance is expected to lie.
-
-It is calculated from the sample mean, standard deviation and standard error.
-
-```text
-standard_error = standard_deviation / sqrt(number_of_games)
-```
-
-A narrow confidence interval indicates a more precise estimate. A wide confidence interval suggests high variance or an insufficient number of evaluation games.
-
-## Experimental Comparison
-
-The project evaluates the following main approaches:
-
-1. **Adaptive reinforcement learning agent**
-
-   Uses the estimated opponent type as part of its state and may learn different strategies against different opponent categories.
-
-2. **Single-policy reinforcement learning agent**
-
-   Uses one shared policy against all opponent types without explicit opponent classification.
-
-3. **Rule-based baseline**
-
-   Uses predefined poker rules and does not learn from experience.
-
-The agents are evaluated separately against aggressive, calling and fish opponents.
 
 ## Current Limitations
 
-* The project uses a simplified poker environment.
-* The state space is discretised and does not represent every detail of the game.
-* Opponent classification requires several observed actions before it becomes reliable.
-* An agent may lose a significant part of its stack before identifying an opponent.
-* Hand-strength evaluation does not fully represent all strategic concepts, such as every draw type or advanced kicker comparison.
-* The current implementation does not use deep reinforcement learning.
-* Poker results have high variance and require a sufficiently large evaluation sample.
-* Performance against predefined opponents does not guarantee equivalent performance against human players.
+- The poker environment is simplified and depends on the local `PyPokerEngine`
+  implementation.
+- The state space is discretised, so it does not capture every poker detail.
+- The classifier needs several observed actions before it can identify an
+  opponent type.
+- The adaptive agent may lose chips before enough opponent information is
+  available.
+- Hand-strength evaluation is still simplified compared with full poker
+  strategy concepts such as nuanced kicker comparison and all draw types.
+- Results in poker have high variance, so meaningful conclusions require
+  multiple seeds and enough evaluation games.
+- Performance against predefined opponents does not imply performance against
+  human players.
 
-## Research Objective
+## Research Hypothesis
 
-The primary research objective is to determine whether behavioral opponent classification improves reinforcement learning performance in an imperfect-information game.
-
-The main hypothesis is that an agent capable of identifying an opponent's playing style and adapting its policy should achieve better long-term results than an agent using one fixed policy against every opponent.
+An adaptive reinforcement learning agent that uses behavioural opponent
+classification should achieve better long-term results than a non-adaptive
+single-policy agent when opponents follow distinct and recognisable strategies.

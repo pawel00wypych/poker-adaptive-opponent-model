@@ -1,0 +1,6 @@
+PLAYER_NAME_ADAPTIVE_MC = "adaptive_mc"
+PLAYER_NAME_FIXED_POLICY = "fixed_policy"
+PLAYER_NAME_ORACLE_ADAPTIVE = "oracle_adaptive"
+PLAYER_NAME_SINGLE_POLICY = "single_policy"
+PLAYER_NAME_SINGLE_POLICY_MC = "single_policy_mc"
+PLAYER_NAME_SPECIALIST_MC = "specialist_mc"

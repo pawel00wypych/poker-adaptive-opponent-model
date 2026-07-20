@@ -1,5 +1,5 @@
 from src.agents.monte_carlo_agent import MonteCarloAgent
-from src.agents.single_policy_player import SinglePolicyPlayer
+from src.players.single_policy_player import SinglePolicyPlayer
 
 
 def sample_round_state(stack: int = 100) -> dict:
