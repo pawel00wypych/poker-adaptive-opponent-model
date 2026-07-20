@@ -34,27 +34,41 @@ def test_create_q_table_report_parser_accepts_disagreement_limit():
     assert args.disagreement_limit == 3
 
 
-def test_compare_selected_q_tables_parser_accepts_checkpoints():
+def test_compare_selected_q_tables_parser_accepts_general_arguments():
     args = parse_compare_args(
         [
             "--training-run-dir",
             "results/training_runs/state_v2_linear_2000_sqrt_visit",
-            "--unknown-checkpoint",
+            "--checkpoint",
             "2000",
-            "--calling-checkpoint",
-            "2000",
-            "--unknown-seeds",
-            "42",
-            "456",
-            "--calling-seeds",
+            "--seeds",
             "42",
             "123",
             "456",
+            "--policies",
+            "unknown",
+            "fish",
+            "aggressive",
+            "calling",
+            "--output-path",
+            "results/evaluation/q_table_comparison_all_policies.json",
+            "--top-n",
+            "30",
         ]
     )
 
-    assert args.training_run_dir == "results/training_runs/state_v2_linear_2000_sqrt_visit"
-    assert args.unknown_checkpoint == 2000
-    assert args.calling_checkpoint == 2000
-    assert args.unknown_seeds == [42, 456]
-    assert args.calling_seeds == [42, 123, 456]
+    assert args.training_run_dir == (
+        "results/training_runs/state_v2_linear_2000_sqrt_visit"
+    )
+    assert args.checkpoint == 2000
+    assert args.seeds == [42, 123, 456]
+    assert args.policies == [
+        "unknown",
+        "fish",
+        "aggressive",
+        "calling",
+    ]
+    assert args.output_path == (
+        "results/evaluation/q_table_comparison_all_policies.json"
+    )
+    assert args.top_n == 30

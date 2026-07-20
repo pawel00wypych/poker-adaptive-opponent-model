@@ -2,6 +2,7 @@ import argparse
 from itertools import combinations
 from pathlib import Path
 
+from src.evaluation.constants import SUPPORTED_POLICY_TYPES
 from src.evaluation.q_table_comparator import (
     build_selected_targets,
     compare_q_tables,
@@ -17,8 +18,9 @@ from src.evaluation.q_table_comparator import (
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Compare selected Q-tables for policy_unknown and "
-            "policy_calling models."
+            "Compare Q-tables for selected policies, seeds and checkpoint. "
+            "The script loads trained Monte Carlo Q-tables, summarizes action "
+            "preferences and compares learned policies on common abstract states."
         )
     )
 
@@ -33,38 +35,36 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--unknown-checkpoint",
+        "--checkpoint",
+        required=True,
         type=int,
-        default=4000,
-        help="Checkpoint episode for policy_unknown models.",
+        help=(
+            "Checkpoint episode to compare, for example 1500, 2000 or 4000."
+        ),
     )
 
     parser.add_argument(
-        "--calling-checkpoint",
-        type=int,
-        default=4000,
-        help="Checkpoint episode for policy_calling models.",
-    )
-
-    parser.add_argument(
-        "--unknown-seeds",
+        "--seeds",
         type=int,
         nargs="+",
-        default=[42, 456],
-        help="Seeds for policy_unknown models.",
+        required=True,
+        help="Training seeds to compare, for example: 42 123 456.",
     )
 
     parser.add_argument(
-        "--calling-seeds",
-        type=int,
+        "--policies",
         nargs="+",
-        default=[42, 456, 123],
-        help="Seeds for policy_calling models.",
+        choices=list(SUPPORTED_POLICY_TYPES),
+        default=list(SUPPORTED_POLICY_TYPES),
+        help=(
+            "Policies to compare. Available values: "
+            f"{list(SUPPORTED_POLICY_TYPES)}."
+        ),
     )
 
     parser.add_argument(
         "--output-path",
-        default="results/evaluation/q_table_comparison_selected.json",
+        default="results/evaluation/q_table_comparison.json",
         type=str,
     )
 
@@ -76,17 +76,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     args = parser.parse_args(argv)
 
-    if args.unknown_checkpoint <= 0:
-        parser.error("--unknown-checkpoint must be greater than zero")
+    if args.checkpoint <= 0:
+        parser.error("--checkpoint must be greater than zero")
 
-    if args.calling_checkpoint <= 0:
-        parser.error("--calling-checkpoint must be greater than zero")
-
-    if any(seed < 0 for seed in args.unknown_seeds):
-        parser.error("--unknown-seeds must be non-negative")
-
-    if any(seed < 0 for seed in args.calling_seeds):
-        parser.error("--calling-seeds must be non-negative")
+    if any(seed < 0 for seed in args.seeds):
+        parser.error("--seeds must be non-negative")
 
     if args.top_n <= 0:
         parser.error("--top-n must be greater than zero")
@@ -99,6 +93,9 @@ def print_summary(summary) -> None:
     print(summary.name)
     print("=" * 100)
     print(f"path={summary.path}")
+    print(f"policy_type={summary.policy_type}")
+    print(f"seed={summary.seed}")
+    print(f"checkpoint_episode={summary.checkpoint_episode}")
     print(f"states={summary.states}")
     print(
         "fully_zero_states="
@@ -133,6 +130,18 @@ def print_pairwise(comparison) -> None:
     print("\n" + "-" * 100)
     print(f"{comparison.left_name}  VS  {comparison.right_name}")
     print("-" * 100)
+    print(
+        "left="
+        f"{comparison.left_policy_type}, "
+        f"seed={comparison.left_seed}, "
+        f"checkpoint={comparison.left_checkpoint_episode}"
+    )
+    print(
+        "right="
+        f"{comparison.right_policy_type}, "
+        f"seed={comparison.right_seed}, "
+        f"checkpoint={comparison.right_checkpoint_episode}"
+    )
     print(f"left_states={comparison.left_states}")
     print(f"right_states={comparison.right_states}")
     print(f"common_states={comparison.common_states}")
@@ -161,18 +170,28 @@ def print_pairwise(comparison) -> None:
         print(f"  {left_action:>5}: {formatted}")
 
 
+def should_compare_pair(left_target, right_target) -> bool:
+    """
+    Keep the report useful instead of producing all possible noisy pairs.
+
+    We compare:
+    1. Same seed, different policies -> specialization differences.
+    2. Same policy, different seeds -> training stability.
+    """
+    same_seed = left_target.seed == right_target.seed
+    same_policy = left_target.policy_type == right_target.policy_type
+
+    return same_seed != same_policy
+
+
 def main() -> None:
     args = parse_args()
 
     targets = build_selected_targets(
         training_run_directory=args.training_run_dir,
-        unknown_checkpoint_episode=args.unknown_checkpoint,
-        calling_checkpoint_episode=args.calling_checkpoint,
-        unknown_seeds=args.unknown_seeds,
-        calling_targets=[
-            (seed, args.calling_checkpoint)
-            for seed in args.calling_seeds
-        ],
+        checkpoint_episode=args.checkpoint,
+        seeds=args.seeds,
+        policies=args.policies,
     )
 
     validate_targets_exist(targets)
@@ -191,8 +210,7 @@ def main() -> None:
 
     for target in targets:
         summary = summarize_q_table(
-            name=target.name,
-            path=target.path,
+            target=target,
             q_table=q_tables[target.name],
         )
         summaries.append(summary)
@@ -202,10 +220,13 @@ def main() -> None:
     disagreements = {}
 
     for left_target, right_target in combinations(targets, 2):
+        if not should_compare_pair(left_target, right_target):
+            continue
+
         comparison = compare_q_tables(
-            left_name=left_target.name,
+            left_target=left_target,
             left_q_table=abstract_q_tables[left_target.name],
-            right_name=right_target.name,
+            right_target=right_target,
             right_q_table=abstract_q_tables[right_target.name],
         )
 
@@ -215,19 +236,29 @@ def main() -> None:
         key = f"{left_target.name}__vs__{right_target.name}"
 
         disagreements[key] = find_largest_disagreements(
-            left_name=left_target.name,
+            left_target=left_target,
             left_q_table=abstract_q_tables[left_target.name],
-            right_name=right_target.name,
+            right_target=right_target,
             right_q_table=abstract_q_tables[right_target.name],
             top_n=args.top_n,
         )
 
     output = {
         "training_run_dir": args.training_run_dir,
+        "checkpoint": args.checkpoint,
+        "seeds": args.seeds,
+        "policies": args.policies,
+        "comparison_strategy": (
+            "same_seed_different_policies_and_"
+            "same_policy_different_seeds"
+        ),
         "targets": [
             {
                 "name": target.name,
                 "path": str(target.path),
+                "policy_type": target.policy_type,
+                "seed": target.seed,
+                "checkpoint_episode": target.checkpoint_episode,
             }
             for target in targets
         ],
