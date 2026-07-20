@@ -7,37 +7,21 @@ from statistics import mean, median, pstdev
 from typing import Any, Iterable
 
 from src.evaluation.constants import (
-    CHECKPOINT_PREFIX_BY_POLICY_TYPE,
-    MODEL_DIRECTORY_BY_POLICY_TYPE,
+    ACTION_LABELS,
+    CHECKPOINT_PREFIXES,
+    MODEL_DIRECTORIES,
+    STATE_V2_FIELDS,
+    SUPPORTED_POLICY_TYPES,
 )
-from src.poker.constants import (
-    OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_UNKNOWN,
-)
-
-
-ACTION_LABELS = {
-    0: "fold",
-    1: "call",
-    2: "raise",
-}
-
-
-STATE_V2_FIELDS = [
-    "street",
-    "hand_strength_bin",
-    "pair_strength_bin",
-    "pot_bucket",
-    "pot_odds_bin",
-    "spr_bin",
-    "opponent_type_id",
-]
 
 
 @dataclass(frozen=True)
 class QTableTarget:
     name: str
     path: Path
+    policy_type: str
+    seed: int
+    checkpoint_episode: int
 
 
 @dataclass(frozen=True)
@@ -56,6 +40,9 @@ class ActionStats:
 class QTableSummary:
     name: str
     path: str
+    policy_type: str
+    seed: int
+    checkpoint_episode: int
     states: int
     fully_zero_states: int
     fully_zero_rate: float
@@ -70,6 +57,12 @@ class QTableSummary:
 class PairwiseComparison:
     left_name: str
     right_name: str
+    left_policy_type: str
+    right_policy_type: str
+    left_seed: int
+    right_seed: int
+    left_checkpoint_episode: int
+    right_checkpoint_episode: int
     left_states: int
     right_states: int
     common_states: int
@@ -80,6 +73,105 @@ class PairwiseComparison:
     transition_counts: dict[str, dict[str, int]]
     mean_abs_q_delta_by_action: dict[str, float]
     mean_max_abs_q_delta: float
+
+
+def checkpoint_filename(
+    policy_type: str,
+    checkpoint_episode: int,
+    seed: int,
+) -> str:
+    validate_policy_type(policy_type)
+
+    prefix = CHECKPOINT_PREFIXES[policy_type]
+
+    return (
+        f"{prefix}"
+        f"_episodes_{checkpoint_episode}"
+        f"_seed_{seed}.pkl"
+    )
+
+
+def checkpoint_model_path(
+    training_run_directory: str | Path,
+    policy_type: str,
+    seed: int,
+    checkpoint_episode: int,
+) -> Path:
+    validate_policy_type(policy_type)
+
+    root = Path(training_run_directory)
+
+    return (
+        root
+        / f"seed_{seed}"
+        / MODEL_DIRECTORIES[policy_type]
+        / "checkpoints"
+        / checkpoint_filename(
+            policy_type=policy_type,
+            checkpoint_episode=checkpoint_episode,
+            seed=seed,
+        )
+    )
+
+
+def target_name(
+    policy_type: str,
+    seed: int,
+    checkpoint_episode: int,
+) -> str:
+    return (
+        f"policy_{policy_type}"
+        f"_seed_{seed}"
+        f"_cp_{checkpoint_episode}"
+    )
+
+
+def validate_policy_type(policy_type: str) -> None:
+    if policy_type not in SUPPORTED_POLICY_TYPES:
+        raise ValueError(
+            "Unsupported policy type: "
+            f"{policy_type}. "
+            f"Supported values: {list(SUPPORTED_POLICY_TYPES)}"
+        )
+
+
+def build_selected_targets(
+    training_run_directory: str | Path,
+    checkpoint_episode: int,
+    seeds: Iterable[int],
+    policies: Iterable[str],
+) -> list[QTableTarget]:
+    targets: list[QTableTarget] = []
+
+    for policy_type in policies:
+        validate_policy_type(policy_type)
+
+    for seed in seeds:
+        if seed < 0:
+            raise ValueError("seed must be non-negative")
+
+        for policy_type in policies:
+            targets.append(
+                QTableTarget(
+                    name=target_name(
+                        policy_type=policy_type,
+                        seed=seed,
+                        checkpoint_episode=checkpoint_episode,
+                    ),
+                    path=checkpoint_model_path(
+                        training_run_directory=training_run_directory,
+                        policy_type=policy_type,
+                        seed=seed,
+                        checkpoint_episode=checkpoint_episode,
+                    ),
+                    policy_type=policy_type,
+                    seed=seed,
+                    checkpoint_episode=checkpoint_episode,
+                )
+            )
+
+    return targets
+
 
 def strip_opponent_type(
     q_table: dict[tuple, list[float]],
@@ -93,6 +185,7 @@ def strip_opponent_type(
             stripped[state[:-1]] = q_values
 
     return stripped
+
 
 def load_q_table(path: str | Path) -> dict[tuple, list[float]]:
     model_path = Path(path)
@@ -123,7 +216,7 @@ def normalize_q_table(raw_q_table: dict[Any, Any]) -> dict[tuple, list[float]]:
         if isinstance(raw_values, dict):
             q_values = [
                 float(raw_values.get(action_id, 0.0))
-                for action_id in range(3)
+                for action_id in ACTION_LABELS
             ]
         else:
             q_values = [
@@ -131,11 +224,13 @@ def normalize_q_table(raw_q_table: dict[Any, Any]) -> dict[tuple, list[float]]:
                 for value in list(raw_values)
             ]
 
-            if len(q_values) < 3:
-                q_values = q_values + [0.0] * (3 - len(q_values))
+            if len(q_values) < len(ACTION_LABELS):
+                q_values = q_values + [0.0] * (
+                    len(ACTION_LABELS) - len(q_values)
+                )
 
-            if len(q_values) > 3:
-                q_values = q_values[:3]
+            if len(q_values) > len(ACTION_LABELS):
+                q_values = q_values[: len(ACTION_LABELS)]
 
         normalized[state] = q_values
 
@@ -144,8 +239,8 @@ def normalize_q_table(raw_q_table: dict[Any, Any]) -> dict[tuple, list[float]]:
 
 def best_action(q_values: list[float]) -> int:
     return max(
-        range(len(q_values)),
-        key=lambda index: q_values[index],
+        ACTION_LABELS.keys(),
+        key=lambda action_id: q_values[action_id],
     )
 
 
@@ -183,8 +278,7 @@ def describe_state(state: tuple) -> dict[str, Any]:
 
 
 def summarize_q_table(
-    name: str,
-    path: str | Path,
+    target: QTableTarget,
     q_table: dict[tuple, list[float]],
 ) -> QTableSummary:
     states = len(q_table)
@@ -213,8 +307,8 @@ def summarize_q_table(
         if is_tied_best(q_values):
             tied_best_states += 1
 
-        for action_id, value in enumerate(q_values):
-            values_by_action[action_id].append(value)
+        for action_id in ACTION_LABELS:
+            values_by_action[action_id].append(q_values[action_id])
 
     best_action_rates = {
         action: safe_rate(count, states)
@@ -258,8 +352,11 @@ def summarize_q_table(
             )
 
     return QTableSummary(
-        name=name,
-        path=str(path),
+        name=target.name,
+        path=str(target.path),
+        policy_type=target.policy_type,
+        seed=target.seed,
+        checkpoint_episode=target.checkpoint_episode,
         states=states,
         fully_zero_states=fully_zero_states,
         fully_zero_rate=safe_rate(fully_zero_states, states),
@@ -272,9 +369,9 @@ def summarize_q_table(
 
 
 def compare_q_tables(
-    left_name: str,
+    left_target: QTableTarget,
     left_q_table: dict[tuple, list[float]],
-    right_name: str,
+    right_target: QTableTarget,
     right_q_table: dict[tuple, list[float]],
 ) -> PairwiseComparison:
     left_states = set(left_q_table.keys())
@@ -332,8 +429,14 @@ def compare_q_tables(
     }
 
     return PairwiseComparison(
-        left_name=left_name,
-        right_name=right_name,
+        left_name=left_target.name,
+        right_name=right_target.name,
+        left_policy_type=left_target.policy_type,
+        right_policy_type=right_target.policy_type,
+        left_seed=left_target.seed,
+        right_seed=right_target.seed,
+        left_checkpoint_episode=left_target.checkpoint_episode,
+        right_checkpoint_episode=right_target.checkpoint_episode,
         left_states=len(left_states),
         right_states=len(right_states),
         common_states=len(common_states),
@@ -351,9 +454,9 @@ def compare_q_tables(
 
 
 def find_largest_disagreements(
-    left_name: str,
+    left_target: QTableTarget,
     left_q_table: dict[tuple, list[float]],
-    right_name: str,
+    right_target: QTableTarget,
     right_q_table: dict[tuple, list[float]],
     top_n: int = 20,
 ) -> list[dict[str, Any]]:
@@ -379,8 +482,14 @@ def find_largest_disagreements(
             {
                 "state": state,
                 "state_description": describe_state(state),
-                "left_name": left_name,
-                "right_name": right_name,
+                "left_name": left_target.name,
+                "right_name": right_target.name,
+                "left_policy_type": left_target.policy_type,
+                "right_policy_type": right_target.policy_type,
+                "left_seed": left_target.seed,
+                "right_seed": right_target.seed,
+                "left_checkpoint_episode": left_target.checkpoint_episode,
+                "right_checkpoint_episode": right_target.checkpoint_episode,
                 "left_q_values": left_values,
                 "right_q_values": right_values,
                 "left_best_action": ACTION_LABELS[left_action],
@@ -397,80 +506,6 @@ def find_largest_disagreements(
 
     return rows[:top_n]
 
-
-def build_selected_targets(
-    training_run_directory: str | Path,
-    unknown_checkpoint_episode: int = 4000,
-    calling_checkpoint_episode: int = 4000,
-    unknown_seeds: Iterable[int] = (42, 456),
-    calling_targets: Iterable[tuple[int, int]] | None = None,
-) -> list[QTableTarget]:
-    root = Path(training_run_directory)
-
-    targets: list[QTableTarget] = []
-    unknown_directory = MODEL_DIRECTORY_BY_POLICY_TYPE[
-        OPPONENT_TYPE_UNKNOWN
-    ]
-    unknown_prefix = CHECKPOINT_PREFIX_BY_POLICY_TYPE[
-        OPPONENT_TYPE_UNKNOWN
-    ]
-    calling_directory = MODEL_DIRECTORY_BY_POLICY_TYPE[
-        OPPONENT_TYPE_CALLING
-    ]
-    calling_prefix = CHECKPOINT_PREFIX_BY_POLICY_TYPE[
-        OPPONENT_TYPE_CALLING
-    ]
-
-    for seed in unknown_seeds:
-        targets.append(
-            QTableTarget(
-                name=(
-                    f"policy_unknown_seed_{seed}"
-                    f"_cp_{unknown_checkpoint_episode}"
-                ),
-                path=(
-                    root
-                    / f"seed_{seed}"
-                    / unknown_directory
-                    / "checkpoints"
-                    / (
-                        f"{unknown_prefix}"
-                        f"_episodes_{unknown_checkpoint_episode}"
-                        f"_seed_{seed}.pkl"
-                    )
-                ),
-            )
-        )
-
-    if calling_targets is None:
-        calling_targets = (
-            (42, calling_checkpoint_episode),
-            (456, calling_checkpoint_episode),
-            (123, 2500 if calling_checkpoint_episode == 4000 else calling_checkpoint_episode),
-        )
-
-    for seed, checkpoint_episode in calling_targets:
-        targets.append(
-            QTableTarget(
-                name=(
-                    f"policy_calling_seed_{seed}"
-                    f"_cp_{checkpoint_episode}"
-                ),
-                path=(
-                    root
-                    / f"seed_{seed}"
-                    / calling_directory
-                    / "checkpoints"
-                    / (
-                        f"{calling_prefix}"
-                        f"_episodes_{checkpoint_episode}"
-                        f"_seed_{seed}.pkl"
-                    )
-                ),
-            )
-        )
-
-    return targets
 
 def validate_targets_exist(targets: Iterable[QTableTarget]) -> None:
     missing = [
