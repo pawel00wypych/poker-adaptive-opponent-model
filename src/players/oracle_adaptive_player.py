@@ -1,5 +1,6 @@
 from collections import Counter
 
+from src.config import GameConfig
 from src.features.state_encoder import StateEncoder
 from src.players.player_template import PlayerTemplate
 from src.poker.action_mapper import ActionMapper
@@ -178,7 +179,7 @@ class OracleAdaptivePlayer(PlayerTemplate):
             self.previous_stack = my_stack
 
         reward = my_stack - self.previous_stack
-        reward_bb = reward / 10
+        reward_bb = reward / (GameConfig.small_blind_amount * 2)
 
         active_agent = self.agents[
             self.active_policy_type

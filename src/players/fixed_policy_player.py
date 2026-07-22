@@ -7,6 +7,7 @@ from src.poker.round_state_utils import (
     get_round_count,
 )
 from src.players.constants import PLAYER_NAME_FIXED_POLICY
+from src.config import GameConfig
 
 
 class FixedPolicyPlayer(PlayerTemplate):
@@ -131,7 +132,7 @@ class FixedPolicyPlayer(PlayerTemplate):
             self.previous_stack = my_stack
 
         reward = my_stack - self.previous_stack
-        reward_bb = reward / 10
+        reward_bb = reward / (GameConfig.small_blind_amount * 2)
 
         self.agent.learn_from_episode(
             reward_bb

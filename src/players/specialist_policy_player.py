@@ -1,3 +1,4 @@
+from src.config import GameConfig
 from src.players.player_template import PlayerTemplate
 from src.features.state_encoder import StateEncoder
 from src.poker.action_mapper import ActionMapper
@@ -126,7 +127,7 @@ class SpecialistPolicyPlayer(PlayerTemplate):
             self.previous_stack = my_stack
 
         reward = my_stack - self.previous_stack
-        reward_bb = reward / 10
+        reward_bb = reward / (GameConfig.small_blind_amount * 2)
 
         self.agent.learn_from_episode(reward_bb)
 
