@@ -552,7 +552,7 @@ def test_adaptive_player_tracks_reward_between_consecutive_round_results(
 
     assert player.hands_played == 1
     assert player.initial_stack == 200
-    assert player.previous_stack == 220
+    assert player.hand_start_stack == 220
     assert player.total_reward_bb == pytest.approx(
         2.0
     )
@@ -576,7 +576,7 @@ def test_adaptive_player_tracks_reward_between_consecutive_round_results(
 
     assert player.hands_played == 2
     assert player.initial_stack == 200
-    assert player.previous_stack == 190
+    assert player.hand_start_stack == 190
     assert player.total_reward_bb == pytest.approx(
         -1.0
     )

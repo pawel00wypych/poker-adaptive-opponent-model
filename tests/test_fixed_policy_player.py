@@ -115,7 +115,7 @@ def test_fixed_policy_player_resets_tracking_on_game_start(
     player.hands_played = 10
     player.total_reward_bb = 5.0
     player.initial_stack = 200
-    player.previous_stack = 150
+    player.hand_start_stack = 150
 
     player.receive_game_start_message(
         {}
@@ -124,4 +124,4 @@ def test_fixed_policy_player_resets_tracking_on_game_start(
     assert player.hands_played == 0
     assert player.total_reward_bb == 0.0
     assert player.initial_stack is None
-    assert player.previous_stack is None
+    assert player.hand_start_stack is None

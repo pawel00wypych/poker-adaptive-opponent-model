@@ -84,7 +84,7 @@ def test_single_policy_player_updates_positive_reward_after_round():
 
     assert player.hands_played == 1
     assert player.total_reward_bb == 2.0
-    assert player.previous_stack == 120
+    assert player.hand_start_stack == 120
 
 
 def test_single_policy_player_updates_negative_reward_after_round():
@@ -110,7 +110,7 @@ def test_single_policy_player_updates_negative_reward_after_round():
 
     assert player.hands_played == 1
     assert player.total_reward_bb == -2.0
-    assert player.previous_stack == 80
+    assert player.hand_start_stack == 80
 
 
 def test_single_policy_player_uses_unknown_opponent_state():
@@ -145,14 +145,14 @@ def test_single_policy_player_resets_tracking_on_game_start():
 
     player.hands_played = 5
     player.total_reward_bb = 4.5
-    player.previous_stack = 140
+    player.hand_start_stack = 140
     player.initial_stack = 100
 
     player.receive_game_start_message(game_info={})
 
     assert player.hands_played == 0
     assert player.total_reward_bb == 0.0
-    assert player.previous_stack is None
+    assert player.hand_start_stack is None
     assert player.initial_stack is None
 
 def test_single_policy_player_accepts_verbose_flag():

@@ -75,7 +75,7 @@ class AdaptivePlayer(PlayerTemplate):
         self.opponent_stats = OpponentStats()
 
         self.initial_stack: int | None = None
-        self.previous_stack: int | None = None
+        self.hand_start_stack: int | None = None
 
         self.hands_played = 0
         self.total_reward_bb = 0.0
@@ -112,8 +112,8 @@ class AdaptivePlayer(PlayerTemplate):
         if self.initial_stack is None:
             self.initial_stack = my_stack
 
-        if self.previous_stack is None:
-            self.previous_stack = my_stack
+        if self.hand_start_stack is None:
+            self.hand_start_stack = my_stack
 
         predicted_type = self.classifier.classify(
             self.opponent_stats
@@ -290,7 +290,7 @@ class AdaptivePlayer(PlayerTemplate):
         game_info,
     ):
         self.initial_stack = None
-        self.previous_stack = None
+        self.hand_start_stack = None
         self.hands_played = 0
         self.total_reward_bb = 0.0
 
@@ -340,10 +340,10 @@ class AdaptivePlayer(PlayerTemplate):
         if self.initial_stack is None:
             self.initial_stack = my_stack
 
-        if self.previous_stack is None:
-            self.previous_stack = my_stack
+        if self.hand_start_stack is None:
+            self.hand_start_stack = my_stack
 
-        reward = my_stack - self.previous_stack
+        reward = my_stack - self.hand_start_stack
         reward_bb = reward / (GameConfig.small_blind_amount * 2)
 
         for agent in self.agents.values():
@@ -353,7 +353,7 @@ class AdaptivePlayer(PlayerTemplate):
                 )
 
         self.total_reward_bb += reward_bb
-        self.previous_stack = my_stack
+        self.hand_start_stack = my_stack
         self.hands_played += 1
 
         self.opponent_stats.finish_hand()

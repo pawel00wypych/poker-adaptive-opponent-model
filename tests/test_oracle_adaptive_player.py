@@ -116,7 +116,7 @@ def test_oracle_resets_tracking_on_game_start(
     player.hands_played = 5
     player.total_reward_bb = 3.0
     player.initial_stack = 200
-    player.previous_stack = 150
+    player.hand_start_stack = 150
     player.policy_usage_counts["calling"] = 10
     player.active_policy_type = "fish"
 
@@ -127,6 +127,6 @@ def test_oracle_resets_tracking_on_game_start(
     assert player.hands_played == 0
     assert player.total_reward_bb == 0.0
     assert player.initial_stack is None
-    assert player.previous_stack is None
+    assert player.hand_start_stack is None
     assert player.policy_usage_counts == {}
     assert player.active_policy_type == "calling"
