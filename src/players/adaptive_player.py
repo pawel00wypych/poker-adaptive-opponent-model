@@ -346,14 +346,11 @@ class AdaptivePlayer(PlayerTemplate):
         reward = my_stack - self.previous_stack
         reward_bb = reward / (GameConfig.small_blind_amount * 2)
 
-        active_agent = self.agents[
-            self.active_policy_type
-        ]
-
-        if active_agent.training:
-            active_agent.learn_from_episode(
-                reward_bb
-            )
+        for agent in self.agents.values():
+            if agent.training:
+                agent.learn_from_episode(
+                    reward_bb
+                )
 
         self.total_reward_bb += reward_bb
         self.previous_stack = my_stack
