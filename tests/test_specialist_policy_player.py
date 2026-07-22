@@ -173,7 +173,7 @@ def test_specialist_player_updates_reward_after_round(
     )
 
     assert player.hands_played == 1
-    assert player.previous_stack == 220
+    assert player.hand_start_stack == 220
     assert player.total_reward_bb == 2.0
     assert training_agent.episode == []
 
@@ -187,7 +187,7 @@ def test_specialist_player_resets_tracking_on_game_start(
     )
 
     player.initial_stack = 200
-    player.previous_stack = 180
+    player.hand_start_stack = 180
     player.hands_played = 5
     player.total_reward_bb = -2.0
 
@@ -196,6 +196,6 @@ def test_specialist_player_resets_tracking_on_game_start(
     )
 
     assert player.initial_stack is None
-    assert player.previous_stack is None
+    assert player.hand_start_stack is None
     assert player.hands_played == 0
     assert player.total_reward_bb == 0.0

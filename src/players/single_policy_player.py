@@ -29,7 +29,7 @@ class SinglePolicyPlayer(PlayerTemplate):
         self.log_interval = log_interval
 
         self.initial_stack: int | None = None
-        self.previous_stack: int | None = None
+        self.hand_start_stack: int | None = None
         self.hands_played = 0
         self.total_reward_bb = 0.0
 
@@ -39,8 +39,8 @@ class SinglePolicyPlayer(PlayerTemplate):
         if self.initial_stack is None:
             self.initial_stack = my_stack
 
-        if self.previous_stack is None:
-            self.previous_stack = my_stack
+        if self.hand_start_stack is None:
+            self.hand_start_stack = my_stack
 
         state = StateEncoder.encode(
             player_stack=my_stack,
@@ -59,7 +59,7 @@ class SinglePolicyPlayer(PlayerTemplate):
 
     def receive_game_start_message(self, game_info):
         self.initial_stack = None
-        self.previous_stack = None
+        self.hand_start_stack = None
         self.hands_played = 0
         self.total_reward_bb = 0.0
 
@@ -72,16 +72,16 @@ class SinglePolicyPlayer(PlayerTemplate):
         if self.initial_stack is None:
             self.initial_stack = my_stack
 
-        if self.previous_stack is None:
-            self.previous_stack = my_stack
+        if self.hand_start_stack is None:
+            self.hand_start_stack = my_stack
 
-        reward = my_stack - self.previous_stack
+        reward = my_stack - self.hand_start_stack
         reward_bb = reward / (GameConfig.small_blind_amount * 2)
 
         self.agent.learn_from_episode(reward_bb)
 
         self.total_reward_bb += reward_bb
-        self.previous_stack = my_stack
+        self.hand_start_stack = my_stack
         self.hands_played += 1
 
         if (
