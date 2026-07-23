@@ -5,6 +5,31 @@ from src.players.specialist_policy_player import (
 )
 
 
+def start_specialist_round(
+    player,
+    player_stack=200,
+    opponent_stack=200,
+):
+    player.receive_round_start_message(
+        round_count=1,
+        hole_card=["HA", "DA"],
+        seats=[
+            {
+                "name": "tested_player",
+                "uuid": "uuid-tested",
+                "stack": player_stack,
+                "state": "participating",
+            },
+            {
+                "name": "opponent",
+                "uuid": "uuid-opponent",
+                "stack": opponent_stack,
+                "state": "participating",
+            },
+        ],
+    )
+
+
 def test_specialist_player_accepts_supported_opponent_type(
     training_agent,
 ):
@@ -74,6 +99,12 @@ def test_specialist_player_encodes_fixed_opponent_type(
         player_name="tested_player",
     )
     player.uuid = "uuid-tested"
+
+    start_specialist_round(
+        player,
+        player_stack=200,
+        opponent_stack=200,
+    )
 
     player.declare_action(
         valid_actions=valid_actions,
@@ -155,6 +186,12 @@ def test_specialist_player_updates_reward_after_round(
     )
     player.uuid = "uuid-tested"
 
+    start_specialist_round(
+        player,
+        player_stack=200,
+        opponent_stack=200,
+    )
+
     player.declare_action(
         valid_actions=valid_actions,
         hole_card=["HA", "DA"],
@@ -173,7 +210,8 @@ def test_specialist_player_updates_reward_after_round(
     )
 
     assert player.hands_played == 1
-    assert player.hand_start_stack == 220
+    assert player.stack == 220
+    assert player.hand_start_stack is None
     assert player.total_reward_bb == 2.0
     assert training_agent.episode == []
 
