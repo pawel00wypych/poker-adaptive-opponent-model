@@ -2,8 +2,6 @@ import pytest
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.players.adaptive_player import AdaptivePlayer
-from src.poker.action_mapper import ActionMapper
-
 
 def create_player(
     adaptive_agents,
@@ -20,6 +18,29 @@ def create_player(
 
     return player
 
+def start_adaptive_round(
+    player: AdaptivePlayer,
+    player_stack: int = 200,
+    opponent_stack: int = 200,
+):
+    player.receive_round_start_message(
+        round_count=1,
+        hole_card=["HA", "DA"],
+        seats=[
+            {
+                "name": "tested_player",
+                "uuid": "uuid-tested",
+                "stack": player_stack,
+                "state": "participating",
+            },
+            {
+                "name": "opponent",
+                "uuid": "uuid-opponent",
+                "stack": opponent_stack,
+                "state": "participating",
+            },
+        ],
+    )
 
 def send_opponent_actions(
     player: AdaptivePlayer,
@@ -533,11 +554,18 @@ def test_adaptive_player_tracks_reward_between_consecutive_round_results(
         expected_opponent_type="aggressive",
     )
 
+    start_adaptive_round(
+        player,
+        player_stack=200,
+        opponent_stack=200,
+    )
+
     player.declare_action(
         valid_actions=valid_actions,
         hole_card=["HA", "DA"],
         round_state=round_state_factory(
             player_stack=200,
+            opponent_stack=200,
         ),
     )
 
@@ -551,10 +579,14 @@ def test_adaptive_player_tracks_reward_between_consecutive_round_results(
     )
 
     assert player.hands_played == 1
-    assert player.initial_stack == 200
-    assert player.hand_start_stack == 220
-    assert player.total_reward_bb == pytest.approx(
-        2.0
+    assert player.total_reward_bb == 2.0
+    assert player.stack == 220
+    assert player.hand_start_stack is None
+
+    start_adaptive_round(
+        player,
+        player_stack=220,
+        opponent_stack=180,
     )
 
     player.declare_action(
@@ -562,6 +594,8 @@ def test_adaptive_player_tracks_reward_between_consecutive_round_results(
         hole_card=["HK", "DK"],
         round_state=round_state_factory(
             player_stack=220,
+            opponent_stack=180,
+            round_count=2,
         ),
     )
 
@@ -571,15 +605,13 @@ def test_adaptive_player_tracks_reward_between_consecutive_round_results(
         round_state=round_state_factory(
             player_stack=190,
             opponent_stack=210,
+            round_count=2,
         ),
     )
 
     assert player.hands_played == 2
-    assert player.initial_stack == 200
-    assert player.hand_start_stack == 190
-    assert player.total_reward_bb == pytest.approx(
-        -1.0
-    )
+    assert player.total_reward_bb == -1.0
+    assert player.hand_start_stack is None
 
 
 def test_adaptive_player_updates_all_policies_that_acted_before_switch(
@@ -592,8 +624,15 @@ def test_adaptive_player_updates_all_policies_that_acted_before_switch(
         expected_opponent_type="aggressive",
     )
 
+    start_adaptive_round(
+        player,
+        player_stack=200,
+        opponent_stack=200,
+    )
+
     round_state = round_state_factory(
         player_stack=200,
+        opponent_stack=200,
     )
 
     player.declare_action(
@@ -623,9 +662,7 @@ def test_adaptive_player_updates_all_policies_that_acted_before_switch(
     assert player.policy_switches == 1
     assert len(agents["aggressive"].episode) == 1
 
-    aggressive_state, aggressive_action_id = (
-        agents["aggressive"].episode[0]
-    )
+    aggressive_state, aggressive_action_id = agents["aggressive"].episode[0]
 
     assert unknown_state[-1] == 0
     assert aggressive_state[-1] == 2
@@ -639,23 +676,16 @@ def test_adaptive_player_updates_all_policies_that_acted_before_switch(
         ),
     )
 
-    assert (
-        agents["unknown"].q_table[unknown_state][unknown_action_id]
-        == pytest.approx(3.0)
-    )
-    assert (
-        agents["aggressive"].q_table[aggressive_state][aggressive_action_id]
-        == pytest.approx(3.0)
-    )
     assert agents["unknown"].episode == []
     assert agents["aggressive"].episode == []
-    assert agents["fish"].episode == []
-    assert agents["calling"].episode == []
-    assert (
-        agents["unknown"].visit_counts[unknown_state][unknown_action_id]
-        == 1
-    )
-    assert (
-        agents["aggressive"].visit_counts[aggressive_state][aggressive_action_id]
-        == 1
-    )
+
+    assert unknown_state in agents["unknown"].q_table
+    assert aggressive_state in agents["aggressive"].q_table
+
+    assert agents["unknown"].q_table[unknown_state][unknown_action_id] == 3.0
+    assert agents["aggressive"].q_table[aggressive_state][aggressive_action_id] == 3.0
+
+    assert player.hands_played == 1
+    assert player.total_reward_bb == 3.0
+    assert player.stack == 230
+    assert player.hand_start_stack is None

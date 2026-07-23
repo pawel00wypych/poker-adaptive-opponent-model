@@ -1,4 +1,5 @@
 from PyPokerEngine.pypokerengine.players import BasePokerPlayer
+
 from src.cards.hand_estimator import HandEstimator
 from src.config import GameConfig
 
@@ -44,11 +45,21 @@ class PlayerTemplate(BasePokerPlayer):
     def big_blind_amount(self):
         return GameConfig.small_blind_amount * 2
 
+    def ensure_player_index(self, seats):
+        if self.my_index is not None:
+            return
+
+        self.uuid_to_index = {seat["uuid"]: i for i, seat in enumerate(seats)}
+        self.my_index = self.uuid_to_index[self.uuid]
+
     def get_my_stack_from_seats(self, seats):
+        self.ensure_player_index(seats)
         return seats[self.my_index]["stack"]
 
     def get_my_stack_from_round_state(self, round_state):
-        return round_state["seats"][self.my_index]["stack"]
+        seats = round_state["seats"]
+        self.ensure_player_index(seats)
+        return seats[self.my_index]["stack"]
 
     def calculate_reward_bb(self, final_stack):
         if self.hand_start_stack is None:
@@ -86,9 +97,7 @@ class PlayerTemplate(BasePokerPlayer):
 
         if len(position) > 1:
             self.my_position = (
-                "big_blind_pos"
-                if "big_blind_pos" in position
-                else "small_blind_pos"
+                "big_blind_pos" if "big_blind_pos" in position else "small_blind_pos"
             )
             return
 

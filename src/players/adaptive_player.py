@@ -1,6 +1,4 @@
 from collections import Counter
-
-from src.config import GameConfig
 from src.players.player_template import PlayerTemplate
 from src.features.opponent_stats import OpponentStats
 from src.features.state_encoder import StateEncoder
@@ -74,12 +72,6 @@ class AdaptivePlayer(PlayerTemplate):
 
         self.opponent_stats = OpponentStats()
 
-        self.initial_stack: int | None = None
-        self.hand_start_stack: int | None = None
-
-        self.hands_played = 0
-        self.total_reward_bb = 0.0
-
         self.current_opponent_type = OPPONENT_TYPE_UNKNOWN
         self.active_policy_type = OPPONENT_TYPE_UNKNOWN
 
@@ -111,9 +103,6 @@ class AdaptivePlayer(PlayerTemplate):
 
         if self.initial_stack is None:
             self.initial_stack = my_stack
-
-        if self.hand_start_stack is None:
-            self.hand_start_stack = my_stack
 
         predicted_type = self.classifier.classify(
             self.opponent_stats
@@ -289,10 +278,7 @@ class AdaptivePlayer(PlayerTemplate):
         self,
         game_info,
     ):
-        self.initial_stack = None
-        self.hand_start_stack = None
-        self.hands_played = 0
-        self.total_reward_bb = 0.0
+        super().receive_game_start_message(game_info)
 
         self.current_opponent_type = OPPONENT_TYPE_UNKNOWN
         self.active_policy_type = OPPONENT_TYPE_UNKNOWN
@@ -332,57 +318,29 @@ class AdaptivePlayer(PlayerTemplate):
         hand_info,
         round_state,
     ):
-        my_stack = get_player_stack(
-            round_state,
-            self.uuid,
-        )
-
-        if self.initial_stack is None:
-            self.initial_stack = my_stack
-
-        if self.hand_start_stack is None:
-            self.hand_start_stack = my_stack
-
-        reward = my_stack - self.hand_start_stack
-        reward_bb = reward / (GameConfig.small_blind_amount * 2)
+        final_stack = self.get_my_stack_from_round_state(round_state)
+        reward_bb = self.calculate_reward_bb(final_stack)
 
         for agent in self.agents.values():
-            if agent.training:
-                agent.learn_from_episode(
-                    reward_bb
-                )
+            if agent.training and agent.episode:
+                agent.learn_from_episode(reward_bb)
 
         self.total_reward_bb += reward_bb
-        self.hand_start_stack = my_stack
-        self.hands_played += 1
+        self.update_round_tracking_after_result(final_stack)
 
         self.opponent_stats.finish_hand()
 
         if (
-            self.verbose
-            and self.hands_played % self.log_interval == 0
+                self.verbose
+                and self.hands_played % self.log_interval == 0
         ):
             print(
                 "[AdaptivePlayer] "
                 f"round={get_round_count(round_state)}, "
-                f"stack={my_stack}, "
+                f"stack={final_stack}, "
                 f"reward_bb={reward_bb:.2f}, "
-                f"total_reward_bb="
-                f"{self.total_reward_bb:.2f}, "
-                f"predicted_type="
-                f"{self.current_opponent_type}, "
-                f"active_policy="
-                f"{self.active_policy_type}, "
-                f"expected_type="
-                f"{self.expected_opponent_type}, "
-                f"accuracy="
-                f"{self.classifier_accuracy:.3f}, "
-                f"coverage="
-                f"{self.classifier_coverage:.3f}, "
-                f"switches={self.policy_switches}, "
-                f"classifications="
-                f"{dict(self.classification_counts)}, "
-                f"policy_usage="
-                f"{dict(self.policy_usage_counts)}, "
-                f"stats={self.opponent_stats.as_dict()}"
+                f"total_reward_bb={self.total_reward_bb:.2f}, "
+                f"opponent_type={self.current_opponent_type}, "
+                f"active_policy={self.active_policy_type}, "
+                f"policy_switches={self.policy_switches}"
             )
