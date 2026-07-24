@@ -4,6 +4,7 @@ from PyPokerEngine.pypokerengine.api.game import (
 )
 
 from src.players.adaptive_player import AdaptivePlayer
+from src.players.always_raise_player import AlwaysRaisePlayer
 from src.agents.monte_carlo_agent import (
     MonteCarloAgent,
 )
@@ -24,6 +25,7 @@ from src.evaluation.result_logger import (
 from src.experiments.constants import (
     TESTED_AGENT_ADAPTIVE_MC,
     TESTED_AGENT_RULE_BASED,
+    TESTED_AGENT_ALWAYS_RAISE,
     TESTED_AGENT_SINGLE_POLICY_MC,
     TESTED_AGENTS,
 )
@@ -82,6 +84,11 @@ def build_tested_player(
     if agent_name == TESTED_AGENT_RULE_BASED:
         return RuleBasedPlayer(
             player_name=TESTED_AGENT_RULE_BASED
+        )
+
+    if agent_name == TESTED_AGENT_ALWAYS_RAISE:
+        return AlwaysRaisePlayer(
+            player_name=TESTED_AGENT_ALWAYS_RAISE
         )
 
     if agent_name == TESTED_AGENT_SINGLE_POLICY_MC:
