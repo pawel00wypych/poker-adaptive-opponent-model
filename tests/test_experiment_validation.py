@@ -159,6 +159,20 @@ def write_sample_checkpoint_csv(path):
             opponent=opponent,
             profit_by_seed=(8.0, 9.0) if opponent != "fish" else (19.0, 19.2),
         )
+        add_group(
+            rows,
+            agent="always_raise",
+            opponent=opponent,
+            profit_by_seed=(19.3, 19.4)
+            if opponent in {"aggressive", "fish"}
+            else (-1.0, -0.8),
+            win_rate=100.0
+            if opponent in {"aggressive", "fish"}
+            else 45.0,
+            bust_rate=0.0
+            if opponent in {"aggressive", "fish"}
+            else 52.0,
+        )
 
     pd.DataFrame(rows).to_csv(path, index=False)
 
@@ -281,6 +295,12 @@ def test_validation_cli_parser_accepts_threshold_overrides():
             "75",
             "--max-std-across-seeds-bb",
             "7",
+            "--always-raise-adaptive-warning-gap-bb",
+            "4",
+            "--high-always-raise-mean-profit-bb",
+            "17",
+            "--high-always-raise-win-rate",
+            "90",
         ]
     )
     thresholds = build_thresholds(args)
@@ -288,3 +308,70 @@ def test_validation_cli_parser_accepts_threshold_overrides():
     assert args.format == "json"
     assert thresholds.min_classifier_accuracy == 75.0
     assert thresholds.max_std_across_seeds_bb == 7.0
+    assert thresholds.always_raise_adaptive_warning_gap_bb == 4.0
+    assert thresholds.high_always_raise_mean_profit_bb == 17.0
+    assert thresholds.high_always_raise_win_rate == 90.0
+
+
+
+def test_validation_warns_when_always_raise_beats_adaptive_by_large_margin(
+    tmp_path,
+):
+    csv_path = tmp_path / "checkpoint_results.csv"
+    write_sample_checkpoint_csv(csv_path)
+
+    report = validate_checkpoint_results(csv_path)
+
+    checks = [
+        check
+        for check in report.checks
+        if check.check_name
+        == "Always-raise dominance sanity check vs aggressive"
+    ]
+
+    assert len(checks) == 1
+    assert checks[0].status == STATUS_WARNING
+    assert checks[0].observed_value > 3.0
+
+
+def test_validation_warns_about_trivial_always_raise_exploit(tmp_path):
+    csv_path = tmp_path / "checkpoint_results.csv"
+    write_sample_checkpoint_csv(csv_path)
+
+    report = validate_checkpoint_results(csv_path)
+
+    warning_names = {
+        check.check_name
+        for check in report.checks
+        if check.status == STATUS_WARNING
+    }
+
+    assert (
+        "Always-raise trivial exploit sanity check vs aggressive"
+        in warning_names
+    )
+    assert "Always-raise trivial exploit sanity check vs fish" in warning_names
+    assert (
+        "Always-raise trivial exploit sanity check vs calling"
+        not in warning_names
+    )
+
+
+def test_validation_warns_when_fish_is_saturated_by_simple_baselines(
+    tmp_path,
+):
+    csv_path = tmp_path / "checkpoint_results.csv"
+    write_sample_checkpoint_csv(csv_path)
+
+    report = validate_checkpoint_results(csv_path)
+
+    checks = [
+        check
+        for check in report.checks
+        if check.check_name == "FishPlayer baseline saturation sanity check"
+    ]
+
+    assert len(checks) == 1
+    assert checks[0].status == STATUS_WARNING
+    assert checks[0].opponent_name == "fish"
+    assert "always_raise" in checks[0].details["saturated_agents"]
