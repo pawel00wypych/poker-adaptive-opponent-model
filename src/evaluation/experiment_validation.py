@@ -13,6 +13,7 @@ from src.evaluation.checkpoint_report import (
 )
 from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
+    ALWAYS_RAISE_AGENT,
     ORACLE_ADAPTIVE_AGENT,
     RULE_BASED_AGENT,
 )
@@ -56,6 +57,9 @@ class ValidationThresholds:
     max_std_across_seeds_bb: float = 5.0
     extreme_bb_per_100_threshold: float = 300.0
     low_mean_hands_played_threshold: float = 5.0
+    always_raise_adaptive_warning_gap_bb: float = 3.0
+    high_always_raise_mean_profit_bb: float = 18.0
+    high_always_raise_win_rate: float = 95.0
 
 
 @dataclass(frozen=True)
@@ -617,6 +621,248 @@ def validate_extreme_bb_per_100(
     return results
 
 
+def validate_always_raise_outperforms_adaptive(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    opponents: Iterable[str] = TRAINING_OPPONENT_TYPES,
+) -> list[ValidationCheckResult]:
+    results: list[ValidationCheckResult] = []
+
+    for opponent_name in opponents:
+        always_raise_row = _find_row(
+            best_rows,
+            ALWAYS_RAISE_AGENT,
+            opponent_name,
+        )
+        adaptive_row = _find_row(
+            best_rows,
+            ADAPTIVE_MC_AGENT,
+            opponent_name,
+        )
+        check_name = (
+            "Always-raise dominance sanity check "
+            f"vs {opponent_name}"
+        )
+
+        if always_raise_row is None:
+            results.append(
+                _missing_row_result(
+                    check_name,
+                    "always_raise_sanity",
+                    ALWAYS_RAISE_AGENT,
+                    opponent_name,
+                )
+            )
+            continue
+
+        if adaptive_row is None:
+            results.append(
+                _missing_row_result(
+                    check_name,
+                    "always_raise_sanity",
+                    ADAPTIVE_MC_AGENT,
+                    opponent_name,
+                )
+            )
+            continue
+
+        delta = float(
+            always_raise_row["mean_profit_bb"]
+            - adaptive_row["mean_profit_bb"]
+        )
+        is_large_gap = (
+            delta >= thresholds.always_raise_adaptive_warning_gap_bb
+        )
+
+        results.append(
+            ValidationCheckResult(
+                check_name=check_name,
+                status=STATUS_WARNING if is_large_gap else STATUS_PASS,
+                category="always_raise_sanity",
+                agent_name=ALWAYS_RAISE_AGENT,
+                opponent_name=opponent_name,
+                checkpoint_episode=_checkpoint_episode(always_raise_row),
+                observed_value=delta,
+                threshold=(
+                    thresholds.always_raise_adaptive_warning_gap_bb
+                ),
+                message=(
+                    "Always-raise minus adaptive mean profit is "
+                    f"{_format_float(delta)} BB/game."
+                ),
+                details={
+                    "always_raise_mean_profit_bb": float(
+                        always_raise_row["mean_profit_bb"]
+                    ),
+                    "adaptive_mean_profit_bb": float(
+                        adaptive_row["mean_profit_bb"]
+                    ),
+                    "adaptive_checkpoint_episode": _checkpoint_episode(
+                        adaptive_row
+                    ),
+                },
+            )
+        )
+
+    return results
+
+
+def validate_always_raise_trivial_exploit(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    opponents: Iterable[str] = TRAINING_OPPONENT_TYPES,
+) -> list[ValidationCheckResult]:
+    results: list[ValidationCheckResult] = []
+
+    for opponent_name in opponents:
+        always_raise_row = _find_row(
+            best_rows,
+            ALWAYS_RAISE_AGENT,
+            opponent_name,
+        )
+        check_name = (
+            "Always-raise trivial exploit sanity check "
+            f"vs {opponent_name}"
+        )
+
+        if always_raise_row is None:
+            results.append(
+                _missing_row_result(
+                    check_name,
+                    "always_raise_sanity",
+                    ALWAYS_RAISE_AGENT,
+                    opponent_name,
+                )
+            )
+            continue
+
+        mean_profit_bb = float(always_raise_row["mean_profit_bb"])
+        win_rate = float(always_raise_row["win_rate"])
+        is_trivial_exploit = (
+            mean_profit_bb >= thresholds.high_always_raise_mean_profit_bb
+            and win_rate >= thresholds.high_always_raise_win_rate
+        )
+
+        results.append(
+            ValidationCheckResult(
+                check_name=check_name,
+                status=(
+                    STATUS_WARNING
+                    if is_trivial_exploit
+                    else STATUS_PASS
+                ),
+                category="always_raise_sanity",
+                agent_name=ALWAYS_RAISE_AGENT,
+                opponent_name=opponent_name,
+                checkpoint_episode=_checkpoint_episode(always_raise_row),
+                observed_value=mean_profit_bb,
+                threshold=thresholds.high_always_raise_mean_profit_bb,
+                message=(
+                    "Always-raise vs opponent: "
+                    f"mean_profit_bb={_format_float(mean_profit_bb)}, "
+                    f"win_rate={_format_float(win_rate)}%."
+                ),
+                details={
+                    "mean_profit_bb": mean_profit_bb,
+                    "win_rate": win_rate,
+                    "high_mean_profit_bb_threshold": (
+                        thresholds.high_always_raise_mean_profit_bb
+                    ),
+                    "high_win_rate_threshold": (
+                        thresholds.high_always_raise_win_rate
+                    ),
+                },
+            )
+        )
+
+    return results
+
+
+def validate_fish_baseline_saturation(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    required_agents = (
+        ADAPTIVE_MC_AGENT,
+        RULE_BASED_AGENT,
+        ALWAYS_RAISE_AGENT,
+    )
+    rows_by_agent = {
+        agent_name: _find_row(
+            best_rows,
+            agent_name,
+            OPPONENT_TYPE_FISH,
+        )
+        for agent_name in required_agents
+    }
+    check_name = "FishPlayer baseline saturation sanity check"
+
+    for agent_name, row in rows_by_agent.items():
+        if row is None:
+            return [
+                _missing_row_result(
+                    check_name,
+                    "always_raise_sanity",
+                    agent_name,
+                    OPPONENT_TYPE_FISH,
+                )
+            ]
+
+    assert all(row is not None for row in rows_by_agent.values())
+
+    saturated_agents: list[str] = []
+    details: dict[str, object] = {}
+
+    for agent_name, row in rows_by_agent.items():
+        assert row is not None
+        mean_profit_bb = float(row["mean_profit_bb"])
+        win_rate = float(row["win_rate"])
+        details[f"{agent_name}_mean_profit_bb"] = mean_profit_bb
+        details[f"{agent_name}_win_rate"] = win_rate
+
+        if (
+            mean_profit_bb >= thresholds.min_fish_mean_profit_bb
+            and win_rate >= thresholds.min_fish_win_rate
+        ):
+            saturated_agents.append(agent_name)
+
+    is_saturated = len(saturated_agents) == len(required_agents)
+
+    return [
+        ValidationCheckResult(
+            check_name=check_name,
+            status=STATUS_WARNING if is_saturated else STATUS_PASS,
+            category="always_raise_sanity",
+            agent_name=ALWAYS_RAISE_AGENT,
+            opponent_name=OPPONENT_TYPE_FISH,
+            checkpoint_episode=_checkpoint_episode(
+                rows_by_agent[ALWAYS_RAISE_AGENT]
+            ),
+            observed_value=float(
+                rows_by_agent[ALWAYS_RAISE_AGENT]["mean_profit_bb"]
+            ),
+            threshold=thresholds.min_fish_mean_profit_bb,
+            message=(
+                "FishPlayer may be too weak to distinguish agent "
+                "quality when adaptive, rule-based, and always-raise "
+                "all reach the fish exploitation thresholds."
+                if is_saturated
+                else "FishPlayer still differentiates at least one "
+                "baseline below the exploitation thresholds."
+            ),
+            details={
+                **details,
+                "saturated_agents": saturated_agents,
+                "required_agents": list(required_agents),
+                "min_fish_mean_profit_bb": (
+                    thresholds.min_fish_mean_profit_bb
+                ),
+                "min_fish_win_rate": thresholds.min_fish_win_rate,
+            },
+        )
+    ]
+
+
 def validate_checkpoint_results(
     input_path: str | Path,
     thresholds: ValidationThresholds | None = None,
@@ -660,6 +906,24 @@ def validate_checkpoint_results(
     )
     checks.extend(
         validate_extreme_bb_per_100(
+            best_rows,
+            thresholds,
+        )
+    )
+    checks.extend(
+        validate_always_raise_outperforms_adaptive(
+            best_rows,
+            thresholds,
+        )
+    )
+    checks.extend(
+        validate_always_raise_trivial_exploit(
+            best_rows,
+            thresholds,
+        )
+    )
+    checks.extend(
+        validate_fish_baseline_saturation(
             best_rows,
             thresholds,
         )

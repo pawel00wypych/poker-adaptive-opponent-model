@@ -70,6 +70,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=float,
         default=5.0,
     )
+    parser.add_argument(
+        "--always-raise-adaptive-warning-gap-bb",
+        type=float,
+        default=3.0,
+    )
+    parser.add_argument(
+        "--high-always-raise-mean-profit-bb",
+        type=float,
+        default=18.0,
+    )
+    parser.add_argument(
+        "--high-always-raise-win-rate",
+        type=float,
+        default=95.0,
+    )
 
     return parser.parse_args(argv)
 
@@ -93,6 +108,13 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         low_mean_hands_played_threshold=(
             args.low_mean_hands_played_threshold
         ),
+        always_raise_adaptive_warning_gap_bb=(
+            args.always_raise_adaptive_warning_gap_bb
+        ),
+        high_always_raise_mean_profit_bb=(
+            args.high_always_raise_mean_profit_bb
+        ),
+        high_always_raise_win_rate=args.high_always_raise_win_rate,
     )
 
 
