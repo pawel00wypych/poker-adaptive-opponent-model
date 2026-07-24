@@ -4,6 +4,7 @@ import pandas as pd
 
 from src.evaluation.experiment_validation import (
     STATUS_FAIL,
+    VALIDATION_MODE_HEAD_TO_HEAD,
     STATUS_PASS,
     STATUS_SKIPPED,
     STATUS_WARNING,
@@ -177,6 +178,51 @@ def write_sample_checkpoint_csv(path):
     pd.DataFrame(rows).to_csv(path, index=False)
 
 
+
+
+def write_sample_head_to_head_csv(path):
+    rows = []
+
+    for agent, rule_based_profit in [
+        ("policy_unknown", (10.0, 12.0)),
+        ("adaptive_mc", (11.0, 13.0)),
+        ("policy_fish", (-18.0, -17.0)),
+        ("policy_aggressive", (-20.0, -20.0)),
+        ("policy_calling", (15.0, 16.0)),
+    ]:
+        add_group(
+            rows,
+            agent=agent,
+            opponent="rule_based",
+            profit_by_seed=rule_based_profit,
+            win_rate=80.0 if max(rule_based_profit) > 0 else 5.0,
+            bust_rate=10.0 if max(rule_based_profit) > 0 else 95.0,
+            classifier_accuracy=0.0,
+            classifier_coverage=90.0 if agent == "adaptive_mc" else 0.0,
+            policy_switches=1 if agent == "adaptive_mc" else 0,
+        )
+
+    for agent, always_raise_profit in [
+        ("policy_unknown", (-19.0, -20.0)),
+        ("adaptive_mc", (-16.0, -17.0)),
+        ("policy_fish", (-20.0, -20.0)),
+        ("policy_aggressive", (-12.0, -18.0)),
+        ("policy_calling", (-20.0, -20.0)),
+    ]:
+        add_group(
+            rows,
+            agent=agent,
+            opponent="always_raise",
+            profit_by_seed=always_raise_profit,
+            win_rate=5.0,
+            bust_rate=95.0,
+            classifier_accuracy=0.0,
+            classifier_coverage=85.0 if agent == "adaptive_mc" else 0.0,
+            policy_switches=1 if agent == "adaptive_mc" else 0,
+        )
+
+    pd.DataFrame(rows).to_csv(path, index=False)
+
 def test_validate_checkpoint_results_generates_expected_statuses(tmp_path):
     csv_path = tmp_path / "checkpoint_results.csv"
     write_sample_checkpoint_csv(csv_path)
@@ -291,6 +337,8 @@ def test_validation_cli_parser_accepts_threshold_overrides():
             "reports/validation",
             "--format",
             "json",
+            "--validation-mode",
+            "head-to-head",
             "--min-classifier-accuracy",
             "75",
             "--max-std-across-seeds-bb",
@@ -301,16 +349,29 @@ def test_validation_cli_parser_accepts_threshold_overrides():
             "17",
             "--high-always-raise-win-rate",
             "90",
+            "--min-head-to-head-mean-profit-bb",
+            "1",
+            "--max-adaptive-underperformance-vs-unknown-bb",
+            "2",
+            "--always-raise-stress-loss-bb",
+            "-12",
+            "--always-raise-stress-bust-rate",
+            "75",
         ]
     )
     thresholds = build_thresholds(args)
 
     assert args.format == "json"
+    assert args.validation_mode == "head-to-head"
     assert thresholds.min_classifier_accuracy == 75.0
     assert thresholds.max_std_across_seeds_bb == 7.0
     assert thresholds.always_raise_adaptive_warning_gap_bb == 4.0
     assert thresholds.high_always_raise_mean_profit_bb == 17.0
     assert thresholds.high_always_raise_win_rate == 90.0
+    assert thresholds.min_head_to_head_mean_profit_bb == 1.0
+    assert thresholds.max_adaptive_underperformance_vs_unknown_bb == 2.0
+    assert thresholds.always_raise_stress_loss_bb == -12.0
+    assert thresholds.always_raise_stress_bust_rate == 75.0
 
 
 
@@ -375,3 +436,86 @@ def test_validation_warns_when_fish_is_saturated_by_simple_baselines(
     assert checks[0].status == STATUS_WARNING
     assert checks[0].opponent_name == "fish"
     assert "always_raise" in checks[0].details["saturated_agents"]
+
+
+def test_head_to_head_validation_mode_uses_direct_matchup_checks(tmp_path):
+    csv_path = tmp_path / "head_to_head_results.csv"
+    write_sample_head_to_head_csv(csv_path)
+
+    report = validate_checkpoint_results(
+        csv_path,
+        validation_mode=VALIDATION_MODE_HEAD_TO_HEAD,
+    )
+
+    check_names = {check.check_name for check in report.checks}
+
+    assert report.validation_mode == "head-to-head"
+    assert "Fixed unknown policy beats RuleBasedPlayer" in check_names
+    assert "Adaptive Monte Carlo beats RuleBasedPlayer" in check_names
+    assert "At least one specialist beats RuleBasedPlayer" in check_names
+    assert (
+        "Adaptive not significantly worse than fixed unknown "
+        "vs RuleBasedPlayer"
+    ) in check_names
+    assert "OOD classifier coverage vs rule_based" in check_names
+    assert "OOD classifier coverage vs always_raise" in check_names
+    assert "AlwaysRaise stress test vs adaptive_mc" in check_names
+    assert "Adaptive exploits FishPlayer" not in check_names
+
+    assert not any(
+        check.status == STATUS_SKIPPED
+        and check.opponent_name in {"fish", "aggressive", "calling"}
+        for check in report.checks
+    )
+
+
+def test_head_to_head_validation_warns_for_always_raise_stress_test(
+    tmp_path,
+):
+    csv_path = tmp_path / "head_to_head_results.csv"
+    write_sample_head_to_head_csv(csv_path)
+
+    report = validate_checkpoint_results(
+        csv_path,
+        validation_mode="head-to-head",
+    )
+
+    stress_checks = [
+        check
+        for check in report.checks
+        if check.category == "head_to_head_stress_test"
+    ]
+
+    assert stress_checks
+    assert any(
+        check.check_name == "AlwaysRaise stress test vs adaptive_mc"
+        and check.status == STATUS_WARNING
+        for check in stress_checks
+    )
+
+
+def test_head_to_head_validation_fails_when_adaptive_loses_to_rule_based(
+    tmp_path,
+):
+    csv_path = tmp_path / "head_to_head_results.csv"
+    write_sample_head_to_head_csv(csv_path)
+
+    df = pd.read_csv(csv_path)
+    mask = (
+        (df["agent_name"] == "adaptive_mc")
+        & (df["opponent_name"] == "rule_based")
+    )
+    df.loc[mask, "profit_bb"] = -5.0
+    df.to_csv(csv_path, index=False)
+
+    report = validate_checkpoint_results(
+        csv_path,
+        validation_mode="head-to-head",
+    )
+
+    assert any(
+        check.check_name == "Adaptive Monte Carlo beats RuleBasedPlayer"
+        and check.status == STATUS_FAIL
+        for check in report.checks
+    )
+
