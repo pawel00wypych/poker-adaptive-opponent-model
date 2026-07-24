@@ -5,6 +5,31 @@ from src.players.specialist_policy_player import (
 )
 
 
+def start_specialist_round(
+    player,
+    player_stack=200,
+    opponent_stack=200,
+):
+    player.receive_round_start_message(
+        round_count=1,
+        hole_card=["HA", "DA"],
+        seats=[
+            {
+                "name": "tested_player",
+                "uuid": "uuid-tested",
+                "stack": player_stack,
+                "state": "participating",
+            },
+            {
+                "name": "opponent",
+                "uuid": "uuid-opponent",
+                "stack": opponent_stack,
+                "state": "participating",
+            },
+        ],
+    )
+
+
 def test_specialist_player_accepts_supported_opponent_type(
     training_agent,
 ):
@@ -74,6 +99,12 @@ def test_specialist_player_encodes_fixed_opponent_type(
         player_name="tested_player",
     )
     player.uuid = "uuid-tested"
+
+    start_specialist_round(
+        player,
+        player_stack=200,
+        opponent_stack=200,
+    )
 
     player.declare_action(
         valid_actions=valid_actions,
@@ -155,6 +186,12 @@ def test_specialist_player_updates_reward_after_round(
     )
     player.uuid = "uuid-tested"
 
+    start_specialist_round(
+        player,
+        player_stack=200,
+        opponent_stack=200,
+    )
+
     player.declare_action(
         valid_actions=valid_actions,
         hole_card=["HA", "DA"],
@@ -173,7 +210,8 @@ def test_specialist_player_updates_reward_after_round(
     )
 
     assert player.hands_played == 1
-    assert player.previous_stack == 220
+    assert player.stack == 220
+    assert player.hand_start_stack is None
     assert player.total_reward_bb == 2.0
     assert training_agent.episode == []
 
@@ -187,7 +225,7 @@ def test_specialist_player_resets_tracking_on_game_start(
     )
 
     player.initial_stack = 200
-    player.previous_stack = 180
+    player.hand_start_stack = 180
     player.hands_played = 5
     player.total_reward_bb = -2.0
 
@@ -196,6 +234,52 @@ def test_specialist_player_resets_tracking_on_game_start(
     )
 
     assert player.initial_stack is None
-    assert player.previous_stack is None
+    assert player.hand_start_stack is None
     assert player.hands_played == 0
     assert player.total_reward_bb == 0.0
+
+def test_specialist_player_reward_includes_blind_paid_before_first_decision(
+    training_agent,
+    valid_actions,
+    round_state_factory,
+):
+    player = SpecialistPolicyPlayer(
+        agent=training_agent,
+        opponent_type="calling",
+        player_name="tested_player",
+    )
+    player.uuid = "uuid-tested"
+
+    start_specialist_round(
+        player,
+        player_stack=100,
+        opponent_stack=100,
+    )
+
+    # First decision happens after posting the big blind.
+    # The player already has 90 chips, but the hand started at 100.
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state_factory(
+            player_stack=90,
+            opponent_stack=100,
+        ),
+    )
+
+    # Final stack is 80, so reward should be:
+    # 80 - 100 = -20 chips = -2 BB.
+    player.receive_round_result_message(
+        winners=[],
+        hand_info=[],
+        round_state=round_state_factory(
+            player_stack=80,
+            opponent_stack=120,
+        ),
+    )
+
+    assert player.hands_played == 1
+    assert player.total_reward_bb == -2.0
+    assert player.stack == 80
+    assert player.hand_start_stack is None
+    assert training_agent.episode == []

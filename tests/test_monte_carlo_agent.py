@@ -377,3 +377,94 @@ def test_agent_save_and_load_preserves_alpha_mode_and_visit_counts(tmp_path):
         10.0
     )
     assert MonteCarloAgent.load_metadata(str(path)) == {"test": True}
+
+
+def test_terminal_return_is_applied_to_all_first_visited_pairs():
+    agent = MonteCarloAgent(
+        alpha=1.0,
+        epsilon=0.0,
+        alpha_mode="constant",
+    )
+
+    first_state = (0, 4, 0, 0, 3, 3, 0)
+    second_state = (1, 6, 2, 1, 2, 1, 2)
+
+    agent.remember(
+        first_state,
+        ActionMapper.CALL,
+    )
+    agent.remember(
+        second_state,
+        ActionMapper.RAISE_MIN,
+    )
+    agent.remember(
+        first_state,
+        ActionMapper.CALL,
+    )
+
+    agent.learn_from_episode(
+        reward=3.0,
+    )
+
+    assert agent.q_table[first_state][ActionMapper.CALL] == pytest.approx(
+        3.0
+    )
+    assert agent.q_table[second_state][ActionMapper.RAISE_MIN] == pytest.approx(
+        3.0
+    )
+    assert agent.q_table[first_state][ActionMapper.FOLD] == pytest.approx(
+        0.0
+    )
+    assert agent.q_table[first_state][ActionMapper.RAISE_MIN] == pytest.approx(
+        0.0
+    )
+    assert agent.q_table[second_state][ActionMapper.FOLD] == pytest.approx(
+        0.0
+    )
+    assert agent.q_table[second_state][ActionMapper.CALL] == pytest.approx(
+        0.0
+    )
+    assert agent.visit_counts[first_state][ActionMapper.CALL] == 1
+    assert agent.visit_counts[second_state][ActionMapper.RAISE_MIN] == 1
+    assert agent.episode == []
+
+
+def test_first_visit_updates_same_state_with_different_actions_separately():
+    agent = MonteCarloAgent(
+        alpha=1.0,
+        epsilon=0.0,
+        alpha_mode="constant",
+    )
+
+    state = (2, 5, 1, 2, 1, 0, 6)
+
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+    agent.remember(
+        state,
+        ActionMapper.RAISE_MIN,
+    )
+    agent.remember(
+        state,
+        ActionMapper.CALL,
+    )
+
+    agent.learn_from_episode(
+        reward=-2.0,
+    )
+
+    assert agent.q_table[state][ActionMapper.CALL] == pytest.approx(
+        -2.0
+    )
+    assert agent.q_table[state][ActionMapper.RAISE_MIN] == pytest.approx(
+        -2.0
+    )
+    assert agent.q_table[state][ActionMapper.FOLD] == pytest.approx(
+        0.0
+    )
+    assert agent.visit_counts[state][ActionMapper.CALL] == 1
+    assert agent.visit_counts[state][ActionMapper.RAISE_MIN] == 1
+    assert agent.visit_counts[state][ActionMapper.FOLD] == 0
+    assert agent.episode == []
