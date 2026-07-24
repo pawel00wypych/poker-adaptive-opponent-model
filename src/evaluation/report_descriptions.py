@@ -34,6 +34,7 @@ AGENT_LABELS = {
     "policy_fish": "Fixed fish specialist",
     "policy_aggressive": "Fixed aggressive specialist",
     "rule_based": "Rule-based baseline",
+    "always_raise": "Always-raise baseline",
 }
 
 ACTION_LABELS = {

@@ -20,6 +20,7 @@ from src.evaluation.constants import (
 )
 from src.experiments.training_opponents import build_opponent
 from src.players.adaptive_player import AdaptivePlayer
+from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.rule_based_player import RuleBasedPlayer
 from src.players.single_policy_player import SinglePolicyPlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
@@ -279,6 +280,11 @@ def build_tested_player(
     if tested_agent_name == "rule_based":
         return RuleBasedPlayer(
             player_name="rule_based"
+        )
+
+    if tested_agent_name == "always_raise":
+        return AlwaysRaisePlayer(
+            player_name="always_raise"
         )
 
     if tested_agent_name == "single_policy_mc":
