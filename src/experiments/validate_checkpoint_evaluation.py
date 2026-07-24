@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 
 from src.evaluation.experiment_validation import (
+    VALIDATION_MODE_CHECKPOINT,
+    VALIDATION_MODES,
     ValidationThresholds,
     validate_checkpoint_results,
     write_validation_json_report,
@@ -13,8 +15,7 @@ from src.evaluation.experiment_validation import (
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run automated sanity checks on checkpoint "
-            "evaluation results."
+            "Run automated sanity checks on evaluation results."
         )
     )
 
@@ -24,6 +25,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--format",
         default="both",
         choices=["markdown", "json", "both"],
+    )
+    parser.add_argument(
+        "--validation-mode",
+        default=VALIDATION_MODE_CHECKPOINT,
+        choices=VALIDATION_MODES,
+        help=(
+            "Use 'checkpoint' for standard benchmark results or "
+            "'head-to-head' for direct matchups against baselines."
+        ),
     )
     parser.add_argument(
         "--min-adaptive-delta-vs-rule-based-bb",
@@ -85,6 +95,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=float,
         default=95.0,
     )
+    parser.add_argument(
+        "--min-head-to-head-mean-profit-bb",
+        type=float,
+        default=0.0,
+    )
+    parser.add_argument(
+        "--max-adaptive-underperformance-vs-unknown-bb",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--always-raise-stress-loss-bb",
+        type=float,
+        default=-15.0,
+    )
+    parser.add_argument(
+        "--always-raise-stress-bust-rate",
+        type=float,
+        default=80.0,
+    )
 
     return parser.parse_args(argv)
 
@@ -115,6 +145,14 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
             args.high_always_raise_mean_profit_bb
         ),
         high_always_raise_win_rate=args.high_always_raise_win_rate,
+        min_head_to_head_mean_profit_bb=(
+            args.min_head_to_head_mean_profit_bb
+        ),
+        max_adaptive_underperformance_vs_unknown_bb=(
+            args.max_adaptive_underperformance_vs_unknown_bb
+        ),
+        always_raise_stress_loss_bb=args.always_raise_stress_loss_bb,
+        always_raise_stress_bust_rate=args.always_raise_stress_bust_rate,
     )
 
 
@@ -124,6 +162,7 @@ def main() -> None:
     report = validate_checkpoint_results(
         input_path=args.input_path,
         thresholds=thresholds,
+        validation_mode=args.validation_mode,
     )
 
     created_paths = []
