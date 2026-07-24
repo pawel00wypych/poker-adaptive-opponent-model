@@ -9,7 +9,7 @@ class TrackingPlayerMixin:
     def reset_tracking(self) -> None:
         self.hands_played = 0
         self.total_reward_bb = 0.0
-        self.previous_stack = None
+        self.hand_start_stack = None
         self.initial_stack = None
 
     def update_tracking_after_round(
@@ -23,14 +23,14 @@ class TrackingPlayerMixin:
         if self.initial_stack is None:
             self.initial_stack = current_stack
 
-        if self.previous_stack is None:
-            self.previous_stack = current_stack
+        if self.hand_start_stack is None:
+            self.hand_start_stack = current_stack
 
-        reward = current_stack - self.previous_stack
+        reward = current_stack - self.hand_start_stack
         reward_bb = reward / big_blind
 
         self.total_reward_bb += reward_bb
-        self.previous_stack = current_stack
+        self.hand_start_stack = current_stack
         self.hands_played += 1
 
         return reward_bb

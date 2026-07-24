@@ -1,193 +1,143 @@
 from PyPokerEngine.pypokerengine.players import BasePokerPlayer
+
 from src.cards.hand_estimator import HandEstimator
+from src.config import GameConfig
 
 
 class PlayerTemplate(BasePokerPlayer):
-    """Poker player template
-
-    Class contains basic statistics used for player evaluation.
-    Other poker player classes inherit from this class.
-    """
+    """Base poker player with shared round tracking and evaluation utilities."""
 
     def __init__(
         self,
         player_name="",
-        roi=0,
         hands_played=0,
-        win_rate=0,
         total_profit=0,
-        stack = 0,
-        initial_stack = 0,
-        vpip=0,
-        pfr=0,
-        vpip_pfr_gap=0,
-        three_bet=0,
-        fold_to_three_bet=0,
-        af=0,
-        afq=0,
-        cbet=0,
-        fold_to_cbet=0,
-        steal_attempt=0,
-        fold_to_steal=0,
-        win_rate_by_position=None,
+        stack=0,
+        initial_stack=None,
+        total_reward_bb=0.0,
     ):
-        """
-        Volume & Results metrics:
-
-        - hands_played
-        total sample size
-
-        - win_rate
-        average profit in big blinds per 100 hands
-
-        - total_profit
-        net earnings over time
-
-        - stack
-        total credits at given moment
-
-        - initial_stack
-        credits at the beginning of the hand
-
-        - ROI (return on investment)
-        ROI = profit / total buy-ins
-        """
         super().__init__()
+
         current_uuid = getattr(self, "uuid", "unknown_uuid")
         self.player_name = str(current_uuid) if player_name == "" else player_name
-        self.roi = roi
+
         self.hands_played = hands_played
-        self.win_rate = win_rate
         self.total_profit = total_profit
         self.stack = stack
         self.initial_stack = initial_stack
-        """
-        Preflop Statistics:
-        
-        - VPIP (Voluntarily Put Money in Pot)
-        % of hands where player invests preflop (excluding blinds)
-        measures looseness
-        
-        - PFR (Preflop Raise)
-        % of hands where player raises preflop
-        measures aggression
-        
-        - VPIP - PFR Gap
-        Indicates passivity (large gap = calling a lot)
-        
-        - 3-Bet %
-        % of times player re-raises preflop
-        
-        - Fold to 3-Bet %
-        How often they fold after being re-raised
-        """
-        self.vpip = vpip
-        self.pfr = pfr
-        self.vpip_pfr_gap = vpip_pfr_gap
-        self.three_bet = three_bet
-        self.fold_to_three_bet = fold_to_three_bet
+        self.hand_start_stack = None
+        self.total_reward_bb = total_reward_bb
 
-        """
-        Postflop Aggression Metrics:
-        
-        - Aggression Factor (AF)
-        AF = (Bets + Raises) / Calls
-        
-        - Aggression Frequency (AFq)
-        % of aggressive actions out of all actions
-        
-        - Continuation Bet (C-Bet %)
-        Flop C-Bet, Turn C-Bet
-        
-        - Fold to C-Bet %
-        measures how easily player gives up
-        """
-        self.AF = af
-        self.AFq = afq
-        self.CBet = cbet
-        self.fold_to_cbet = fold_to_cbet
-
-        """
-        Positional Statistics:
-        
-        - Steal Attempt %
-        Raising from late position (CO, BTN, SB)
-        
-        - Fold to Steal %
-        How often blinds are surrendered
-        
-        - Win Rate by Position
-        (BTN usually highest, blinds lowest)
-        """
-
-        self.steal_attempt = steal_attempt
-        self.fold_to_steal = fold_to_steal
-        if not win_rate_by_position:
-            self.win_rate_by_position = {"SB": 0, "BB": 0, "MP": 0, "BTN": 0}
-        else:
-            self.win_rate_by_position = win_rate_by_position
-
-        """
-        Round related parameters
-        """
         self.hole_card = []
         self.uuid_to_index = None
         self.my_index = None
+
         self.available_positions = {
             "dealer_btn": None,
             "small_blind_pos": None,
             "big_blind_pos": None,
         }
-        self.my_position = self.available_positions.items()
+        self.my_position = None
 
-        """
-        Hand estimator
-        """
         self.hand_estimator = HandEstimator()
+
+    @property
+    def big_blind_amount(self):
+        return GameConfig.small_blind_amount * 2
+
+    def ensure_player_index(self, seats):
+        if self.my_index is not None:
+            return
+
+        self.uuid_to_index = {seat["uuid"]: i for i, seat in enumerate(seats)}
+        self.my_index = self.uuid_to_index[self.uuid]
+
+    def get_my_stack_from_seats(self, seats):
+        self.ensure_player_index(seats)
+        return seats[self.my_index]["stack"]
+
+    def get_my_stack_from_round_state(self, round_state):
+        seats = round_state["seats"]
+        self.ensure_player_index(seats)
+        return seats[self.my_index]["stack"]
+
+    def calculate_reward_bb(self, final_stack):
+        if self.hand_start_stack is None:
+            raise RuntimeError(
+                "hand_start_stack is not set. "
+                "receive_round_start_message() must be called before reward calculation."
+            )
+
+        reward = final_stack - self.hand_start_stack
+        return reward / self.big_blind_amount
+
+    def update_round_tracking_after_result(self, final_stack):
+        self.stack = final_stack
+        self.hand_start_stack = None
+        self.hands_played += 1
+
+    def reset_tracking_stats(self):
+        self.hands_played = 0
+        self.total_profit = 0
+        self.total_reward_bb = 0.0
+        self.stack = 0
+        self.initial_stack = None
+        self.hand_start_stack = None
 
     def set_my_position(self):
         position = [
-            v for k, v in self.available_positions.items() if v == self.my_index
+            name
+            for name, index in self.available_positions.items()
+            if index == self.my_index
         ]
+
+        if not position:
+            self.my_position = None
+            return
+
         if len(position) > 1:
             self.my_position = (
                 "big_blind_pos" if "big_blind_pos" in position else "small_blind_pos"
             )
+            return
+
+        self.my_position = position[0]
 
     def set_available_positions(self, round_state):
         self.available_positions["dealer_btn"] = round_state["dealer_btn"]
         self.available_positions["small_blind_pos"] = round_state["small_blind_pos"]
         self.available_positions["big_blind_pos"] = round_state["big_blind_pos"]
 
-    """
-    Derived methods without declare_action()
-    """
-
     def receive_game_start_message(self, game_info):
-        pass
+        self.reset_tracking_stats()
 
     def receive_round_start_message(self, round_count, hole_card, seats):
         self.hole_card = hole_card
         self.uuid_to_index = {seat["uuid"]: i for i, seat in enumerate(seats)}
         self.my_index = self.uuid_to_index[self.uuid]
-        self.initial_stack = seats[self.my_index]["stack"]
+
+        current_stack = self.get_my_stack_from_seats(seats)
+
+        if self.initial_stack is None:
+            self.initial_stack = current_stack
+
+        self.stack = current_stack
+        self.hand_start_stack = current_stack
 
     def receive_street_start_message(self, street, round_state):
         self.set_available_positions(round_state)
         self.set_my_position()
 
     def receive_game_update_message(self, action, round_state):
-        self.stack = round_state['seats'][self.my_index]['stack']
+        self.stack = self.get_my_stack_from_round_state(round_state)
 
     def receive_round_result_message(self, winners, hand_info, round_state):
         pass
 
     @classmethod
     def get_action(cls, valid_actions, name):
-        for a in valid_actions:
-            if a["action"] == name:
-                return a
-        raise Exception(f"There is no {name} in valid_actions = ["
-                        f"{'action': 'fold', 'amount': 0},"
-                        f"{'action': 'call', 'amount': 0},"
-                        f"{'action': 'raise', 'amount': {'max': 95, 'min': 20}}]")
+        for action in valid_actions:
+            if action["action"] == name:
+                return action
+
+        raise ValueError(f"There is no action={name!r} in valid_actions={valid_actions}")
