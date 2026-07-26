@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from src.evaluation.experiment_charts import ExperimentChartConfig
 from src.evaluation.experiment_summary import (
     SummaryThresholds,
     write_experiment_summary_outputs,
@@ -63,6 +64,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=float,
         default=15.0,
     )
+    parser.add_argument(
+        "--include-charts",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Generate experiment summary charts as PNG files.",
+    )
+    parser.add_argument(
+        "--chart-ci-multiplier",
+        type=float,
+        default=1.96,
+        help="Multiplier used for approximate cross-seed confidence intervals.",
+    )
 
     return parser.parse_args(argv)
 
@@ -82,6 +95,13 @@ def build_thresholds(args: argparse.Namespace) -> SummaryThresholds:
     )
 
 
+def build_chart_config(args: argparse.Namespace) -> ExperimentChartConfig:
+    return ExperimentChartConfig(
+        ci_multiplier=args.chart_ci_multiplier,
+        max_std_across_seeds_bb=args.max_std_across_seeds_bb,
+    )
+
+
 def main() -> None:
     args = parse_args()
     created_paths = write_experiment_summary_outputs(
@@ -90,6 +110,8 @@ def main() -> None:
         thresholds=build_thresholds(args),
         report_format=args.format,
         export_latex=args.export_latex,
+        include_charts=args.include_charts,
+        chart_config=build_chart_config(args),
     )
 
     print("Created experiment summary files:")
