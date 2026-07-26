@@ -22,6 +22,11 @@ from src.evaluation.constants import (
     RULE_BASED_AGENT,
 )
 from src.evaluation.html_utils import write_text
+from src.players.constants import (
+    AGGRESSIVE_OPPONENT_VARIANTS,
+    GENERALIZATION_OPPONENT_VARIANTS,
+    OPPONENT_VARIANT_AGGRESSIVE_EXTREME,
+)
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
@@ -43,10 +48,12 @@ VALIDATION_STATUSES = (
 
 VALIDATION_MODE_CHECKPOINT = "checkpoint"
 VALIDATION_MODE_HEAD_TO_HEAD = "head-to-head"
+VALIDATION_MODE_GENERALIZATION = "generalization"
 
 VALIDATION_MODES = (
     VALIDATION_MODE_CHECKPOINT,
     VALIDATION_MODE_HEAD_TO_HEAD,
+    VALIDATION_MODE_GENERALIZATION,
 )
 
 DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS = (
@@ -74,6 +81,20 @@ HEAD_TO_HEAD_LEARNED_AGENTS = (
     POLICY_CALLING_AGENT,
 )
 
+GENERALIZATION_CORE_AGENTS = (
+    ADAPTIVE_MC_AGENT,
+    ORACLE_ADAPTIVE_AGENT,
+    POLICY_UNKNOWN_AGENT,
+    RULE_BASED_AGENT,
+    ALWAYS_RAISE_AGENT,
+)
+
+GENERALIZATION_SPECIALIST_AGENTS = (
+    POLICY_FISH_AGENT,
+    POLICY_AGGRESSIVE_AGENT,
+    POLICY_CALLING_AGENT,
+)
+
 
 @dataclass(frozen=True)
 class ValidationThresholds:
@@ -93,6 +114,12 @@ class ValidationThresholds:
     max_adaptive_underperformance_vs_unknown_bb: float = 1.0
     always_raise_stress_loss_bb: float = -15.0
     always_raise_stress_bust_rate: float = 80.0
+    min_generalization_positive_variants: int = 3
+    min_generalization_adaptive_beats_unknown_variants: int = 3
+    min_generalization_adaptive_beats_rule_based_variants: int = 3
+    max_generalization_oracle_gap_bb: float = 3.0
+    generalization_extreme_aggressive_min_profit_bb: float = -5.0
+    generalization_extreme_aggressive_max_bust_rate: float = 85.0
 
 
 @dataclass(frozen=True)
@@ -1253,6 +1280,589 @@ def validate_always_raise_head_to_head_stress_test(
     return results
 
 
+
+def _existing_generalization_opponents(
+    best_rows: pd.DataFrame,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+) -> tuple[str, ...]:
+    available_opponents = set(best_rows["opponent_name"].unique())
+    return tuple(
+        opponent
+        for opponent in opponents
+        if opponent in available_opponents
+    )
+
+
+def _collect_agent_profit_rows(
+    best_rows: pd.DataFrame,
+    *,
+    agent_name: str,
+    opponents: Iterable[str],
+) -> tuple[list[pd.Series], list[str]]:
+    rows: list[pd.Series] = []
+    missing_opponents: list[str] = []
+
+    for opponent_name in opponents:
+        row = _find_row(
+            best_rows,
+            agent_name,
+            opponent_name,
+        )
+
+        if row is None:
+            missing_opponents.append(opponent_name)
+        else:
+            rows.append(row)
+
+    return rows, missing_opponents
+
+
+def validate_generalization_adaptive_positive_variants(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+) -> list[ValidationCheckResult]:
+    check_name = "Adaptive positive on generalization variants"
+    rows, missing_opponents = _collect_agent_profit_rows(
+        best_rows,
+        agent_name=ADAPTIVE_MC_AGENT,
+        opponents=opponents,
+    )
+
+    if not rows:
+        return [
+            ValidationCheckResult(
+                check_name=check_name,
+                status=STATUS_SKIPPED,
+                category="generalization_profitability",
+                agent_name=ADAPTIVE_MC_AGENT,
+                message="Missing adaptive rows for all generalization variants.",
+                details={"missing_opponents": missing_opponents},
+            )
+        ]
+
+    positive_variants = [
+        str(row["opponent_name"])
+        for row in rows
+        if float(row["mean_profit_bb"]) >= 0.0
+    ]
+    non_positive_variants = [
+        str(row["opponent_name"])
+        for row in rows
+        if float(row["mean_profit_bb"]) < 0.0
+    ]
+    observed = len(positive_variants)
+    threshold = thresholds.min_generalization_positive_variants
+
+    return [
+        ValidationCheckResult(
+            check_name=check_name,
+            status=STATUS_PASS if observed >= threshold else STATUS_FAIL,
+            category="generalization_profitability",
+            agent_name=ADAPTIVE_MC_AGENT,
+            observed_value=float(observed),
+            threshold=float(threshold),
+            message=(
+                "Adaptive has non-negative mean profit on "
+                f"{observed}/{len(rows)} available variants."
+            ),
+            details={
+                "positive_variants": positive_variants,
+                "non_positive_variants": non_positive_variants,
+                "missing_opponents": missing_opponents,
+                "profits_by_variant": {
+                    str(row["opponent_name"]): float(row["mean_profit_bb"])
+                    for row in rows
+                },
+            },
+        )
+    ]
+
+
+def validate_generalization_adaptive_beats_agent(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    *,
+    baseline_agent_name: str,
+    min_successful_variants: int,
+    check_name: str,
+    category: str,
+    fail_on_underperformance: bool = True,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+) -> list[ValidationCheckResult]:
+    successful_variants: list[str] = []
+    failing_variants: list[str] = []
+    missing_pairs: list[dict[str, str]] = []
+    deltas_by_variant: dict[str, float] = {}
+
+    for opponent_name in opponents:
+        adaptive_row = _find_row(
+            best_rows,
+            ADAPTIVE_MC_AGENT,
+            opponent_name,
+        )
+        baseline_row = _find_row(
+            best_rows,
+            baseline_agent_name,
+            opponent_name,
+        )
+
+        if adaptive_row is None:
+            missing_pairs.append(
+                {
+                    "agent_name": ADAPTIVE_MC_AGENT,
+                    "opponent_name": opponent_name,
+                }
+            )
+            continue
+
+        if baseline_row is None:
+            missing_pairs.append(
+                {
+                    "agent_name": baseline_agent_name,
+                    "opponent_name": opponent_name,
+                }
+            )
+            continue
+
+        delta = float(
+            adaptive_row["mean_profit_bb"]
+            - baseline_row["mean_profit_bb"]
+        )
+        deltas_by_variant[opponent_name] = delta
+
+        if delta >= 0.0:
+            successful_variants.append(opponent_name)
+        else:
+            failing_variants.append(opponent_name)
+
+    compared_variants = len(deltas_by_variant)
+
+    if compared_variants == 0:
+        return [
+            ValidationCheckResult(
+                check_name=check_name,
+                status=STATUS_SKIPPED,
+                category=category,
+                agent_name=ADAPTIVE_MC_AGENT,
+                message=(
+                    "Missing comparable adaptive/baseline rows for all "
+                    "generalization variants."
+                ),
+                details={"missing_pairs": missing_pairs},
+            )
+        ]
+
+    observed = len(successful_variants)
+    passed = observed >= min_successful_variants
+
+    if passed:
+        status = STATUS_PASS
+    else:
+        status = STATUS_FAIL if fail_on_underperformance else STATUS_WARNING
+
+    return [
+        ValidationCheckResult(
+            check_name=check_name,
+            status=status,
+            category=category,
+            agent_name=ADAPTIVE_MC_AGENT,
+            observed_value=float(observed),
+            threshold=float(min_successful_variants),
+            message=(
+                f"Adaptive beats {baseline_agent_name} on "
+                f"{observed}/{compared_variants} comparable variants."
+            ),
+            details={
+                "baseline_agent_name": baseline_agent_name,
+                "successful_variants": successful_variants,
+                "failing_variants": failing_variants,
+                "missing_pairs": missing_pairs,
+                "deltas_by_variant": deltas_by_variant,
+            },
+        )
+    ]
+
+
+def validate_generalization_oracle_gap(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+) -> list[ValidationCheckResult]:
+    results: list[ValidationCheckResult] = []
+
+    for opponent_name in opponents:
+        adaptive_row = _find_row(
+            best_rows,
+            ADAPTIVE_MC_AGENT,
+            opponent_name,
+        )
+        oracle_row = _find_row(
+            best_rows,
+            ORACLE_ADAPTIVE_AGENT,
+            opponent_name,
+        )
+        check_name = f"Generalization oracle gap vs {opponent_name}"
+
+        if adaptive_row is None:
+            results.append(
+                _missing_row_result(
+                    check_name,
+                    "generalization_oracle_gap",
+                    ADAPTIVE_MC_AGENT,
+                    opponent_name,
+                )
+            )
+            continue
+
+        if oracle_row is None:
+            results.append(
+                _missing_row_result(
+                    check_name,
+                    "generalization_oracle_gap",
+                    ORACLE_ADAPTIVE_AGENT,
+                    opponent_name,
+                )
+            )
+            continue
+
+        oracle_gap = float(
+            oracle_row["mean_profit_bb"]
+            - adaptive_row["mean_profit_bb"]
+        )
+        large_gap = oracle_gap > thresholds.max_generalization_oracle_gap_bb
+
+        results.append(
+            ValidationCheckResult(
+                check_name=check_name,
+                status=STATUS_WARNING if large_gap else STATUS_PASS,
+                category="generalization_oracle_gap",
+                agent_name=ADAPTIVE_MC_AGENT,
+                opponent_name=opponent_name,
+                checkpoint_episode=_checkpoint_episode(adaptive_row),
+                observed_value=oracle_gap,
+                threshold=thresholds.max_generalization_oracle_gap_bb,
+                message=(
+                    "Oracle minus adaptive mean profit is "
+                    f"{_format_float(oracle_gap)} BB/game."
+                ),
+                details={
+                    "adaptive_mean_profit_bb": float(
+                        adaptive_row["mean_profit_bb"]
+                    ),
+                    "oracle_mean_profit_bb": float(
+                        oracle_row["mean_profit_bb"]
+                    ),
+                    "max_oracle_gap_bb": (
+                        thresholds.max_generalization_oracle_gap_bb
+                    ),
+                },
+            )
+        )
+
+    return results
+
+
+def validate_generalization_classifier_quality(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+) -> list[ValidationCheckResult]:
+    results: list[ValidationCheckResult] = []
+
+    for opponent_name in opponents:
+        adaptive_row = _find_row(
+            best_rows,
+            ADAPTIVE_MC_AGENT,
+            opponent_name,
+        )
+
+        for metric_name, threshold in [
+            (
+                "global_classifier_accuracy",
+                thresholds.min_classifier_accuracy,
+            ),
+            (
+                "global_classifier_coverage",
+                thresholds.min_classifier_coverage,
+            ),
+        ]:
+            pretty_metric = metric_name.replace("global_classifier_", "")
+            check_name = (
+                f"Generalization classifier {pretty_metric} "
+                f"vs {opponent_name}"
+            )
+
+            if adaptive_row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "generalization_classifier_quality",
+                        ADAPTIVE_MC_AGENT,
+                        opponent_name,
+                    )
+                )
+                continue
+
+            value = float(adaptive_row[metric_name])
+            status = STATUS_PASS if value >= threshold else STATUS_WARNING
+
+            results.append(
+                ValidationCheckResult(
+                    check_name=check_name,
+                    status=status,
+                    category="generalization_classifier_quality",
+                    agent_name=ADAPTIVE_MC_AGENT,
+                    opponent_name=opponent_name,
+                    checkpoint_episode=_checkpoint_episode(adaptive_row),
+                    observed_value=value,
+                    threshold=threshold,
+                    message=(
+                        "Adaptive classifier "
+                        f"{pretty_metric} on unseen variant is "
+                        f"{_format_float(value)}%."
+                    ),
+                    details={
+                        "metric": metric_name,
+                        "value": value,
+                        "minimum": threshold,
+                    },
+                )
+            )
+
+    return results
+
+
+def validate_generalization_aggressive_extreme_robustness(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    check_name = "Aggressive extreme robustness check"
+    row = _find_row(
+        best_rows,
+        ADAPTIVE_MC_AGENT,
+        OPPONENT_VARIANT_AGGRESSIVE_EXTREME,
+    )
+
+    if row is None:
+        return [
+            _missing_row_result(
+                check_name,
+                "generalization_extreme_robustness",
+                ADAPTIVE_MC_AGENT,
+                OPPONENT_VARIANT_AGGRESSIVE_EXTREME,
+            )
+        ]
+
+    mean_profit_bb = float(row["mean_profit_bb"])
+    bust_rate = float(row["bust_rate"])
+    robustness_warning = (
+        mean_profit_bb
+        < thresholds.generalization_extreme_aggressive_min_profit_bb
+        or bust_rate
+        > thresholds.generalization_extreme_aggressive_max_bust_rate
+    )
+
+    return [
+        ValidationCheckResult(
+            check_name=check_name,
+            status=STATUS_WARNING if robustness_warning else STATUS_PASS,
+            category="generalization_extreme_robustness",
+            agent_name=ADAPTIVE_MC_AGENT,
+            opponent_name=OPPONENT_VARIANT_AGGRESSIVE_EXTREME,
+            checkpoint_episode=_checkpoint_episode(row),
+            observed_value=mean_profit_bb,
+            threshold=thresholds.generalization_extreme_aggressive_min_profit_bb,
+            message=(
+                "Adaptive vs aggressive_extreme: "
+                f"mean_profit_bb={_format_float(mean_profit_bb)}, "
+                f"bust_rate={_format_float(bust_rate)}%."
+            ),
+            details={
+                "mean_profit_bb": mean_profit_bb,
+                "bust_rate": bust_rate,
+                "min_profit_threshold_bb": (
+                    thresholds.generalization_extreme_aggressive_min_profit_bb
+                ),
+                "max_bust_rate_threshold": (
+                    thresholds.generalization_extreme_aggressive_max_bust_rate
+                ),
+            },
+        )
+    ]
+
+
+def validate_generalization_matching_specialists(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    results: list[ValidationCheckResult] = []
+    variant_to_specialist = {
+        opponent_name: POLICY_CALLING_AGENT
+        for opponent_name in GENERALIZATION_OPPONENT_VARIANTS
+        if opponent_name.startswith("calling_")
+    }
+    variant_to_specialist.update(
+        {
+            opponent_name: POLICY_AGGRESSIVE_AGENT
+            for opponent_name in AGGRESSIVE_OPPONENT_VARIANTS
+        }
+    )
+
+    for opponent_name, specialist_agent in variant_to_specialist.items():
+        row = _find_row(
+            best_rows,
+            specialist_agent,
+            opponent_name,
+        )
+        check_name = (
+            "Matching specialist transfer "
+            f"for {specialist_agent} vs {opponent_name}"
+        )
+
+        if row is None:
+            results.append(
+                _missing_row_result(
+                    check_name,
+                    "generalization_specialist_transfer",
+                    specialist_agent,
+                    opponent_name,
+                )
+            )
+            continue
+
+        mean_profit_bb = float(row["mean_profit_bb"])
+        status = (
+            STATUS_PASS
+            if mean_profit_bb >= thresholds.min_head_to_head_mean_profit_bb
+            else STATUS_WARNING
+        )
+
+        results.append(
+            ValidationCheckResult(
+                check_name=check_name,
+                status=status,
+                category="generalization_specialist_transfer",
+                agent_name=specialist_agent,
+                opponent_name=opponent_name,
+                checkpoint_episode=_checkpoint_episode(row),
+                observed_value=mean_profit_bb,
+                threshold=thresholds.min_head_to_head_mean_profit_bb,
+                message=(
+                    f"{specialist_agent} vs {opponent_name}: "
+                    f"mean_profit_bb={_format_float(mean_profit_bb)}."
+                ),
+                details={
+                    "mean_profit_bb": mean_profit_bb,
+                    "expected_family_specialist": True,
+                },
+            )
+        )
+
+    return results
+
+
+def validate_generalization_results_from_best_rows(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    opponents = _existing_generalization_opponents(best_rows)
+
+    checks: list[ValidationCheckResult] = []
+    checks.extend(
+        validate_generalization_adaptive_positive_variants(
+            best_rows,
+            thresholds,
+            opponents,
+        )
+    )
+    checks.extend(
+        validate_generalization_adaptive_beats_agent(
+            best_rows,
+            thresholds,
+            baseline_agent_name=POLICY_UNKNOWN_AGENT,
+            min_successful_variants=(
+                thresholds.min_generalization_adaptive_beats_unknown_variants
+            ),
+            check_name=(
+                "Adaptive beats fixed unknown on generalization variants"
+            ),
+            category="generalization_adaptive_delta_vs_unknown",
+            fail_on_underperformance=True,
+            opponents=opponents,
+        )
+    )
+    checks.extend(
+        validate_generalization_adaptive_beats_agent(
+            best_rows,
+            thresholds,
+            baseline_agent_name=RULE_BASED_AGENT,
+            min_successful_variants=(
+                thresholds.min_generalization_adaptive_beats_rule_based_variants
+            ),
+            check_name=(
+                "Adaptive beats rule-based on generalization variants"
+            ),
+            category="generalization_adaptive_delta_vs_rule_based",
+            fail_on_underperformance=False,
+            opponents=opponents,
+        )
+    )
+    checks.extend(
+        validate_generalization_oracle_gap(
+            best_rows,
+            thresholds,
+            opponents,
+        )
+    )
+    checks.extend(
+        validate_generalization_classifier_quality(
+            best_rows,
+            thresholds,
+            opponents,
+        )
+    )
+    checks.extend(
+        validate_generalization_matching_specialists(
+            best_rows,
+            thresholds,
+        )
+    )
+    checks.extend(
+        validate_always_raise_outperforms_adaptive(
+            best_rows,
+            thresholds,
+            opponents,
+        )
+    )
+    checks.extend(
+        validate_always_raise_trivial_exploit(
+            best_rows,
+            thresholds,
+            opponents,
+        )
+    )
+    checks.extend(
+        validate_generalization_aggressive_extreme_robustness(
+            best_rows,
+            thresholds,
+        )
+    )
+    checks.extend(
+        validate_seed_stability(
+            best_rows,
+            thresholds,
+        )
+    )
+    checks.extend(
+        validate_extreme_bb_per_100(
+            best_rows,
+            thresholds,
+        )
+    )
+
+    return checks
+
 def validate_head_to_head_results_from_best_rows(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
@@ -1321,6 +1931,11 @@ def validate_checkpoint_results(
 
     if validation_mode == VALIDATION_MODE_HEAD_TO_HEAD:
         checks = validate_head_to_head_results_from_best_rows(
+            best_rows,
+            thresholds,
+        )
+    elif validation_mode == VALIDATION_MODE_GENERALIZATION:
+        checks = validate_generalization_results_from_best_rows(
             best_rows,
             thresholds,
         )
