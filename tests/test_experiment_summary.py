@@ -289,6 +289,8 @@ def test_write_experiment_summary_outputs_creates_markdown_json_csv_and_latex(tm
 
     assert "experiment_summary.md" in created_names
     assert "experiment_summary.json" in created_names
+    assert "mean_profit_ci_by_opponent.png" in created_names
+    assert "seed_stability_by_opponent.png" in created_names
     assert "agent_ranking.csv" in created_names
     assert "deltas.csv" in created_names
     assert "quality_flags.csv" in created_names
@@ -298,6 +300,10 @@ def test_write_experiment_summary_outputs_creates_markdown_json_csv_and_latex(tm
         (output_dir / "experiment_summary.json").read_text(encoding="utf-8")
     )
     assert "main_findings" in summary_json
+
+    markdown = (output_dir / "experiment_summary.md").read_text(encoding="utf-8")
+    assert "## Charts" in markdown
+    assert "charts/mean_profit_ci_by_opponent.png" in markdown
 
 
 def test_create_experiment_summary_parser_accepts_thresholds():
@@ -312,10 +318,15 @@ def test_create_experiment_summary_parser_accepts_thresholds():
             "--max-std-across-seeds-bb",
             "7",
             "--no-export-latex",
+            "--no-include-charts",
+            "--chart-ci-multiplier",
+            "2.0",
         ]
     )
     thresholds = build_thresholds(args)
 
     assert args.format == "both"
     assert args.export_latex is False
+    assert args.include_charts is False
+    assert args.chart_ci_multiplier == 2.0
     assert thresholds.max_std_across_seeds_bb == 7.0
