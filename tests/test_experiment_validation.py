@@ -519,3 +519,265 @@ def test_head_to_head_validation_fails_when_adaptive_loses_to_rule_based(
         for check in report.checks
     )
 
+
+
+def write_sample_generalization_csv(path):
+    rows = []
+    variants = [
+        "calling_weak",
+        "calling_medium",
+        "calling_strong",
+        "aggressive_light",
+        "aggressive_extreme",
+    ]
+
+    adaptive_profits = {
+        "calling_weak": (18.0, 18.5),
+        "calling_medium": (14.0, 14.5),
+        "calling_strong": (8.0, 8.5),
+        "aggressive_light": (6.0, 6.5),
+        "aggressive_extreme": (-8.0, -7.5),
+    }
+    oracle_profits = {
+        "calling_weak": (19.0, 19.5),
+        "calling_medium": (15.0, 15.5),
+        "calling_strong": (9.0, 9.5),
+        "aggressive_light": (10.5, 11.0),
+        "aggressive_extreme": (-4.0, -3.5),
+    }
+    unknown_profits = {
+        "calling_weak": (10.0, 10.5),
+        "calling_medium": (9.0, 9.5),
+        "calling_strong": (7.0, 7.5),
+        "aggressive_light": (5.0, 5.5),
+        "aggressive_extreme": (-10.0, -9.5),
+    }
+    rule_based_profits = {
+        "calling_weak": (12.0, 12.5),
+        "calling_medium": (10.0, 10.5),
+        "calling_strong": (9.0, 9.5),
+        "aggressive_light": (8.0, 8.5),
+        "aggressive_extreme": (-6.0, -5.5),
+    }
+    always_raise_profits = {
+        "calling_weak": (4.0, 4.5),
+        "calling_medium": (2.0, 2.5),
+        "calling_strong": (-2.0, -1.5),
+        "aggressive_light": (18.5, 19.0),
+        "aggressive_extreme": (17.0, 17.5),
+    }
+    specialist_profits = {
+        "policy_calling": {
+            "calling_weak": (17.0, 17.5),
+            "calling_medium": (13.0, 13.5),
+            "calling_strong": (9.0, 9.5),
+            "aggressive_light": (-5.0, -4.5),
+            "aggressive_extreme": (-12.0, -11.5),
+        },
+        "policy_aggressive": {
+            "calling_weak": (-3.0, -2.5),
+            "calling_medium": (-2.0, -1.5),
+            "calling_strong": (-1.0, -0.5),
+            "aggressive_light": (7.0, 7.5),
+            "aggressive_extreme": (-6.0, -5.5),
+        },
+        "policy_fish": {
+            "calling_weak": (-1.0, -0.5),
+            "calling_medium": (-1.0, -0.5),
+            "calling_strong": (-2.0, -1.5),
+            "aggressive_light": (-7.0, -6.5),
+            "aggressive_extreme": (-15.0, -14.5),
+        },
+    }
+
+    for variant in variants:
+        classifier_accuracy = 95.0
+        classifier_coverage = 90.0
+        bust_rate = 5.0
+
+        if variant == "aggressive_extreme":
+            classifier_accuracy = 0.0
+            classifier_coverage = 0.0
+            bust_rate = 90.0
+
+        add_group(
+            rows,
+            agent="adaptive_mc",
+            opponent=variant,
+            profit_by_seed=adaptive_profits[variant],
+            win_rate=80.0 if variant != "aggressive_extreme" else 10.0,
+            bust_rate=bust_rate,
+            classifier_accuracy=classifier_accuracy,
+            classifier_coverage=classifier_coverage,
+            policy_switches=2,
+        )
+        add_group(
+            rows,
+            agent="oracle_adaptive",
+            opponent=variant,
+            profit_by_seed=oracle_profits[variant],
+            win_rate=85.0 if variant != "aggressive_extreme" else 30.0,
+            bust_rate=10.0 if variant != "aggressive_extreme" else 70.0,
+            classifier_accuracy=100.0,
+            classifier_coverage=100.0,
+        )
+        add_group(
+            rows,
+            agent="policy_unknown",
+            opponent=variant,
+            profit_by_seed=unknown_profits[variant],
+            win_rate=70.0 if variant != "aggressive_extreme" else 5.0,
+            bust_rate=20.0 if variant != "aggressive_extreme" else 95.0,
+        )
+        add_group(
+            rows,
+            agent="rule_based",
+            opponent=variant,
+            profit_by_seed=rule_based_profits[variant],
+            win_rate=70.0 if variant != "aggressive_extreme" else 20.0,
+            bust_rate=20.0 if variant != "aggressive_extreme" else 80.0,
+        )
+        add_group(
+            rows,
+            agent="always_raise",
+            opponent=variant,
+            profit_by_seed=always_raise_profits[variant],
+            win_rate=95.0 if variant == "aggressive_light" else 50.0,
+            bust_rate=5.0 if variant == "aggressive_light" else 50.0,
+        )
+
+        for agent_name, profits_by_variant in specialist_profits.items():
+            add_group(
+                rows,
+                agent=agent_name,
+                opponent=variant,
+                profit_by_seed=profits_by_variant[variant],
+                win_rate=70.0 if max(profits_by_variant[variant]) > 0 else 20.0,
+                bust_rate=10.0 if max(profits_by_variant[variant]) > 0 else 85.0,
+            )
+
+    pd.DataFrame(rows).to_csv(path, index=False)
+
+
+def test_generalization_validation_mode_uses_variant_checks(tmp_path):
+    csv_path = tmp_path / "generalization_results.csv"
+    write_sample_generalization_csv(csv_path)
+
+    report = validate_checkpoint_results(
+        csv_path,
+        validation_mode="generalization",
+    )
+
+    check_names = {check.check_name for check in report.checks}
+
+    assert report.validation_mode == "generalization"
+    assert "Adaptive positive on generalization variants" in check_names
+    assert (
+        "Adaptive beats fixed unknown on generalization variants"
+        in check_names
+    )
+    assert (
+        "Adaptive beats rule-based on generalization variants"
+        in check_names
+    )
+    assert "Generalization oracle gap vs aggressive_light" in check_names
+    assert (
+        "Generalization classifier coverage vs aggressive_extreme"
+        in check_names
+    )
+    assert "Aggressive extreme robustness check" in check_names
+    assert "Adaptive exploits FishPlayer" not in check_names
+
+
+def test_generalization_validation_warns_for_oracle_gap_and_classifier(
+    tmp_path,
+):
+    csv_path = tmp_path / "generalization_results.csv"
+    write_sample_generalization_csv(csv_path)
+
+    report = validate_checkpoint_results(
+        csv_path,
+        validation_mode="generalization",
+    )
+
+    warnings = {
+        check.check_name
+        for check in report.checks
+        if check.status == STATUS_WARNING
+    }
+
+    assert "Generalization oracle gap vs aggressive_light" in warnings
+    assert "Generalization oracle gap vs aggressive_extreme" in warnings
+    assert (
+        "Generalization classifier accuracy vs aggressive_extreme"
+        in warnings
+    )
+    assert (
+        "Generalization classifier coverage vs aggressive_extreme"
+        in warnings
+    )
+    assert "Aggressive extreme robustness check" in warnings
+
+
+def test_generalization_validation_fails_when_adaptive_is_not_positive(
+    tmp_path,
+):
+    csv_path = tmp_path / "generalization_results.csv"
+    write_sample_generalization_csv(csv_path)
+
+    df = pd.read_csv(csv_path)
+    mask = df["agent_name"] == "adaptive_mc"
+    df.loc[mask, "profit_bb"] = -5.0
+    df.to_csv(csv_path, index=False)
+
+    report = validate_checkpoint_results(
+        csv_path,
+        validation_mode="generalization",
+    )
+
+    assert any(
+        check.check_name == "Adaptive positive on generalization variants"
+        and check.status == STATUS_FAIL
+        for check in report.checks
+    )
+    assert not report.passed
+
+
+def test_generalization_validation_cli_parser_accepts_thresholds():
+    args = parse_args(
+        [
+            "--input-path",
+            "results/evaluation/generalization.csv",
+            "--output-dir",
+            "reports/generalization_validation",
+            "--validation-mode",
+            "generalization",
+            "--min-generalization-positive-variants",
+            "4",
+            "--min-generalization-adaptive-beats-unknown-variants",
+            "4",
+            "--min-generalization-adaptive-beats-rule-based-variants",
+            "2",
+            "--max-generalization-oracle-gap-bb",
+            "2.5",
+            "--generalization-extreme-aggressive-min-profit-bb",
+            "-8",
+            "--generalization-extreme-aggressive-max-bust-rate",
+            "90",
+        ]
+    )
+    thresholds = build_thresholds(args)
+
+    assert args.validation_mode == "generalization"
+    assert thresholds.min_generalization_positive_variants == 4
+    assert (
+        thresholds.min_generalization_adaptive_beats_unknown_variants
+        == 4
+    )
+    assert (
+        thresholds.min_generalization_adaptive_beats_rule_based_variants
+        == 2
+    )
+    assert thresholds.max_generalization_oracle_gap_bb == 2.5
+    assert thresholds.generalization_extreme_aggressive_min_profit_bb == -8.0
+    assert thresholds.generalization_extreme_aggressive_max_bust_rate == 90.0
