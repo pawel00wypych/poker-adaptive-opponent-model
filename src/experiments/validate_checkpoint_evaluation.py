@@ -31,8 +31,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=VALIDATION_MODE_CHECKPOINT,
         choices=VALIDATION_MODES,
         help=(
-            "Use 'checkpoint' for standard benchmark results or "
-            "'head-to-head' for direct matchups against baselines."
+            "Use 'checkpoint' for standard benchmark results, "
+            "'head-to-head' for direct matchups against baselines, "
+            "or 'generalization' for unseen opponent variants."
         ),
     )
     parser.add_argument(
@@ -115,6 +116,36 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=float,
         default=80.0,
     )
+    parser.add_argument(
+        "--min-generalization-positive-variants",
+        type=int,
+        default=3,
+    )
+    parser.add_argument(
+        "--min-generalization-adaptive-beats-unknown-variants",
+        type=int,
+        default=3,
+    )
+    parser.add_argument(
+        "--min-generalization-adaptive-beats-rule-based-variants",
+        type=int,
+        default=3,
+    )
+    parser.add_argument(
+        "--max-generalization-oracle-gap-bb",
+        type=float,
+        default=3.0,
+    )
+    parser.add_argument(
+        "--generalization-extreme-aggressive-min-profit-bb",
+        type=float,
+        default=-5.0,
+    )
+    parser.add_argument(
+        "--generalization-extreme-aggressive-max-bust-rate",
+        type=float,
+        default=85.0,
+    )
 
     return parser.parse_args(argv)
 
@@ -153,6 +184,24 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         ),
         always_raise_stress_loss_bb=args.always_raise_stress_loss_bb,
         always_raise_stress_bust_rate=args.always_raise_stress_bust_rate,
+        min_generalization_positive_variants=(
+            args.min_generalization_positive_variants
+        ),
+        min_generalization_adaptive_beats_unknown_variants=(
+            args.min_generalization_adaptive_beats_unknown_variants
+        ),
+        min_generalization_adaptive_beats_rule_based_variants=(
+            args.min_generalization_adaptive_beats_rule_based_variants
+        ),
+        max_generalization_oracle_gap_bb=(
+            args.max_generalization_oracle_gap_bb
+        ),
+        generalization_extreme_aggressive_min_profit_bb=(
+            args.generalization_extreme_aggressive_min_profit_bb
+        ),
+        generalization_extreme_aggressive_max_bust_rate=(
+            args.generalization_extreme_aggressive_max_bust_rate
+        ),
     )
 
 
