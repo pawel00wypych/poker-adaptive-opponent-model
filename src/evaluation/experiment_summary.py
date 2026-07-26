@@ -18,6 +18,10 @@ from src.evaluation.constants import (
     ORACLE_ADAPTIVE_AGENT,
     RULE_BASED_AGENT,
 )
+from src.evaluation.experiment_charts import (
+    ExperimentChartConfig,
+    create_experiment_summary_charts,
+)
 from src.evaluation.html_utils import write_text
 from src.poker.constants import OPPONENT_TYPE_FISH
 
@@ -590,11 +594,22 @@ def _overview_markdown(overview: dict[str, object]) -> str:
     return pd.DataFrame(rows).to_markdown(index=False)
 
 
+def _chart_markdown(chart_paths: list[Path]) -> str:
+    if not chart_paths:
+        return "No charts generated."
+
+    return "\n\n".join(
+        f"![{path.stem}](charts/{path.name})"
+        for path in chart_paths
+    )
+
+
 def render_experiment_summary_markdown(
     report: ExperimentSummary,
     ranking: pd.DataFrame,
     deltas: pd.DataFrame,
     quality_flags: pd.DataFrame,
+    chart_paths: list[Path] | None = None,
 ) -> str:
     ranking_table = ranking[
         _existing_columns(ranking, SUMMARY_TABLE_COLUMNS)
@@ -625,6 +640,10 @@ def render_experiment_summary_markdown(
             "## Main findings",
             "",
             findings,
+            "",
+            "## Charts",
+            "",
+            _chart_markdown(chart_paths or []),
             "",
             "## Agent ranking by opponent and checkpoint",
             "",
@@ -673,6 +692,8 @@ def write_experiment_summary_outputs(
     thresholds: SummaryThresholds | None = None,
     report_format: str = "all",
     export_latex: bool = True,
+    include_charts: bool = True,
+    chart_config: ExperimentChartConfig | None = None,
 ) -> list[Path]:
     if report_format not in {"markdown", "json", "both", "all"}:
         raise ValueError(
@@ -689,6 +710,15 @@ def write_experiment_summary_outputs(
     )
 
     created_paths: list[Path] = []
+    chart_paths: list[Path] = []
+
+    if include_charts:
+        chart_paths = create_experiment_summary_charts(
+            summary_table=ranking,
+            output_dir=output_dir / "charts",
+            config=chart_config,
+        )
+        created_paths.extend(chart_paths)
 
     if report_format in {"markdown", "both", "all"}:
         markdown_path = output_dir / "experiment_summary.md"
@@ -699,6 +729,7 @@ def write_experiment_summary_outputs(
                 ranking,
                 deltas,
                 quality_flags,
+                chart_paths=chart_paths,
             ),
         )
         created_paths.append(markdown_path)
