@@ -22,6 +22,7 @@ from src.evaluation.checkpoint_evaluator import (
 )
 from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
+    ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
     CROSS_POLICY_AGENT_TO_POLICY_TYPE,
     ORACLE_ADAPTIVE_AGENT,
@@ -32,12 +33,14 @@ from src.evaluation.constants import (
     RULE_BASED_AGENT,
 )
 from src.players.adaptive_player import AdaptivePlayer
+from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer
-from src.players.constants import GENERALIZATION_OPPONENT_VARIANTS
+from src.players.constants import GENERALIZATION_OPPONENTS
 from src.players.fixed_policy_player import FixedPolicyPlayer
-from src.players.opponent_variant_player import (
-    build_opponent_variant,
-    get_opponent_variant_base_type,
+from src.players.generalization_opponents import (
+    build_generalization_opponent_player,
+    get_generalization_opponent_base_type,
+    was_generalization_opponent_seen_during_training,
 )
 from src.players.oracle_adaptive_player import OracleAdaptivePlayer
 from src.players.rule_based_player import RuleBasedPlayer
@@ -46,7 +49,7 @@ from src.players.rule_based_player import RuleBasedPlayer
 GENERALIZATION_EVALUATION_TYPE = "generalization"
 GENERALIZATION_TRAINING_SCOPE = "base_opponents"
 
-DEFAULT_GENERALIZATION_OPPONENTS = GENERALIZATION_OPPONENT_VARIANTS
+DEFAULT_GENERALIZATION_OPPONENTS = GENERALIZATION_OPPONENTS
 
 DEFAULT_GENERALIZATION_AGENTS = (
     POLICY_UNKNOWN_AGENT,
@@ -56,6 +59,7 @@ DEFAULT_GENERALIZATION_AGENTS = (
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
     RULE_BASED_AGENT,
+    ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
 )
 
@@ -83,7 +87,7 @@ class GeneralizationEvaluationConfig:
     opponent variants.
 
     No new specialist policies are trained for these variants. Oracle adaptive
-    receives only the base opponent family, e.g. calling_weak -> calling.
+    receives only the base opponent family, e.g. strong_calling -> calling.
     """
 
     games_per_matchup: int
@@ -121,8 +125,8 @@ def build_generalization_opponent(
         opponent_name
     )
 
-    return build_opponent_variant(
-        variant_name=opponent_name,
+    return build_generalization_opponent_player(
+        opponent_name=opponent_name,
         rng=rng,
     )
 
@@ -148,7 +152,7 @@ def build_generalization_tested_player(
         opponent_name
     )
 
-    opponent_family = get_opponent_variant_base_type(
+    opponent_family = get_generalization_opponent_base_type(
         opponent_name
     )
 
@@ -160,6 +164,11 @@ def build_generalization_tested_player(
     if tested_agent_name == ALWAYS_RAISE_AGENT:
         return AlwaysRaisePlayer(
             player_name=ALWAYS_RAISE_AGENT,
+        )
+
+    if tested_agent_name == ALWAYS_CALL_AGENT:
+        return AlwaysCallPlayer(
+            player_name=ALWAYS_CALL_AGENT,
         )
 
     if tested_agent_name == ADAPTIVE_MC_AGENT:
@@ -224,7 +233,10 @@ def add_generalization_metadata(
     *,
     opponent_name: str,
 ) -> dict:
-    opponent_family = get_opponent_variant_base_type(
+    opponent_family = get_generalization_opponent_base_type(
+        opponent_name
+    )
+    seen_during_training = was_generalization_opponent_seen_during_training(
         opponent_name
     )
 
@@ -232,11 +244,10 @@ def add_generalization_metadata(
         **row,
         "evaluation_type": GENERALIZATION_EVALUATION_TYPE,
         "trained_on": GENERALIZATION_TRAINING_SCOPE,
-        "seen_during_training": 0,
+        "seen_during_training": int(seen_during_training),
         "opponent_family": opponent_family,
-        "opponent_variant": opponent_name,
+        "opponent_variant": "" if seen_during_training else opponent_name,
     }
-
 
 def evaluate_single_generalization_game(
     *,

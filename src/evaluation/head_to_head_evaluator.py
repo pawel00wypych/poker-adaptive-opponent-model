@@ -22,6 +22,7 @@ from src.evaluation.checkpoint_evaluator import (
 )
 from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
+    ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
     CROSS_POLICY_AGENT_TO_POLICY_TYPE,
     POLICY_AGGRESSIVE_AGENT,
@@ -32,6 +33,7 @@ from src.evaluation.constants import (
     SINGLE_POLICY_MC_AGENT,
 )
 from src.players.adaptive_player import AdaptivePlayer
+from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.players.rule_based_player import RuleBasedPlayer
@@ -40,15 +42,18 @@ from src.players.single_policy_player import SinglePolicyPlayer
 
 HEAD_TO_HEAD_RULE_BASED_OPPONENT = RULE_BASED_AGENT
 HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT = ALWAYS_RAISE_AGENT
+HEAD_TO_HEAD_ALWAYS_CALL_OPPONENT = ALWAYS_CALL_AGENT
 
 SUPPORTED_HEAD_TO_HEAD_OPPONENTS = {
     HEAD_TO_HEAD_RULE_BASED_OPPONENT,
     HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT,
+    HEAD_TO_HEAD_ALWAYS_CALL_OPPONENT,
 }
 
 DEFAULT_HEAD_TO_HEAD_OPPONENTS = (
     HEAD_TO_HEAD_RULE_BASED_OPPONENT,
     HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT,
+    HEAD_TO_HEAD_ALWAYS_CALL_OPPONENT,
 )
 
 DEFAULT_HEAD_TO_HEAD_AGENTS = (
@@ -57,6 +62,8 @@ DEFAULT_HEAD_TO_HEAD_AGENTS = (
     POLICY_FISH_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
+    ALWAYS_CALL_AGENT,
+    ALWAYS_RAISE_AGENT,
 )
 
 SUPPORTED_HEAD_TO_HEAD_AGENTS = {
@@ -66,6 +73,8 @@ SUPPORTED_HEAD_TO_HEAD_AGENTS = {
     POLICY_FISH_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
+    ALWAYS_CALL_AGENT,
+    ALWAYS_RAISE_AGENT,
 }
 
 
@@ -103,7 +112,7 @@ def validate_head_to_head_opponent(
     if opponent_name not in SUPPORTED_HEAD_TO_HEAD_OPPONENTS:
         raise ValueError(
             f"Unsupported head-to-head opponent: {opponent_name}. "
-            "Use rule_based or always_raise."
+            "Use rule_based, always_raise or always_call."
         )
 
 
@@ -122,6 +131,11 @@ def build_head_to_head_opponent(
     if opponent_name == ALWAYS_RAISE_AGENT:
         return AlwaysRaisePlayer(
             player_name=ALWAYS_RAISE_AGENT,
+        )
+
+    if opponent_name == ALWAYS_CALL_AGENT:
+        return AlwaysCallPlayer(
+            player_name=ALWAYS_CALL_AGENT,
         )
 
     raise ValueError(
@@ -153,6 +167,16 @@ def build_head_to_head_tested_player(
         return SinglePolicyPlayer(
             agent=agent,
             player_name=SINGLE_POLICY_MC_AGENT,
+        )
+
+    if tested_agent_name == ALWAYS_RAISE_AGENT:
+        return AlwaysRaisePlayer(
+            player_name=ALWAYS_RAISE_AGENT,
+        )
+
+    if tested_agent_name == ALWAYS_CALL_AGENT:
+        return AlwaysCallPlayer(
+            player_name=ALWAYS_CALL_AGENT,
         )
 
     if tested_agent_name == ADAPTIVE_MC_AGENT:

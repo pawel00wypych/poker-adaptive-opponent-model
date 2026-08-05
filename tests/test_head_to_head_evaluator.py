@@ -5,6 +5,7 @@ import pytest
 from src.evaluation.checkpoint_evaluator import ModelBundle
 from src.evaluation.head_to_head_evaluator import (
     ADAPTIVE_MC_AGENT,
+    ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
     DEFAULT_HEAD_TO_HEAD_AGENTS,
     DEFAULT_HEAD_TO_HEAD_OPPONENTS,
@@ -20,6 +21,7 @@ from src.evaluation.head_to_head_evaluator import (
 )
 from src.experiments.run_head_to_head_evaluation import parse_args
 from src.players.adaptive_player import AdaptivePlayer
+from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.players.rule_based_player import RuleBasedPlayer
@@ -83,6 +85,15 @@ def test_build_head_to_head_opponent_builds_always_raise():
     assert player.player_name == ALWAYS_RAISE_AGENT
 
 
+
+def test_build_head_to_head_opponent_builds_always_call():
+    player = build_head_to_head_opponent(
+        ALWAYS_CALL_AGENT
+    )
+
+    assert isinstance(player, AlwaysCallPlayer)
+    assert player.player_name == ALWAYS_CALL_AGENT
+
 def test_validate_head_to_head_opponent_rejects_training_opponent():
     with pytest.raises(ValueError):
         validate_head_to_head_opponent("fish")
@@ -129,6 +140,26 @@ def test_build_head_to_head_fixed_unknown_policy(
     assert player.policy_type == OPPONENT_TYPE_UNKNOWN
     assert player.player_name == POLICY_UNKNOWN_AGENT
 
+
+
+def test_build_head_to_head_always_call_tested_agent(tmp_path):
+    player = build_head_to_head_tested_player(
+        tested_agent_name=ALWAYS_CALL_AGENT,
+        bundle=sample_bundle(tmp_path),
+    )
+
+    assert isinstance(player, AlwaysCallPlayer)
+    assert player.player_name == ALWAYS_CALL_AGENT
+
+
+def test_build_head_to_head_always_raise_tested_agent(tmp_path):
+    player = build_head_to_head_tested_player(
+        tested_agent_name=ALWAYS_RAISE_AGENT,
+        bundle=sample_bundle(tmp_path),
+    )
+
+    assert isinstance(player, AlwaysRaisePlayer)
+    assert player.player_name == ALWAYS_RAISE_AGENT
 
 def test_evaluate_head_to_head_bundle_runs_all_matchups(
     tmp_path,
@@ -185,8 +216,8 @@ def test_evaluate_head_to_head_bundle_runs_all_matchups(
 
     config = HeadToHeadEvaluationConfig(
         games_per_matchup=2,
-        opponents=(RULE_BASED_AGENT, ALWAYS_RAISE_AGENT),
-        tested_agents=(POLICY_UNKNOWN_AGENT, ADAPTIVE_MC_AGENT),
+        opponents=(ALWAYS_CALL_AGENT, ALWAYS_RAISE_AGENT),
+        tested_agents=(ALWAYS_CALL_AGENT, ALWAYS_RAISE_AGENT),
         eval_seed_base=300_000,
         output_path=tmp_path / "h2h.csv",
     )
@@ -198,8 +229,8 @@ def test_evaluate_head_to_head_bundle_runs_all_matchups(
 
     assert len(rows) == 8
     assert len(calls) == 8
-    assert rows[0]["experiment_name"] == "policy_unknown_vs_rule_based"
-    assert rows[-1]["experiment_name"] == "adaptive_mc_vs_always_raise"
+    assert rows[0]["experiment_name"] == "always_call_vs_always_call"
+    assert rows[-1]["experiment_name"] == "always_raise_vs_always_raise"
     assert [row["game_id"] for row in rows] == list(range(8))
 
 
@@ -275,15 +306,16 @@ def test_parse_args_accepts_custom_head_to_head_matchups():
             "--checkpoint-episodes",
             "2000",
             "--agents",
-            "policy_unknown",
-            "adaptive_mc",
+            "always_call",
+            "always_raise",
             "--opponents",
-            "rule_based",
+            "always_raise",
+            "always_call",
             "--games",
             "50",
         ]
     )
 
-    assert args.agents == ["policy_unknown", "adaptive_mc"]
-    assert args.opponents == ["rule_based"]
+    assert args.agents == ["always_call", "always_raise"]
+    assert args.opponents == ["always_raise", "always_call"]
     assert args.games == 50
