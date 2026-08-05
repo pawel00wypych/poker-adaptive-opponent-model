@@ -24,8 +24,8 @@ from src.evaluation.head_to_head_evaluator import (
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run direct head-to-head evaluation between learned policies "
-            "and handcrafted sanity baselines."
+            "Run direct head-to-head evaluation between learned policies, "
+            "rule-based baselines and deterministic sanity baselines."
         )
     )
 
@@ -72,7 +72,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         nargs="+",
         default=list(DEFAULT_HEAD_TO_HEAD_AGENTS),
         help=(
-            "Learned agents/policies to evaluate against the handcrafted baselines."
+            "Agents/policies to evaluate against direct baseline opponents."
         ),
     )
 
@@ -81,7 +81,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=sorted(SUPPORTED_HEAD_TO_HEAD_OPPONENTS),
         nargs="+",
         default=list(DEFAULT_HEAD_TO_HEAD_OPPONENTS),
-        help="Handcrafted direct opponents.",
+        help="Direct baseline opponents.",
     )
 
     parser.add_argument(
