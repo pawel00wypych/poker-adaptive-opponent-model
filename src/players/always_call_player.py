@@ -3,16 +3,17 @@ from src.players.tracking_player_mixin import TrackingPlayerMixin
 from src.poker.round_state_utils import get_player_stack
 
 
-class CallingPlayer(TrackingPlayerMixin, PlayerTemplate):
+class AlwaysCallPlayer(TrackingPlayerMixin, PlayerTemplate):
     """
-    Simple passive baseline that calls or checks whenever possible.
+    Deterministic sanity baseline that calls or checks whenever possible.
 
-    This player intentionally models a clear call-heavy behavioural profile,
-    not a strong poker heuristic. More selective passive play is represented by
-    StrongCallingPlayer and rule-based logic is kept in RuleBasedPlayer.
+    This player is intentionally simple. It is useful as an evaluation baseline
+    for detecting whether an opponent can be exploited by pure passive calling,
+    similarly to how AlwaysRaisePlayer detects vulnerability to trivial
+    aggression.
     """
 
-    def __init__(self, player_name: str = "calling_player"):
+    def __init__(self, player_name: str = "always_call"):
         super().__init__(player_name=player_name)
         self.reset_tracking()
 
@@ -20,11 +21,16 @@ class CallingPlayer(TrackingPlayerMixin, PlayerTemplate):
         if not valid_actions:
             return "fold", 0
 
-        call_action = self._find_action(valid_actions, "call")
+        action_by_name = {
+            action["action"]: action
+            for action in valid_actions
+        }
+
+        call_action = action_by_name.get("call")
         if call_action is not None:
             return call_action["action"], call_action["amount"]
 
-        fold_action = self._find_action(valid_actions, "fold")
+        fold_action = action_by_name.get("fold")
         if fold_action is not None:
             return fold_action["action"], fold_action["amount"]
 
@@ -40,14 +46,3 @@ class CallingPlayer(TrackingPlayerMixin, PlayerTemplate):
     def receive_round_result_message(self, winners, hand_info, round_state):
         current_stack = get_player_stack(round_state, self.uuid)
         self.update_tracking_after_round(current_stack=current_stack, big_blind=10)
-
-    @staticmethod
-    def _find_action(valid_actions, action_name: str):
-        return next(
-            (
-                action
-                for action in valid_actions
-                if action["action"] == action_name
-            ),
-            None,
-        )
