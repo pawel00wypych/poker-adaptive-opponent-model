@@ -68,6 +68,7 @@ STATE_V2_ABSTRACT_FIELDS = STATE_V2_FIELDS[:-1]
 
 RULE_BASED_AGENT = "rule_based"
 ALWAYS_RAISE_AGENT = "always_raise"
+ALWAYS_CALL_AGENT = "always_call"
 SINGLE_POLICY_MC_AGENT = "single_policy_mc"
 ADAPTIVE_MC_AGENT = "adaptive_mc"
 ORACLE_ADAPTIVE_AGENT = "oracle_adaptive"
@@ -80,6 +81,7 @@ POLICY_CALLING_AGENT = "policy_calling"
 SUPPORTED_TESTED_AGENTS = {
     RULE_BASED_AGENT,
     ALWAYS_RAISE_AGENT,
+    ALWAYS_CALL_AGENT,
     SINGLE_POLICY_MC_AGENT,
     ADAPTIVE_MC_AGENT,
     ORACLE_ADAPTIVE_AGENT,
@@ -99,6 +101,7 @@ CROSS_POLICY_AGENT_TO_POLICY_TYPE = {
 AGENT_DISPLAY_NAMES = {
     RULE_BASED_AGENT: "Rule-based baseline",
     ALWAYS_RAISE_AGENT: "Always-raise baseline",
+    ALWAYS_CALL_AGENT: "Always-call baseline",
     SINGLE_POLICY_MC_AGENT: "Single-policy Monte Carlo",
     ADAPTIVE_MC_AGENT: "Adaptive Monte Carlo",
     ORACLE_ADAPTIVE_AGENT: "Oracle adaptive",

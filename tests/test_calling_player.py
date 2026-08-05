@@ -1,17 +1,19 @@
 from src.players.calling_player import CallingPlayer
+from src.players.strong_calling_player import StrongCallingPlayer
+
+
+VALID_ACTIONS = [
+    {"action": "fold", "amount": 0},
+    {"action": "call", "amount": 10},
+    {"action": "raise", "amount": {"min": 20, "max": 100}},
+]
 
 
 def test_calling_player_calls_when_call_available():
     player = CallingPlayer()
 
-    valid_actions = [
-        {"action": "fold", "amount": 0},
-        {"action": "call", "amount": 10},
-        {"action": "raise", "amount": {"min": 20, "max": 100}},
-    ]
-
     action, amount = player.declare_action(
-        valid_actions=valid_actions,
+        valid_actions=VALID_ACTIONS,
         hole_card=[],
         round_state={},
     )
@@ -23,14 +25,12 @@ def test_calling_player_calls_when_call_available():
 def test_calling_player_checks_when_call_amount_is_zero():
     player = CallingPlayer()
 
-    valid_actions = [
-        {"action": "fold", "amount": 0},
-        {"action": "call", "amount": 0},
-        {"action": "raise", "amount": {"min": 10, "max": 100}},
-    ]
-
     action, amount = player.declare_action(
-        valid_actions=valid_actions,
+        valid_actions=[
+            {"action": "fold", "amount": 0},
+            {"action": "call", "amount": 0},
+            {"action": "raise", "amount": {"min": 10, "max": 100}},
+        ],
         hole_card=[],
         round_state={},
     )
@@ -42,13 +42,11 @@ def test_calling_player_checks_when_call_amount_is_zero():
 def test_calling_player_folds_when_call_not_available():
     player = CallingPlayer()
 
-    valid_actions = [
-        {"action": "fold", "amount": 0},
-        {"action": "raise", "amount": {"min": 20, "max": 100}},
-    ]
-
     action, amount = player.declare_action(
-        valid_actions=valid_actions,
+        valid_actions=[
+            {"action": "fold", "amount": 0},
+            {"action": "raise", "amount": {"min": 20, "max": 100}},
+        ],
         hole_card=[],
         round_state={},
     )
@@ -60,18 +58,17 @@ def test_calling_player_folds_when_call_not_available():
 def test_calling_player_uses_first_action_as_last_fallback():
     player = CallingPlayer()
 
-    valid_actions = [
-        {"action": "raise", "amount": {"min": 20, "max": 100}},
-    ]
-
     action, amount = player.declare_action(
-        valid_actions=valid_actions,
+        valid_actions=[
+            {"action": "raise", "amount": {"min": 20, "max": 100}},
+        ],
         hole_card=[],
         round_state={},
     )
 
     assert action == "raise"
     assert amount == {"min": 20, "max": 100}
+
 
 def test_calling_player_tracks_round_results():
     player = CallingPlayer(player_name="calling")
@@ -96,3 +93,67 @@ def test_calling_player_tracks_round_results():
 
     assert player.hands_played == 2
     assert player.total_reward_bb == 2.0
+
+
+def _round_state_for_strong_calling(player_stack: int = 100) -> dict:
+    return {
+        "community_card": [],
+        "seats": [
+            {"name": "strong_calling", "uuid": "uuid-strong", "stack": player_stack},
+            {"name": "opponent", "uuid": "uuid-opponent", "stack": 100},
+        ],
+    }
+
+
+def test_strong_calling_folds_some_weak_expensive_calls():
+    import random
+
+    player = StrongCallingPlayer(rng=random.Random(1))
+    player.uuid = "uuid-strong"
+
+    action, amount = player.declare_action(
+        valid_actions=[
+            {"action": "fold", "amount": 0},
+            {"action": "call", "amount": 80},
+        ],
+        hole_card=["S2", "D7"],
+        round_state=_round_state_for_strong_calling(player_stack=100),
+    )
+
+    assert action == "fold"
+    assert amount == 0
+
+
+def test_strong_calling_can_continue_with_strong_expensive_hand():
+    import random
+
+    player = StrongCallingPlayer(rng=random.Random(5))
+    player.uuid = "uuid-strong"
+
+    action, amount = player.declare_action(
+        valid_actions=[
+            {"action": "fold", "amount": 0},
+            {"action": "call", "amount": 80},
+        ],
+        hole_card=["HA", "HK"],
+        round_state=_round_state_for_strong_calling(player_stack=100),
+    )
+
+    assert action == "call"
+    assert amount == 80
+
+
+def test_strong_calling_can_value_raise_strong_hand():
+    import random
+
+    player = StrongCallingPlayer(rng=random.Random(1), strong_raise_probability=1.0)
+    player.uuid = "uuid-strong"
+
+    action, amount = player.declare_action(
+        valid_actions=VALID_ACTIONS,
+        hole_card=["HA", "HK"],
+        round_state=_round_state_for_strong_calling(player_stack=100),
+    )
+
+    assert action == "raise"
+    assert amount == 20

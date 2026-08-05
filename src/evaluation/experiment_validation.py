@@ -24,6 +24,7 @@ from src.evaluation.constants import (
 from src.evaluation.html_utils import write_text
 from src.players.constants import (
     AGGRESSIVE_OPPONENT_VARIANTS,
+    CALLING_OPPONENT_VARIANTS,
     GENERALIZATION_OPPONENT_VARIANTS,
     OPPONENT_VARIANT_AGGRESSIVE_EXTREME,
 )
@@ -1699,8 +1700,7 @@ def validate_generalization_matching_specialists(
     results: list[ValidationCheckResult] = []
     variant_to_specialist = {
         opponent_name: POLICY_CALLING_AGENT
-        for opponent_name in GENERALIZATION_OPPONENT_VARIANTS
-        if opponent_name.startswith("calling_")
+        for opponent_name in CALLING_OPPONENT_VARIANTS
     }
     variant_to_specialist.update(
         {
