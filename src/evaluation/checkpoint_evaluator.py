@@ -11,11 +11,21 @@ from PyPokerEngine.pypokerengine.api.game import (
 )
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
+from src.agents.q_learning_agent import QLearningAgent
 from src.config import GameConfig
 from src.evaluation.constants import (
+    ADAPTIVE_MC_AGENT,
+    ADAPTIVE_Q_LEARNING_AGENT,
+    ALWAYS_CALL_AGENT,
+    ALWAYS_RAISE_AGENT,
     CHECKPOINT_PREFIX_BY_POLICY_TYPE,
     CROSS_POLICY_AGENT_TO_POLICY_TYPE,
     MODEL_DIRECTORY_BY_POLICY_TYPE,
+    ORACLE_ADAPTIVE_AGENT,
+    POLICY_UNKNOWN_Q_LEARNING_AGENT,
+    Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
+    RULE_BASED_AGENT,
+    SINGLE_POLICY_MC_AGENT,
     SUPPORTED_TESTED_AGENTS,
 )
 from src.experiments.training_opponents import build_opponent
@@ -37,10 +47,11 @@ from src.poker.constants import (
 @dataclass(frozen=True)
 class ModelBundle:
     """
-    Complete set of models for one seed and one checkpoint episode.
+    Complete set of model paths for one seed and one checkpoint episode.
 
-    unknown -> general single-policy model
-    fish/aggressive/calling -> specialist models
+    The Monte Carlo paths are always required and preserve the previous
+    evaluation behavior. Q-learning paths are optional and are present only
+    when the evaluator is given a separate Q-learning training run directory.
     """
 
     training_run_directory: Path
@@ -50,6 +61,11 @@ class ModelBundle:
     fish_model_path: Path
     aggressive_model_path: Path
     calling_model_path: Path
+    q_learning_training_run_directory: Path | None = None
+    q_learning_unknown_model_path: Path | None = None
+    q_learning_fish_model_path: Path | None = None
+    q_learning_aggressive_model_path: Path | None = None
+    q_learning_calling_model_path: Path | None = None
 
     @property
     def experiment_id(self) -> str:
@@ -64,6 +80,36 @@ class ModelBundle:
             OPPONENT_TYPE_FISH: self.fish_model_path,
             OPPONENT_TYPE_AGGRESSIVE: self.aggressive_model_path,
             OPPONENT_TYPE_CALLING: self.calling_model_path,
+        }
+
+    def has_q_learning_models(self) -> bool:
+        return all(
+            path is not None
+            for path in (
+                self.q_learning_unknown_model_path,
+                self.q_learning_fish_model_path,
+                self.q_learning_aggressive_model_path,
+                self.q_learning_calling_model_path,
+            )
+        )
+
+    def q_learning_agent_paths(self) -> dict[str, Path]:
+        if not self.has_q_learning_models():
+            raise ValueError(
+                "Q-learning model paths are not available for this bundle. "
+                "Pass --q-learning-run-dir to evaluate Q-learning agents."
+            )
+
+        assert self.q_learning_unknown_model_path is not None
+        assert self.q_learning_fish_model_path is not None
+        assert self.q_learning_aggressive_model_path is not None
+        assert self.q_learning_calling_model_path is not None
+
+        return {
+            OPPONENT_TYPE_UNKNOWN: self.q_learning_unknown_model_path,
+            OPPONENT_TYPE_FISH: self.q_learning_fish_model_path,
+            OPPONENT_TYPE_AGGRESSIVE: self.q_learning_aggressive_model_path,
+            OPPONENT_TYPE_CALLING: self.q_learning_calling_model_path,
         }
 
 
@@ -158,49 +204,98 @@ def discover_seed_directories(
     )
 
 
-def build_model_bundle(
-    training_run_directory: str | Path,
-    seed: int,
+def build_policy_paths(
+    *,
+    seed_directory: Path,
     checkpoint_episode: int,
-    use_final_models: bool = False,
-) -> ModelBundle:
-    root = Path(training_run_directory)
-    seed_directory = root / f"seed_{seed}"
-
+    seed: int,
+    use_final_models: bool,
+) -> dict[str, Path]:
     if use_final_models:
-        paths = {
+        return {
             policy_type: final_model_path(
                 seed_directory=seed_directory,
                 policy_type=policy_type,
             )
             for policy_type in MODEL_DIRECTORY_BY_POLICY_TYPE
         }
-    else:
-        paths = {
-            policy_type: checkpoint_model_path(
-                seed_directory=seed_directory,
-                policy_type=policy_type,
-                checkpoint_episode=checkpoint_episode,
-                seed=seed,
-            )
-            for policy_type in MODEL_DIRECTORY_BY_POLICY_TYPE
-        }
 
+    return {
+        policy_type: checkpoint_model_path(
+            seed_directory=seed_directory,
+            policy_type=policy_type,
+            checkpoint_episode=checkpoint_episode,
+            seed=seed,
+        )
+        for policy_type in MODEL_DIRECTORY_BY_POLICY_TYPE
+    }
+
+
+def validate_model_paths(
+    paths: Iterable[Path],
+    *,
+    bundle_name: str,
+) -> None:
     missing_paths = [
         path
-        for path in paths.values()
+        for path in paths
         if not path.exists()
     ]
 
-    if missing_paths:
-        missing = "\n".join(
-            str(path)
-            for path in missing_paths
+    if not missing_paths:
+        return
+
+    missing = "\n".join(
+        str(path)
+        for path in missing_paths
+    )
+
+    raise FileNotFoundError(
+        f"Incomplete model bundle ({bundle_name}). Missing paths:\n"
+        f"{missing}"
+    )
+
+
+def build_model_bundle(
+    training_run_directory: str | Path,
+    seed: int,
+    checkpoint_episode: int,
+    use_final_models: bool = False,
+    q_learning_run_directory: str | Path | None = None,
+) -> ModelBundle:
+    root = Path(training_run_directory)
+    seed_directory = root / f"seed_{seed}"
+
+    paths = build_policy_paths(
+        seed_directory=seed_directory,
+        checkpoint_episode=checkpoint_episode,
+        seed=seed,
+        use_final_models=use_final_models,
+    )
+
+    validate_model_paths(
+        paths.values(),
+        bundle_name="Monte Carlo",
+    )
+
+    q_learning_root = (
+        Path(q_learning_run_directory)
+        if q_learning_run_directory is not None
+        else None
+    )
+    q_learning_paths: dict[str, Path] | None = None
+
+    if q_learning_root is not None:
+        q_learning_paths = build_policy_paths(
+            seed_directory=q_learning_root / f"seed_{seed}",
+            checkpoint_episode=checkpoint_episode,
+            seed=seed,
+            use_final_models=use_final_models,
         )
 
-        raise FileNotFoundError(
-            "Incomplete model bundle. Missing paths:\n"
-            f"{missing}"
+        validate_model_paths(
+            q_learning_paths.values(),
+            bundle_name="Q-learning",
         )
 
     return ModelBundle(
@@ -211,6 +306,27 @@ def build_model_bundle(
         fish_model_path=paths[OPPONENT_TYPE_FISH],
         aggressive_model_path=paths[OPPONENT_TYPE_AGGRESSIVE],
         calling_model_path=paths[OPPONENT_TYPE_CALLING],
+        q_learning_training_run_directory=q_learning_root,
+        q_learning_unknown_model_path=(
+            q_learning_paths[OPPONENT_TYPE_UNKNOWN]
+            if q_learning_paths is not None
+            else None
+        ),
+        q_learning_fish_model_path=(
+            q_learning_paths[OPPONENT_TYPE_FISH]
+            if q_learning_paths is not None
+            else None
+        ),
+        q_learning_aggressive_model_path=(
+            q_learning_paths[OPPONENT_TYPE_AGGRESSIVE]
+            if q_learning_paths is not None
+            else None
+        ),
+        q_learning_calling_model_path=(
+            q_learning_paths[OPPONENT_TYPE_CALLING]
+            if q_learning_paths is not None
+            else None
+        ),
     )
 
 
@@ -220,6 +336,7 @@ def discover_model_bundles(
     seeds: Iterable[int] | None = None,
     use_final_models: bool = False,
     skip_incomplete: bool = True,
+    q_learning_run_directory: str | Path | None = None,
 ) -> list[ModelBundle]:
     root = Path(training_run_directory)
 
@@ -241,6 +358,7 @@ def discover_model_bundles(
                     seed=seed,
                     checkpoint_episode=checkpoint_episode,
                     use_final_models=use_final_models,
+                    q_learning_run_directory=q_learning_run_directory,
                 )
             except FileNotFoundError:
                 if skip_incomplete:
@@ -264,6 +382,17 @@ def load_eval_agent(
     return agent
 
 
+def load_q_learning_eval_agent(
+    model_path: str | Path,
+) -> QLearningAgent:
+    agent = QLearningAgent.load(
+        str(model_path)
+    )
+    agent.eval()
+
+    return agent
+
+
 def load_adaptive_agents(
     bundle: ModelBundle,
 ) -> dict[str, MonteCarloAgent]:
@@ -273,49 +402,66 @@ def load_adaptive_agents(
     }
 
 
+def load_q_learning_adaptive_agents(
+    bundle: ModelBundle,
+) -> dict[str, QLearningAgent]:
+    return {
+        policy_type: load_q_learning_eval_agent(path)
+        for policy_type, path in bundle.q_learning_agent_paths().items()
+    }
+
+
 def build_tested_player(
     tested_agent_name: str,
     opponent_name: str,
     bundle: ModelBundle,
 ):
-    if tested_agent_name == "rule_based":
+    if tested_agent_name == RULE_BASED_AGENT:
         return RuleBasedPlayer(
-            player_name="rule_based"
+            player_name=RULE_BASED_AGENT
         )
 
-    if tested_agent_name == "always_raise":
+    if tested_agent_name == ALWAYS_RAISE_AGENT:
         return AlwaysRaisePlayer(
-            player_name="always_raise"
+            player_name=ALWAYS_RAISE_AGENT
         )
 
-    if tested_agent_name == "always_call":
+    if tested_agent_name == ALWAYS_CALL_AGENT:
         return AlwaysCallPlayer(
-            player_name="always_call"
+            player_name=ALWAYS_CALL_AGENT
         )
 
-    if tested_agent_name == "single_policy_mc":
+    if tested_agent_name == SINGLE_POLICY_MC_AGENT:
         agent = load_eval_agent(
             bundle.unknown_model_path
         )
 
         return SinglePolicyPlayer(
             agent=agent,
-            player_name="single_policy_mc",
+            player_name=SINGLE_POLICY_MC_AGENT,
         )
 
-    if tested_agent_name == "adaptive_mc":
+    if tested_agent_name == ADAPTIVE_MC_AGENT:
         return AdaptivePlayer(
             agents=load_adaptive_agents(bundle),
-            player_name="adaptive_mc",
+            player_name=ADAPTIVE_MC_AGENT,
             expected_opponent_type=opponent_name,
             verbose=False,
         )
 
-    if tested_agent_name == "oracle_adaptive":
+    if tested_agent_name == ADAPTIVE_Q_LEARNING_AGENT:
+        return AdaptivePlayer(
+            agents=load_q_learning_adaptive_agents(bundle),
+            player_name=ADAPTIVE_Q_LEARNING_AGENT,
+            expected_opponent_type=opponent_name,
+            verbose=False,
+        )
+
+    if tested_agent_name == ORACLE_ADAPTIVE_AGENT:
         return OracleAdaptivePlayer(
             agents=load_adaptive_agents(bundle),
             oracle_opponent_type=opponent_name,
-            player_name="oracle_adaptive",
+            player_name=ORACLE_ADAPTIVE_AGENT,
             verbose=False,
         )
 
@@ -326,6 +472,22 @@ def build_tested_player(
 
         agent = load_eval_agent(
             bundle.agent_paths()[policy_type]
+        )
+
+        return FixedPolicyPlayer(
+            agent=agent,
+            policy_type=policy_type,
+            player_name=tested_agent_name,
+            verbose=False,
+        )
+
+    if tested_agent_name in Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE:
+        policy_type = Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE[
+            tested_agent_name
+        ]
+
+        agent = load_q_learning_eval_agent(
+            bundle.q_learning_agent_paths()[policy_type]
         )
 
         return FixedPolicyPlayer(
