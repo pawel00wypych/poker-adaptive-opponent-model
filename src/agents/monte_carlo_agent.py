@@ -113,7 +113,10 @@ class MonteCarloAgent:
         self,
         state: tuple,
         action_id: int,
+        valid_actions: list[dict] | None = None,
     ) -> None:
+        # valid_actions is accepted for API compatibility with TD agents.
+        # Monte Carlo does not need next-state legal actions for updates.
         if self.training:
             self.episode.append(
                 (state, action_id)
