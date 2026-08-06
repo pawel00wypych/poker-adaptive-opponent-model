@@ -77,6 +77,7 @@ class SpecialistPolicyPlayer(PlayerTemplate):
         self.agent.remember(
             state,
             action_id,
+            valid_actions=valid_actions,
         )
 
         return action, amount
