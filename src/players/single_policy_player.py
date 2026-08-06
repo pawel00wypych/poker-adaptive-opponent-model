@@ -44,7 +44,11 @@ class SinglePolicyPlayer(PlayerTemplate):
         action_id = self.agent.act(state, valid_actions)
         action, amount = ActionMapper.to_engine_action(action_id, valid_actions)
 
-        self.agent.remember(state, action_id)
+        self.agent.remember(
+            state,
+            action_id,
+            valid_actions=valid_actions,
+        )
 
         return action, amount
 

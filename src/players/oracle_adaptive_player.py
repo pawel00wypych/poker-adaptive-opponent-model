@@ -112,6 +112,7 @@ class OracleAdaptivePlayer(PlayerTemplate):
             active_agent.remember(
                 state,
                 action_id,
+                valid_actions=valid_actions,
             )
 
         if self.verbose:
