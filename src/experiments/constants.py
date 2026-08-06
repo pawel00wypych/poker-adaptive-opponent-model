@@ -20,6 +20,9 @@ TESTED_AGENT_ALWAYS_CALL = "always_call"
 TESTED_AGENT_SINGLE_POLICY_MC = "single_policy_mc"
 TESTED_AGENT_ADAPTIVE_MC = "adaptive_mc"
 TESTED_AGENT_ORACLE_ADAPTIVE = "oracle_adaptive"
+TESTED_AGENT_ADAPTIVE_Q_LEARNING = "adaptive_q_learning"
+TESTED_AGENT_POLICY_UNKNOWN_MC = "policy_unknown_mc"
+TESTED_AGENT_POLICY_UNKNOWN_Q_LEARNING = "policy_unknown_q_learning"
 
 TESTED_AGENTS = (
     TESTED_AGENT_RULE_BASED,

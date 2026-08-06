@@ -40,6 +40,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--q-learning-run-dir",
+        type=str,
+        default=None,
+        help=(
+            "Optional Q-learning training run directory. When provided, "
+            "Q-learning evaluation agents can be selected with --agents."
+        ),
+    )
+
+    parser.add_argument(
         "--checkpoint-episodes",
         required=True,
         type=int,
@@ -195,6 +205,7 @@ def save_summary(
         "seen_during_training": False,
         "output_path": str(output_path),
         "training_run_dir": arguments.training_run_dir,
+        "q_learning_run_dir": arguments.q_learning_run_dir,
         "checkpoint_episodes": arguments.checkpoint_episodes,
         "seeds": arguments.seeds,
         "games": arguments.games,
@@ -242,6 +253,7 @@ def main() -> None:
         seeds=args.seeds,
         use_final_models=args.use_final_models,
         skip_incomplete=not args.fail_on_incomplete,
+        q_learning_run_directory=args.q_learning_run_dir,
     )
 
     if not bundles:
@@ -260,6 +272,7 @@ def main() -> None:
     print(
         "Generalization evaluation started\n"
         f"training_run_dir={training_run_dir}\n"
+        f"q_learning_run_dir={args.q_learning_run_dir or 'not provided'}\n"
         f"bundles={len(bundles)}\n"
         f"checkpoint_episodes={args.checkpoint_episodes}\n"
         f"seeds={args.seeds or 'auto'}\n"
