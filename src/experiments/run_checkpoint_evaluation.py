@@ -22,7 +22,7 @@ from src.evaluation.checkpoint_evaluator import (
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Evaluate checkpoint models without copying "
@@ -38,6 +38,16 @@ def parse_args() -> argparse.Namespace:
             "Directory created by run_training_suite, "
             "for example "
             "results/training_runs/state_v2_linear_10000."
+        ),
+    )
+
+    parser.add_argument(
+        "--q-learning-run-dir",
+        type=str,
+        default=None,
+        help=(
+            "Optional Q-learning training run directory. When provided, "
+            "Q-learning evaluation agents can be selected with --agents."
         ),
     )
 
@@ -138,7 +148,7 @@ def parse_args() -> argparse.Namespace:
         ),
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.games <= 0:
         parser.error(
@@ -201,6 +211,7 @@ def save_summary(
     summary = {
         "output_path": str(output_path),
         "training_run_dir": arguments.training_run_dir,
+        "q_learning_run_dir": arguments.q_learning_run_dir,
         "checkpoint_episodes": (
             arguments.checkpoint_episodes
         ),
@@ -250,6 +261,7 @@ def main() -> None:
         seeds=args.seeds,
         use_final_models=args.use_final_models,
         skip_incomplete=not args.fail_on_incomplete,
+        q_learning_run_directory=args.q_learning_run_dir,
     )
 
     if not bundles:
@@ -269,6 +281,7 @@ def main() -> None:
     print(
         "Checkpoint evaluation started\n"
         f"training_run_dir={training_run_dir}\n"
+        f"q_learning_run_dir={args.q_learning_run_dir or 'not provided'}\n"
         f"bundles={len(bundles)}\n"
         f"checkpoint_episodes="
         f"{args.checkpoint_episodes}\n"
