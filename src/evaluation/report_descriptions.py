@@ -28,11 +28,13 @@ METRIC_DESCRIPTIONS = {
 AGENT_LABELS = {
     "adaptive_mc": "Adaptive Monte Carlo",
     "adaptive_q_learning": "Adaptive Q-learning",
+    "adaptive_sarsa": "Adaptive SARSA",
     "oracle_adaptive": "Oracle adaptive",
     "single_policy_mc": "Single-policy Monte Carlo",
     "policy_unknown": "Fixed unknown policy",
     "policy_unknown_mc": "Fixed unknown Monte Carlo policy",
     "policy_unknown_q_learning": "Fixed unknown Q-learning policy",
+    "policy_unknown_sarsa": "Fixed unknown SARSA policy",
     "policy_calling": "Fixed calling specialist",
     "policy_fish": "Fixed fish specialist",
     "policy_aggressive": "Fixed aggressive specialist",

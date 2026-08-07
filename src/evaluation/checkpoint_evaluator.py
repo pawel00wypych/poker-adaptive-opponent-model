@@ -12,10 +12,12 @@ from PyPokerEngine.pypokerengine.api.game import (
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.agents.q_learning_agent import QLearningAgent
+from src.agents.sarsa_agent import SarsaAgent
 from src.config import GameConfig
 from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
     ADAPTIVE_Q_LEARNING_AGENT,
+    ADAPTIVE_SARSA_AGENT,
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
     CHECKPOINT_PREFIX_BY_POLICY_TYPE,
@@ -23,7 +25,9 @@ from src.evaluation.constants import (
     MODEL_DIRECTORY_BY_POLICY_TYPE,
     ORACLE_ADAPTIVE_AGENT,
     POLICY_UNKNOWN_Q_LEARNING_AGENT,
+    POLICY_UNKNOWN_SARSA_AGENT,
     Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
+    SARSA_POLICY_AGENT_TO_POLICY_TYPE,
     RULE_BASED_AGENT,
     SINGLE_POLICY_MC_AGENT,
     SUPPORTED_TESTED_AGENTS,
@@ -66,6 +70,11 @@ class ModelBundle:
     q_learning_fish_model_path: Path | None = None
     q_learning_aggressive_model_path: Path | None = None
     q_learning_calling_model_path: Path | None = None
+    sarsa_training_run_directory: Path | None = None
+    sarsa_unknown_model_path: Path | None = None
+    sarsa_fish_model_path: Path | None = None
+    sarsa_aggressive_model_path: Path | None = None
+    sarsa_calling_model_path: Path | None = None
 
     @property
     def experiment_id(self) -> str:
@@ -92,6 +101,36 @@ class ModelBundle:
                 self.q_learning_calling_model_path,
             )
         )
+
+    def has_sarsa_models(self) -> bool:
+        return all(
+            path is not None
+            for path in (
+                self.sarsa_unknown_model_path,
+                self.sarsa_fish_model_path,
+                self.sarsa_aggressive_model_path,
+                self.sarsa_calling_model_path,
+            )
+        )
+
+    def sarsa_agent_paths(self) -> dict[str, Path]:
+        if not self.has_sarsa_models():
+            raise ValueError(
+                "SARSA model paths are not available for this bundle. "
+                "Pass --sarsa-run-dir to evaluate SARSA agents."
+            )
+
+        assert self.sarsa_unknown_model_path is not None
+        assert self.sarsa_fish_model_path is not None
+        assert self.sarsa_aggressive_model_path is not None
+        assert self.sarsa_calling_model_path is not None
+
+        return {
+            OPPONENT_TYPE_UNKNOWN: self.sarsa_unknown_model_path,
+            OPPONENT_TYPE_FISH: self.sarsa_fish_model_path,
+            OPPONENT_TYPE_AGGRESSIVE: self.sarsa_aggressive_model_path,
+            OPPONENT_TYPE_CALLING: self.sarsa_calling_model_path,
+        }
 
     def q_learning_agent_paths(self) -> dict[str, Path]:
         if not self.has_q_learning_models():
@@ -262,6 +301,7 @@ def build_model_bundle(
     checkpoint_episode: int,
     use_final_models: bool = False,
     q_learning_run_directory: str | Path | None = None,
+    sarsa_run_directory: str | Path | None = None,
 ) -> ModelBundle:
     root = Path(training_run_directory)
     seed_directory = root / f"seed_{seed}"
@@ -298,6 +338,26 @@ def build_model_bundle(
             bundle_name="Q-learning",
         )
 
+    sarsa_root = (
+        Path(sarsa_run_directory)
+        if sarsa_run_directory is not None
+        else None
+    )
+    sarsa_paths: dict[str, Path] | None = None
+
+    if sarsa_root is not None:
+        sarsa_paths = build_policy_paths(
+            seed_directory=sarsa_root / f"seed_{seed}",
+            checkpoint_episode=checkpoint_episode,
+            seed=seed,
+            use_final_models=use_final_models,
+        )
+
+        validate_model_paths(
+            sarsa_paths.values(),
+            bundle_name="SARSA",
+        )
+
     return ModelBundle(
         training_run_directory=root,
         seed=seed,
@@ -327,6 +387,27 @@ def build_model_bundle(
             if q_learning_paths is not None
             else None
         ),
+        sarsa_training_run_directory=sarsa_root,
+        sarsa_unknown_model_path=(
+            sarsa_paths[OPPONENT_TYPE_UNKNOWN]
+            if sarsa_paths is not None
+            else None
+        ),
+        sarsa_fish_model_path=(
+            sarsa_paths[OPPONENT_TYPE_FISH]
+            if sarsa_paths is not None
+            else None
+        ),
+        sarsa_aggressive_model_path=(
+            sarsa_paths[OPPONENT_TYPE_AGGRESSIVE]
+            if sarsa_paths is not None
+            else None
+        ),
+        sarsa_calling_model_path=(
+            sarsa_paths[OPPONENT_TYPE_CALLING]
+            if sarsa_paths is not None
+            else None
+        ),
     )
 
 
@@ -337,6 +418,7 @@ def discover_model_bundles(
     use_final_models: bool = False,
     skip_incomplete: bool = True,
     q_learning_run_directory: str | Path | None = None,
+    sarsa_run_directory: str | Path | None = None,
 ) -> list[ModelBundle]:
     root = Path(training_run_directory)
 
@@ -359,6 +441,7 @@ def discover_model_bundles(
                     checkpoint_episode=checkpoint_episode,
                     use_final_models=use_final_models,
                     q_learning_run_directory=q_learning_run_directory,
+                    sarsa_run_directory=sarsa_run_directory,
                 )
             except FileNotFoundError:
                 if skip_incomplete:
@@ -393,6 +476,17 @@ def load_q_learning_eval_agent(
     return agent
 
 
+def load_sarsa_eval_agent(
+    model_path: str | Path,
+) -> SarsaAgent:
+    agent = SarsaAgent.load(
+        str(model_path)
+    )
+    agent.eval()
+
+    return agent
+
+
 def load_adaptive_agents(
     bundle: ModelBundle,
 ) -> dict[str, MonteCarloAgent]:
@@ -408,6 +502,15 @@ def load_q_learning_adaptive_agents(
     return {
         policy_type: load_q_learning_eval_agent(path)
         for policy_type, path in bundle.q_learning_agent_paths().items()
+    }
+
+
+def load_sarsa_adaptive_agents(
+    bundle: ModelBundle,
+) -> dict[str, SarsaAgent]:
+    return {
+        policy_type: load_sarsa_eval_agent(path)
+        for policy_type, path in bundle.sarsa_agent_paths().items()
     }
 
 
@@ -457,6 +560,14 @@ def build_tested_player(
             verbose=False,
         )
 
+    if tested_agent_name == ADAPTIVE_SARSA_AGENT:
+        return AdaptivePlayer(
+            agents=load_sarsa_adaptive_agents(bundle),
+            player_name=ADAPTIVE_SARSA_AGENT,
+            expected_opponent_type=opponent_name,
+            verbose=False,
+        )
+
     if tested_agent_name == ORACLE_ADAPTIVE_AGENT:
         return OracleAdaptivePlayer(
             agents=load_adaptive_agents(bundle),
@@ -488,6 +599,22 @@ def build_tested_player(
 
         agent = load_q_learning_eval_agent(
             bundle.q_learning_agent_paths()[policy_type]
+        )
+
+        return FixedPolicyPlayer(
+            agent=agent,
+            policy_type=policy_type,
+            player_name=tested_agent_name,
+            verbose=False,
+        )
+
+    if tested_agent_name in SARSA_POLICY_AGENT_TO_POLICY_TYPE:
+        policy_type = SARSA_POLICY_AGENT_TO_POLICY_TYPE[
+            tested_agent_name
+        ]
+
+        agent = load_sarsa_eval_agent(
+            bundle.sarsa_agent_paths()[policy_type]
         )
 
         return FixedPolicyPlayer(
