@@ -318,8 +318,8 @@ def build_algorithm_overview(
             "seeds": [],
             "opponents": [],
             "algorithms": [],
-            "raw_games": 0,
-            "summary_rows": 0,
+            "source_raw_games": 0,
+            "algorithm_summary_rows": 0,
         }
 
     return {
@@ -339,10 +339,10 @@ def build_algorithm_overview(
         )
         if not algorithm_by_opponent.empty
         else [],
-        "raw_games": int(metrics["games"].sum())
+        "source_raw_games": int(metrics["games"].sum())
         if "games" in metrics.columns
         else 0,
-        "summary_rows": int(len(algorithm_by_opponent)),
+        "algorithm_summary_rows": int(len(algorithm_by_opponent)),
     }
 
 
