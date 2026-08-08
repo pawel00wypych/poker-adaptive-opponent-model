@@ -270,10 +270,12 @@ def test_write_algorithm_comparison_outputs_creates_all_formats_and_charts(tmp_p
 
     markdown = (output_dir / "algorithm_comparison.md").read_text(encoding="utf-8")
     assert "# RL algorithm comparison" in markdown
+    assert "source_raw_games" in markdown
+    assert "algorithm_summary_rows" in markdown
     assert "delta_vs_monte_carlo" in markdown
 
     data = json.loads((output_dir / "algorithm_comparison.json").read_text(encoding="utf-8"))
-    assert data["overview"]["summary_rows"] == 8
+    assert data["overview"]["algorithm_summary_rows"] == 8
 
 
 def test_parse_args_supports_algorithm_comparison_options():
