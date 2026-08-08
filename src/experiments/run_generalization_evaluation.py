@@ -60,6 +60,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--double-q-learning-run-dir",
+        type=str,
+        default=None,
+        help=(
+            "Optional Double Q-learning training run directory. When provided, "
+            "Double Q-learning evaluation agents can be selected with --agents."
+        ),
+    )
+
+    parser.add_argument(
         "--checkpoint-episodes",
         required=True,
         type=int,
@@ -217,6 +227,7 @@ def save_summary(
         "training_run_dir": arguments.training_run_dir,
         "q_learning_run_dir": arguments.q_learning_run_dir,
         "sarsa_run_dir": arguments.sarsa_run_dir,
+        "double_q_learning_run_dir": arguments.double_q_learning_run_dir,
         "checkpoint_episodes": arguments.checkpoint_episodes,
         "seeds": arguments.seeds,
         "games": arguments.games,
@@ -266,6 +277,7 @@ def main() -> None:
         skip_incomplete=not args.fail_on_incomplete,
         q_learning_run_directory=args.q_learning_run_dir,
         sarsa_run_directory=args.sarsa_run_dir,
+        double_q_learning_run_directory=args.double_q_learning_run_dir,
     )
 
     if not bundles:
@@ -286,6 +298,7 @@ def main() -> None:
         f"training_run_dir={training_run_dir}\n"
         f"q_learning_run_dir={args.q_learning_run_dir or 'not provided'}\n"
         f"sarsa_run_dir={args.sarsa_run_dir or 'not provided'}\n"
+        f"double_q_learning_run_dir={args.double_q_learning_run_dir or 'not provided'}\n"
         f"bundles={len(bundles)}\n"
         f"checkpoint_episodes={args.checkpoint_episodes}\n"
         f"seeds={args.seeds or 'auto'}\n"
