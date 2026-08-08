@@ -18,6 +18,8 @@ from src.evaluation.checkpoint_evaluator import (
     get_classifier_metrics,
     get_hands_played,
     load_adaptive_agents,
+    load_double_q_learning_adaptive_agents,
+    load_double_q_learning_eval_agent,
     load_eval_agent,
     load_q_learning_adaptive_agents,
     load_q_learning_eval_agent,
@@ -25,6 +27,7 @@ from src.evaluation.checkpoint_evaluator import (
     load_sarsa_eval_agent,
 )
 from src.evaluation.constants import (
+    ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
     ADAPTIVE_MC_AGENT,
     ADAPTIVE_Q_LEARNING_AGENT,
     ADAPTIVE_SARSA_AGENT,
@@ -37,10 +40,12 @@ from src.evaluation.constants import (
     POLICY_FISH_AGENT,
     POLICY_UNKNOWN_AGENT,
     POLICY_UNKNOWN_MC_AGENT,
+    POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_SARSA_AGENT,
     Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
     SARSA_POLICY_AGENT_TO_POLICY_TYPE,
+    DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
     RULE_BASED_AGENT,
 )
 from src.players.adaptive_player import AdaptivePlayer
@@ -77,9 +82,11 @@ DEFAULT_GENERALIZATION_AGENTS = (
 SUPPORTED_GENERALIZATION_AGENTS = set(DEFAULT_GENERALIZATION_AGENTS) | {
     ADAPTIVE_Q_LEARNING_AGENT,
     ADAPTIVE_SARSA_AGENT,
+    ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_MC_AGENT,
     POLICY_UNKNOWN_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_SARSA_AGENT,
+    POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
 }
 SUPPORTED_GENERALIZATION_OPPONENTS = set(DEFAULT_GENERALIZATION_OPPONENTS)
 
@@ -212,6 +219,14 @@ def build_generalization_tested_player(
             verbose=False,
         )
 
+    if tested_agent_name == ADAPTIVE_DOUBLE_Q_LEARNING_AGENT:
+        return AdaptivePlayer(
+            agents=load_double_q_learning_adaptive_agents(bundle),
+            player_name=ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
+            expected_opponent_type=opponent_family,
+            verbose=False,
+        )
+
     if tested_agent_name == ORACLE_ADAPTIVE_AGENT:
         return OracleAdaptivePlayer(
             agents=load_adaptive_agents(bundle),
@@ -259,6 +274,22 @@ def build_generalization_tested_player(
 
         agent = load_sarsa_eval_agent(
             bundle.sarsa_agent_paths()[policy_type]
+        )
+
+        return FixedPolicyPlayer(
+            agent=agent,
+            policy_type=policy_type,
+            player_name=tested_agent_name,
+            verbose=False,
+        )
+
+    if tested_agent_name in DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE:
+        policy_type = DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE[
+            tested_agent_name
+        ]
+
+        agent = load_double_q_learning_eval_agent(
+            bundle.double_q_learning_agent_paths()[policy_type]
         )
 
         return FixedPolicyPlayer(

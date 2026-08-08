@@ -11,11 +11,13 @@ from PyPokerEngine.pypokerengine.api.game import (
 )
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
+from src.agents.double_q_learning_agent import DoubleQLearningAgent
 from src.agents.q_learning_agent import QLearningAgent
 from src.agents.sarsa_agent import SarsaAgent
 from src.config import GameConfig
 from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
+    ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
     ADAPTIVE_Q_LEARNING_AGENT,
     ADAPTIVE_SARSA_AGENT,
     ALWAYS_CALL_AGENT,
@@ -24,10 +26,12 @@ from src.evaluation.constants import (
     CROSS_POLICY_AGENT_TO_POLICY_TYPE,
     MODEL_DIRECTORY_BY_POLICY_TYPE,
     ORACLE_ADAPTIVE_AGENT,
+    POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_SARSA_AGENT,
     Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
     SARSA_POLICY_AGENT_TO_POLICY_TYPE,
+    DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
     RULE_BASED_AGENT,
     SINGLE_POLICY_MC_AGENT,
     SUPPORTED_TESTED_AGENTS,
@@ -54,8 +58,8 @@ class ModelBundle:
     Complete set of model paths for one seed and one checkpoint episode.
 
     The Monte Carlo paths are always required and preserve the previous
-    evaluation behavior. Q-learning paths are optional and are present only
-    when the evaluator is given a separate Q-learning training run directory.
+    evaluation behavior. Q-learning, SARSA, and Double Q-learning paths are optional and are
+    present only when the evaluator is given separate training run directories.
     """
 
     training_run_directory: Path
@@ -75,6 +79,11 @@ class ModelBundle:
     sarsa_fish_model_path: Path | None = None
     sarsa_aggressive_model_path: Path | None = None
     sarsa_calling_model_path: Path | None = None
+    double_q_learning_training_run_directory: Path | None = None
+    double_q_learning_unknown_model_path: Path | None = None
+    double_q_learning_fish_model_path: Path | None = None
+    double_q_learning_aggressive_model_path: Path | None = None
+    double_q_learning_calling_model_path: Path | None = None
 
     @property
     def experiment_id(self) -> str:
@@ -112,6 +121,36 @@ class ModelBundle:
                 self.sarsa_calling_model_path,
             )
         )
+
+    def has_double_q_learning_models(self) -> bool:
+        return all(
+            path is not None
+            for path in (
+                self.double_q_learning_unknown_model_path,
+                self.double_q_learning_fish_model_path,
+                self.double_q_learning_aggressive_model_path,
+                self.double_q_learning_calling_model_path,
+            )
+        )
+
+    def double_q_learning_agent_paths(self) -> dict[str, Path]:
+        if not self.has_double_q_learning_models():
+            raise ValueError(
+                "Double Q-learning model paths are not available for this bundle. "
+                "Pass --double-q-learning-run-dir to evaluate Double Q-learning agents."
+            )
+
+        assert self.double_q_learning_unknown_model_path is not None
+        assert self.double_q_learning_fish_model_path is not None
+        assert self.double_q_learning_aggressive_model_path is not None
+        assert self.double_q_learning_calling_model_path is not None
+
+        return {
+            OPPONENT_TYPE_UNKNOWN: self.double_q_learning_unknown_model_path,
+            OPPONENT_TYPE_FISH: self.double_q_learning_fish_model_path,
+            OPPONENT_TYPE_AGGRESSIVE: self.double_q_learning_aggressive_model_path,
+            OPPONENT_TYPE_CALLING: self.double_q_learning_calling_model_path,
+        }
 
     def sarsa_agent_paths(self) -> dict[str, Path]:
         if not self.has_sarsa_models():
@@ -302,6 +341,7 @@ def build_model_bundle(
     use_final_models: bool = False,
     q_learning_run_directory: str | Path | None = None,
     sarsa_run_directory: str | Path | None = None,
+    double_q_learning_run_directory: str | Path | None = None,
 ) -> ModelBundle:
     root = Path(training_run_directory)
     seed_directory = root / f"seed_{seed}"
@@ -358,6 +398,26 @@ def build_model_bundle(
             bundle_name="SARSA",
         )
 
+    double_q_learning_root = (
+        Path(double_q_learning_run_directory)
+        if double_q_learning_run_directory is not None
+        else None
+    )
+    double_q_learning_paths: dict[str, Path] | None = None
+
+    if double_q_learning_root is not None:
+        double_q_learning_paths = build_policy_paths(
+            seed_directory=double_q_learning_root / f"seed_{seed}",
+            checkpoint_episode=checkpoint_episode,
+            seed=seed,
+            use_final_models=use_final_models,
+        )
+
+        validate_model_paths(
+            double_q_learning_paths.values(),
+            bundle_name="Double Q-learning",
+        )
+
     return ModelBundle(
         training_run_directory=root,
         seed=seed,
@@ -408,6 +468,27 @@ def build_model_bundle(
             if sarsa_paths is not None
             else None
         ),
+        double_q_learning_training_run_directory=double_q_learning_root,
+        double_q_learning_unknown_model_path=(
+            double_q_learning_paths[OPPONENT_TYPE_UNKNOWN]
+            if double_q_learning_paths is not None
+            else None
+        ),
+        double_q_learning_fish_model_path=(
+            double_q_learning_paths[OPPONENT_TYPE_FISH]
+            if double_q_learning_paths is not None
+            else None
+        ),
+        double_q_learning_aggressive_model_path=(
+            double_q_learning_paths[OPPONENT_TYPE_AGGRESSIVE]
+            if double_q_learning_paths is not None
+            else None
+        ),
+        double_q_learning_calling_model_path=(
+            double_q_learning_paths[OPPONENT_TYPE_CALLING]
+            if double_q_learning_paths is not None
+            else None
+        ),
     )
 
 
@@ -419,6 +500,7 @@ def discover_model_bundles(
     skip_incomplete: bool = True,
     q_learning_run_directory: str | Path | None = None,
     sarsa_run_directory: str | Path | None = None,
+    double_q_learning_run_directory: str | Path | None = None,
 ) -> list[ModelBundle]:
     root = Path(training_run_directory)
 
@@ -442,6 +524,7 @@ def discover_model_bundles(
                     use_final_models=use_final_models,
                     q_learning_run_directory=q_learning_run_directory,
                     sarsa_run_directory=sarsa_run_directory,
+                    double_q_learning_run_directory=double_q_learning_run_directory,
                 )
             except FileNotFoundError:
                 if skip_incomplete:
@@ -487,6 +570,17 @@ def load_sarsa_eval_agent(
     return agent
 
 
+def load_double_q_learning_eval_agent(
+    model_path: str | Path,
+) -> DoubleQLearningAgent:
+    agent = DoubleQLearningAgent.load(
+        str(model_path)
+    )
+    agent.eval()
+
+    return agent
+
+
 def load_adaptive_agents(
     bundle: ModelBundle,
 ) -> dict[str, MonteCarloAgent]:
@@ -511,6 +605,15 @@ def load_sarsa_adaptive_agents(
     return {
         policy_type: load_sarsa_eval_agent(path)
         for policy_type, path in bundle.sarsa_agent_paths().items()
+    }
+
+
+def load_double_q_learning_adaptive_agents(
+    bundle: ModelBundle,
+) -> dict[str, DoubleQLearningAgent]:
+    return {
+        policy_type: load_double_q_learning_eval_agent(path)
+        for policy_type, path in bundle.double_q_learning_agent_paths().items()
     }
 
 
@@ -568,6 +671,14 @@ def build_tested_player(
             verbose=False,
         )
 
+    if tested_agent_name == ADAPTIVE_DOUBLE_Q_LEARNING_AGENT:
+        return AdaptivePlayer(
+            agents=load_double_q_learning_adaptive_agents(bundle),
+            player_name=ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
+            expected_opponent_type=opponent_name,
+            verbose=False,
+        )
+
     if tested_agent_name == ORACLE_ADAPTIVE_AGENT:
         return OracleAdaptivePlayer(
             agents=load_adaptive_agents(bundle),
@@ -615,6 +726,22 @@ def build_tested_player(
 
         agent = load_sarsa_eval_agent(
             bundle.sarsa_agent_paths()[policy_type]
+        )
+
+        return FixedPolicyPlayer(
+            agent=agent,
+            policy_type=policy_type,
+            player_name=tested_agent_name,
+            verbose=False,
+        )
+
+    if tested_agent_name in DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE:
+        policy_type = DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE[
+            tested_agent_name
+        ]
+
+        agent = load_double_q_learning_eval_agent(
+            bundle.double_q_learning_agent_paths()[policy_type]
         )
 
         return FixedPolicyPlayer(
