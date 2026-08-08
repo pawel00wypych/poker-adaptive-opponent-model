@@ -74,11 +74,13 @@ ADAPTIVE_MC_AGENT = "adaptive_mc"
 ORACLE_ADAPTIVE_AGENT = "oracle_adaptive"
 ADAPTIVE_Q_LEARNING_AGENT = "adaptive_q_learning"
 ADAPTIVE_SARSA_AGENT = "adaptive_sarsa"
+ADAPTIVE_DOUBLE_Q_LEARNING_AGENT = "adaptive_double_q_learning"
 
 POLICY_UNKNOWN_AGENT = "policy_unknown"
 POLICY_UNKNOWN_MC_AGENT = "policy_unknown_mc"
 POLICY_UNKNOWN_Q_LEARNING_AGENT = "policy_unknown_q_learning"
 POLICY_UNKNOWN_SARSA_AGENT = "policy_unknown_sarsa"
+POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT = "policy_unknown_double_q_learning"
 POLICY_FISH_AGENT = "policy_fish"
 POLICY_AGGRESSIVE_AGENT = "policy_aggressive"
 POLICY_CALLING_AGENT = "policy_calling"
@@ -92,10 +94,12 @@ SUPPORTED_TESTED_AGENTS = {
     ORACLE_ADAPTIVE_AGENT,
     ADAPTIVE_Q_LEARNING_AGENT,
     ADAPTIVE_SARSA_AGENT,
+    ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_AGENT,
     POLICY_UNKNOWN_MC_AGENT,
     POLICY_UNKNOWN_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_SARSA_AGENT,
+    POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
     POLICY_FISH_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
@@ -117,6 +121,10 @@ SARSA_POLICY_AGENT_TO_POLICY_TYPE = {
     POLICY_UNKNOWN_SARSA_AGENT: UNKNOWN_POLICY,
 }
 
+DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE = {
+    POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT: UNKNOWN_POLICY,
+}
+
 AGENT_DISPLAY_NAMES = {
     RULE_BASED_AGENT: "Rule-based baseline",
     ALWAYS_RAISE_AGENT: "Always-raise baseline",
@@ -126,10 +134,12 @@ AGENT_DISPLAY_NAMES = {
     ORACLE_ADAPTIVE_AGENT: "Oracle adaptive",
     ADAPTIVE_Q_LEARNING_AGENT: "Adaptive Q-learning",
     ADAPTIVE_SARSA_AGENT: "Adaptive SARSA",
+    ADAPTIVE_DOUBLE_Q_LEARNING_AGENT: "Adaptive Double Q-learning",
     POLICY_UNKNOWN_AGENT: "Fixed general policy",
     POLICY_UNKNOWN_MC_AGENT: "Fixed general Monte Carlo policy",
     POLICY_UNKNOWN_Q_LEARNING_AGENT: "Fixed general Q-learning policy",
     POLICY_UNKNOWN_SARSA_AGENT: "Fixed general SARSA policy",
+    POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT: "Fixed general Double Q-learning policy",
     POLICY_FISH_AGENT: "Fixed fish specialist",
     POLICY_AGGRESSIVE_AGENT: "Fixed aggressive specialist",
     POLICY_CALLING_AGENT: "Fixed calling specialist",
