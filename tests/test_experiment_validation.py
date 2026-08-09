@@ -524,41 +524,41 @@ def test_head_to_head_validation_fails_when_adaptive_loses_to_rule_based(
 def write_sample_generalization_csv(path):
     rows = []
     variants = [
-        "strong_calling",
+        "calling_extreme",
         "tight_extreme",
         "aggressive_extreme",
     ]
 
     adaptive_profits = {
-        "strong_calling": (18.0, 18.5),
+        "calling_extreme": (18.0, 18.5),
         "tight_extreme": (14.0, 14.5),
         "legacy_calling_variant": (8.0, 8.5),
         "tight_extreme": (6.0, 6.5),
         "aggressive_extreme": (-8.0, -7.5),
     }
     oracle_profits = {
-        "strong_calling": (19.0, 19.5),
+        "calling_extreme": (19.0, 19.5),
         "tight_extreme": (15.0, 15.5),
         "legacy_calling_variant": (9.0, 9.5),
         "tight_extreme": (10.5, 11.0),
         "aggressive_extreme": (-4.0, -3.5),
     }
     unknown_profits = {
-        "strong_calling": (10.0, 10.5),
+        "calling_extreme": (10.0, 10.5),
         "tight_extreme": (9.0, 9.5),
         "legacy_calling_variant": (7.0, 7.5),
         "tight_extreme": (5.0, 5.5),
         "aggressive_extreme": (-10.0, -9.5),
     }
     rule_based_profits = {
-        "strong_calling": (12.0, 12.5),
+        "calling_extreme": (12.0, 12.5),
         "tight_extreme": (10.0, 10.5),
         "legacy_calling_variant": (9.0, 9.5),
         "tight_extreme": (8.0, 8.5),
         "aggressive_extreme": (-6.0, -5.5),
     }
     always_raise_profits = {
-        "strong_calling": (4.0, 4.5),
+        "calling_extreme": (4.0, 4.5),
         "tight_extreme": (2.0, 2.5),
         "legacy_calling_variant": (-2.0, -1.5),
         "tight_extreme": (18.5, 19.0),
@@ -566,21 +566,21 @@ def write_sample_generalization_csv(path):
     }
     specialist_profits = {
         "policy_calling": {
-            "strong_calling": (17.0, 17.5),
+            "calling_extreme": (17.0, 17.5),
             "tight_extreme": (13.0, 13.5),
             "legacy_calling_variant": (9.0, 9.5),
             "tight_extreme": (-5.0, -4.5),
             "aggressive_extreme": (-12.0, -11.5),
         },
         "policy_aggressive": {
-            "strong_calling": (-3.0, -2.5),
+            "calling_extreme": (-3.0, -2.5),
             "tight_extreme": (-2.0, -1.5),
             "legacy_calling_variant": (-1.0, -0.5),
             "tight_extreme": (7.0, 7.5),
             "aggressive_extreme": (-6.0, -5.5),
         },
         "policy_tight": {
-            "strong_calling": (-1.0, -0.5),
+            "calling_extreme": (-1.0, -0.5),
             "tight_extreme": (-1.0, -0.5),
             "legacy_calling_variant": (-2.0, -1.5),
             "tight_extreme": (-7.0, -6.5),

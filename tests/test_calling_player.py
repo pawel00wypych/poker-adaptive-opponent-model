@@ -1,5 +1,5 @@
 from src.players.calling_player import CallingPlayer
-from src.players.strong_calling_player import StrongCallingPlayer
+from src.players.calling_extreme_player import CallingExtremePlayer
 
 
 VALID_ACTIONS = [
@@ -95,21 +95,21 @@ def test_calling_player_tracks_round_results():
     assert player.total_reward_bb == 2.0
 
 
-def _round_state_for_strong_calling(player_stack: int = 100) -> dict:
+def _round_state_for_calling_extreme(player_stack: int = 100) -> dict:
     return {
         "community_card": [],
         "seats": [
-            {"name": "strong_calling", "uuid": "uuid-strong", "stack": player_stack},
+            {"name": "calling_extreme", "uuid": "uuid-calling-extreme", "stack": player_stack},
             {"name": "opponent", "uuid": "uuid-opponent", "stack": 100},
         ],
     }
 
 
-def test_strong_calling_folds_some_weak_expensive_calls():
+def test_calling_extreme_folds_some_weak_expensive_calls():
     import random
 
-    player = StrongCallingPlayer(rng=random.Random(1))
-    player.uuid = "uuid-strong"
+    player = CallingExtremePlayer(rng=random.Random(1))
+    player.uuid = "uuid-calling-extreme"
 
     action, amount = player.declare_action(
         valid_actions=[
@@ -117,18 +117,18 @@ def test_strong_calling_folds_some_weak_expensive_calls():
             {"action": "call", "amount": 80},
         ],
         hole_card=["S2", "D7"],
-        round_state=_round_state_for_strong_calling(player_stack=100),
+        round_state=_round_state_for_calling_extreme(player_stack=100),
     )
 
     assert action == "fold"
     assert amount == 0
 
 
-def test_strong_calling_can_continue_with_strong_expensive_hand():
+def test_calling_extreme_can_continue_with_strong_expensive_hand():
     import random
 
-    player = StrongCallingPlayer(rng=random.Random(5))
-    player.uuid = "uuid-strong"
+    player = CallingExtremePlayer(rng=random.Random(5))
+    player.uuid = "uuid-calling-extreme"
 
     action, amount = player.declare_action(
         valid_actions=[
@@ -136,23 +136,23 @@ def test_strong_calling_can_continue_with_strong_expensive_hand():
             {"action": "call", "amount": 80},
         ],
         hole_card=["HA", "HK"],
-        round_state=_round_state_for_strong_calling(player_stack=100),
+        round_state=_round_state_for_calling_extreme(player_stack=100),
     )
 
     assert action == "call"
     assert amount == 80
 
 
-def test_strong_calling_can_value_raise_strong_hand():
+def test_calling_extreme_can_value_raise_strong_hand():
     import random
 
-    player = StrongCallingPlayer(rng=random.Random(1), strong_raise_probability=1.0)
-    player.uuid = "uuid-strong"
+    player = CallingExtremePlayer(rng=random.Random(1), strong_raise_probability=1.0)
+    player.uuid = "uuid-calling-extreme"
 
     action, amount = player.declare_action(
         valid_actions=VALID_ACTIONS,
         hole_card=["HA", "HK"],
-        round_state=_round_state_for_strong_calling(player_stack=100),
+        round_state=_round_state_for_calling_extreme(player_stack=100),
     )
 
     assert action == "raise"

@@ -43,9 +43,8 @@ opponents.
 - Always-call and always-raise sanity baselines.
 - Fixed base opponent strategies: fish, aggressive and calling.
 - Named generalization opponents:
-  - `calling`
-  - `strong_calling`
-  - `aggressive_light`
+  - `tight_extreme`
+  - `calling_extreme`
   - `aggressive_extreme`
 - Discretised state representation with hand strength, poker context, pot
   information, stack-to-pot ratio and opponent type.
