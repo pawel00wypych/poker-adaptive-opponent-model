@@ -26,8 +26,8 @@ def create_checkpoint_bundle_files(
             "single_policy",
         ),
         (
-            "specialist_fish",
-            "specialist_fish",
+            "specialist_tight",
+            "specialist_tight",
         ),
         (
             "specialist_aggressive",
@@ -181,7 +181,7 @@ def test_build_model_bundle_from_complete_files(
     assert bundle.seed == 42
     assert bundle.checkpoint_episode == 5000
     assert bundle.unknown_model_path.exists()
-    assert bundle.fish_model_path.exists()
+    assert bundle.tight_model_path.exists()
     assert bundle.aggressive_model_path.exists()
     assert bundle.calling_model_path.exists()
 
@@ -238,10 +238,10 @@ def test_discover_model_bundles_skips_incomplete(
     missing = (
         tmp_path
         / "seed_42"
-        / "specialist_fish"
+        / "specialist_tight"
         / "checkpoints"
         / (
-            "specialist_fish"
+            "specialist_tight"
             "_episodes_5000"
             "_seed_42.pkl"
         )
@@ -309,7 +309,7 @@ def test_build_result_row_calculates_profit_fields(
         seed=42,
         checkpoint_episode=5000,
         unknown_model_path=Path("unknown.pkl"),
-        fish_model_path=Path("fish.pkl"),
+        tight_model_path=Path("tight.pkl"),
         aggressive_model_path=Path("aggressive.pkl"),
         calling_model_path=Path("calling.pkl"),
     )
@@ -364,7 +364,7 @@ from src.players.oracle_adaptive_player import OracleAdaptivePlayer
 def test_supported_agents_include_oracle_and_cross_policy_agents():
     assert "oracle_adaptive" in SUPPORTED_TESTED_AGENTS
     assert "policy_unknown" in SUPPORTED_TESTED_AGENTS
-    assert "policy_fish" in SUPPORTED_TESTED_AGENTS
+    assert "policy_tight" in SUPPORTED_TESTED_AGENTS
     assert "policy_aggressive" in SUPPORTED_TESTED_AGENTS
     assert "policy_calling" in SUPPORTED_TESTED_AGENTS
 
@@ -375,8 +375,8 @@ def test_cross_policy_agent_mapping():
         == "unknown"
     )
     assert (
-        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_fish"]
-        == "fish"
+        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_tight"]
+        == "tight"
     )
     assert (
         CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_aggressive"]

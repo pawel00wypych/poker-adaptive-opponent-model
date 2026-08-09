@@ -59,7 +59,7 @@ def test_calculate_extended_metrics(
                 "policy_switches": 3,
                 "first_classification_hand": 5,
                 "first_correct_classification_hand": 7,
-                "final_predicted_type": "fish",
+                "final_predicted_type": "tight",
             },
         ]
     )
@@ -123,10 +123,10 @@ def test_calculate_metrics_for_non_adaptive_player(
     df = pd.DataFrame(
         [
             {
-                "experiment_name": "rule_based_vs_fish",
+                "experiment_name": "rule_based_vs_tight",
                 "game_id": 0,
                 "agent_name": "rule_based",
-                "opponent_name": "fish",
+                "opponent_name": "tight",
                 "final_stack": 400,
                 "initial_stack": 200,
                 "profit": 200,

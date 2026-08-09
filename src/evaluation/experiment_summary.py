@@ -23,7 +23,7 @@ from src.evaluation.experiment_charts import (
     create_experiment_summary_charts,
 )
 from src.evaluation.html_utils import write_text
-from src.poker.constants import OPPONENT_TYPE_FISH
+from src.poker.constants import OPPONENT_TYPE_TIGHT
 
 QUALITY_OK = "OK"
 QUALITY_WARNING = "WARNING"
@@ -98,8 +98,8 @@ class SummaryThresholds:
     min_warning_win_rate: float = 55.0
     high_always_raise_mean_profit_bb: float = 18.0
     high_always_raise_win_rate: float = 95.0
-    fish_saturation_win_rate: float = 95.0
-    fish_saturation_mean_profit_bb: float = 15.0
+    tight_saturation_win_rate: float = 95.0
+    tight_saturation_mean_profit_bb: float = 15.0
 
 
 @dataclass(frozen=True)
@@ -487,30 +487,30 @@ def _always_raise_finding(
     )
 
 
-def _fish_saturation_finding(
+def _tight_saturation_finding(
     summary_table: pd.DataFrame,
     thresholds: SummaryThresholds,
 ) -> str | None:
-    fish_rows = summary_table[
-        summary_table["opponent_name"] == OPPONENT_TYPE_FISH
+    tight_rows = summary_table[
+        summary_table["opponent_name"] == OPPONENT_TYPE_TIGHT
     ]
 
-    if len(fish_rows) < 2:
+    if len(tight_rows) < 2:
         return None
 
-    saturated = fish_rows[
-        (fish_rows["mean_profit_bb"] >= thresholds.fish_saturation_mean_profit_bb)
-        & (fish_rows["win_rate"] >= thresholds.fish_saturation_win_rate)
+    saturated = tight_rows[
+        (tight_rows["mean_profit_bb"] >= thresholds.tight_saturation_mean_profit_bb)
+        & (tight_rows["win_rate"] >= thresholds.tight_saturation_win_rate)
     ]
 
     if len(saturated) < 2:
         return None
 
     return (
-        f"FishPlayer appears saturated: {len(saturated)} agents reach "
-        f"at least {thresholds.fish_saturation_mean_profit_bb:.1f} "
+        f"TightPlayer appears saturated: {len(saturated)} agents reach "
+        f"at least {thresholds.tight_saturation_mean_profit_bb:.1f} "
         "BB/game and "
-        f"{thresholds.fish_saturation_win_rate:.1f}% win rate."
+        f"{thresholds.tight_saturation_win_rate:.1f}% win rate."
     )
 
 
@@ -534,7 +534,7 @@ def generate_main_findings(
         _oracle_gap_finding(summary_table),
         _high_seed_variance_finding(summary_table, thresholds),
         _always_raise_finding(summary_table, thresholds),
-        _fish_saturation_finding(summary_table, thresholds),
+        _tight_saturation_finding(summary_table, thresholds),
     ]:
         if finding is not None:
             findings.append(finding)

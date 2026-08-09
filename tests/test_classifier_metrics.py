@@ -28,7 +28,7 @@ def test_calculate_classifier_summary(
                 "game_id": 1,
                 "agent_name": "adaptive_mc",
                 "opponent_name": "calling",
-                "final_predicted_type": "fish",
+                "final_predicted_type": "tight",
                 "classifier_accuracy": 0.5,
                 "classifier_coverage": 0.8,
                 "policy_switches": 3,
@@ -89,8 +89,8 @@ def test_classifier_summary_groups_by_opponent(
             {
                 "game_id": 0,
                 "agent_name": "adaptive_mc",
-                "opponent_name": "fish",
-                "final_predicted_type": "fish",
+                "opponent_name": "tight",
+                "final_predicted_type": "tight",
                 "classifier_accuracy": 1.0,
                 "classifier_coverage": 0.8,
                 "policy_switches": 1,
@@ -121,6 +121,6 @@ def test_classifier_summary_groups_by_opponent(
     )
 
     assert set(summary["opponent_name"]) == {
-        "fish",
+        "tight",
         "aggressive",
     }

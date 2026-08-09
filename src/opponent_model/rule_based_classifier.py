@@ -3,7 +3,6 @@ from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_BALANCED,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_FISH,
     OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
 )
@@ -29,11 +28,18 @@ class RuleBasedOpponentClassifier:
         if stats.call_rate >= 0.80 and stats.raise_rate <= 0.05:
             return OPPONENT_TYPE_CALLING
 
-        if stats.call_rate >= 0.50 and stats.fold_rate >= 0.30:
-            return OPPONENT_TYPE_FISH
+        if (
+            stats.fold_rate >= 0.55
+            and stats.call_rate <= 0.40
+            and stats.raise_rate <= 0.25
+        ):
+            return OPPONENT_TYPE_TIGHT
 
-        if (stats.fold_rate >= 0.55 and stats.raise_rate >= 0.10 and
-                stats.call_rate <= 0.25):
+        if (
+            stats.fold_rate >= 0.30
+            and stats.call_rate <= 0.65
+            and stats.raise_rate <= 0.15
+        ):
             return OPPONENT_TYPE_TIGHT
 
         return OPPONENT_TYPE_BALANCED

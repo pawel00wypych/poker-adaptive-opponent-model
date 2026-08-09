@@ -78,10 +78,10 @@ def test_result_logger_detects_winning_game(
     )
 
     logger.log_game(
-        experiment_name="adaptive_mc_vs_fish",
+        experiment_name="adaptive_mc_vs_tight",
         game_id=1,
         agent_name="adaptive_mc",
-        opponent_name="fish",
+        opponent_name="tight",
         final_stack=400,
         initial_stack=200,
         hands_played=20,
@@ -147,7 +147,7 @@ def test_result_logger_rejects_non_positive_big_blind(
             experiment_name="test",
             game_id=1,
             agent_name="adaptive_mc",
-            opponent_name="fish",
+            opponent_name="tight",
             final_stack=200,
             initial_stack=200,
             hands_played=10,
@@ -171,7 +171,7 @@ def test_result_logger_appends_multiple_rows(
             experiment_name="test",
             game_id=game_id,
             agent_name="adaptive_mc",
-            opponent_name="fish",
+            opponent_name="tight",
             final_stack=200,
             initial_stack=200,
             hands_played=10,

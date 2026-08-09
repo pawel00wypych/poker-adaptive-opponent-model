@@ -28,7 +28,7 @@ from src.players.rule_based_player import RuleBasedPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
 )
 
@@ -52,7 +52,7 @@ def sample_bundle(tmp_path: Path) -> ModelBundle:
         seed=42,
         checkpoint_episode=2000,
         unknown_model_path=Path("unknown.pkl"),
-        fish_model_path=Path("fish.pkl"),
+        tight_model_path=Path("tight.pkl"),
         aggressive_model_path=Path("aggressive.pkl"),
         calling_model_path=Path("calling.pkl"),
     )
@@ -61,7 +61,7 @@ def sample_bundle(tmp_path: Path) -> ModelBundle:
 def dummy_agents() -> dict[str, DummyAgent]:
     return {
         OPPONENT_TYPE_UNKNOWN: DummyAgent(),
-        OPPONENT_TYPE_FISH: DummyAgent(),
+        OPPONENT_TYPE_TIGHT: DummyAgent(),
         OPPONENT_TYPE_AGGRESSIVE: DummyAgent(),
         OPPONENT_TYPE_CALLING: DummyAgent(),
     }
@@ -96,7 +96,7 @@ def test_build_head_to_head_opponent_builds_always_call():
 
 def test_validate_head_to_head_opponent_rejects_training_opponent():
     with pytest.raises(ValueError):
-        validate_head_to_head_opponent("fish")
+        validate_head_to_head_opponent("tight")
 
 
 def test_validate_head_to_head_agent_rejects_oracle_for_ood_baselines():
