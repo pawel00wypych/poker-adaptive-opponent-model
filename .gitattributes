@@ -1,0 +1,10 @@
+# Normalize text files across Windows/macOS/Linux.
+* text=auto eol=lf
+
+# Keep generated/binary artifacts binary if they are copied locally.
+*.pkl binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.zip binary
+*.pdf binary
