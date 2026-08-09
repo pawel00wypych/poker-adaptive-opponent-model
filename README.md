@@ -50,8 +50,7 @@ opponents.
 - Discretised state representation with hand strength, poker context, pot
   information, stack-to-pot ratio and opponent type.
 - Multi-seed training, checkpoint saving and checkpoint evaluation.
-- Generalization evaluation on opponent variants not used as specialist
-  training targets.
+- Generalization and stress-test evaluation on base and variant opponents.
 - Direct head-to-head sanity evaluation.
 - Experiment summary reports with rankings, baseline deltas, traffic-light
   quality statuses and automatic main findings.
@@ -270,8 +269,8 @@ python -m src.experiments.run_generalization_evaluation `
 ```
 
 The generalization setup evaluates agents trained on the base opponents against
-unseen behavioural variants. It does not train new variant-specific specialist
-policies.
+a small set of base and variant opponents used for robustness and stress testing.
+It does not train new variant-specific specialist policies.
 
 ## Reports and Plots
 

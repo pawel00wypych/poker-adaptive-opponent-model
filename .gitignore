@@ -1,10 +1,36 @@
-.idea
+# IDE / editor files
+.idea/
 .vscode/
+
+# Python bytecode and caches
 __pycache__/
-*.pyc
-.env
-.venv/
-results
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
+htmlcov/
+
+# Virtual environments and local environment files
+.env
+.env.*
+.venv/
+venv/
+env/
+
+# Python packaging artifacts
+*.egg-info/
+build/
+dist/
+
+# Generated experiment artifacts
+/results/
+/reports/
 *.zip
-reports
+*.pkl
+
+# Local logs and scratch files
+*.log
+*.tmp
