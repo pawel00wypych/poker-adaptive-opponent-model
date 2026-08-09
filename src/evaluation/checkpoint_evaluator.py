@@ -47,7 +47,7 @@ from src.players.oracle_adaptive_player import OracleAdaptivePlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
 )
 
@@ -66,22 +66,22 @@ class ModelBundle:
     seed: int
     checkpoint_episode: int
     unknown_model_path: Path
-    fish_model_path: Path
+    tight_model_path: Path
     aggressive_model_path: Path
     calling_model_path: Path
     q_learning_training_run_directory: Path | None = None
     q_learning_unknown_model_path: Path | None = None
-    q_learning_fish_model_path: Path | None = None
+    q_learning_tight_model_path: Path | None = None
     q_learning_aggressive_model_path: Path | None = None
     q_learning_calling_model_path: Path | None = None
     sarsa_training_run_directory: Path | None = None
     sarsa_unknown_model_path: Path | None = None
-    sarsa_fish_model_path: Path | None = None
+    sarsa_tight_model_path: Path | None = None
     sarsa_aggressive_model_path: Path | None = None
     sarsa_calling_model_path: Path | None = None
     double_q_learning_training_run_directory: Path | None = None
     double_q_learning_unknown_model_path: Path | None = None
-    double_q_learning_fish_model_path: Path | None = None
+    double_q_learning_tight_model_path: Path | None = None
     double_q_learning_aggressive_model_path: Path | None = None
     double_q_learning_calling_model_path: Path | None = None
 
@@ -95,7 +95,7 @@ class ModelBundle:
     def agent_paths(self) -> dict[str, Path]:
         return {
             OPPONENT_TYPE_UNKNOWN: self.unknown_model_path,
-            OPPONENT_TYPE_FISH: self.fish_model_path,
+            OPPONENT_TYPE_TIGHT: self.tight_model_path,
             OPPONENT_TYPE_AGGRESSIVE: self.aggressive_model_path,
             OPPONENT_TYPE_CALLING: self.calling_model_path,
         }
@@ -105,7 +105,7 @@ class ModelBundle:
             path is not None
             for path in (
                 self.q_learning_unknown_model_path,
-                self.q_learning_fish_model_path,
+                self.q_learning_tight_model_path,
                 self.q_learning_aggressive_model_path,
                 self.q_learning_calling_model_path,
             )
@@ -116,7 +116,7 @@ class ModelBundle:
             path is not None
             for path in (
                 self.sarsa_unknown_model_path,
-                self.sarsa_fish_model_path,
+                self.sarsa_tight_model_path,
                 self.sarsa_aggressive_model_path,
                 self.sarsa_calling_model_path,
             )
@@ -127,7 +127,7 @@ class ModelBundle:
             path is not None
             for path in (
                 self.double_q_learning_unknown_model_path,
-                self.double_q_learning_fish_model_path,
+                self.double_q_learning_tight_model_path,
                 self.double_q_learning_aggressive_model_path,
                 self.double_q_learning_calling_model_path,
             )
@@ -141,13 +141,13 @@ class ModelBundle:
             )
 
         assert self.double_q_learning_unknown_model_path is not None
-        assert self.double_q_learning_fish_model_path is not None
+        assert self.double_q_learning_tight_model_path is not None
         assert self.double_q_learning_aggressive_model_path is not None
         assert self.double_q_learning_calling_model_path is not None
 
         return {
             OPPONENT_TYPE_UNKNOWN: self.double_q_learning_unknown_model_path,
-            OPPONENT_TYPE_FISH: self.double_q_learning_fish_model_path,
+            OPPONENT_TYPE_TIGHT: self.double_q_learning_tight_model_path,
             OPPONENT_TYPE_AGGRESSIVE: self.double_q_learning_aggressive_model_path,
             OPPONENT_TYPE_CALLING: self.double_q_learning_calling_model_path,
         }
@@ -160,13 +160,13 @@ class ModelBundle:
             )
 
         assert self.sarsa_unknown_model_path is not None
-        assert self.sarsa_fish_model_path is not None
+        assert self.sarsa_tight_model_path is not None
         assert self.sarsa_aggressive_model_path is not None
         assert self.sarsa_calling_model_path is not None
 
         return {
             OPPONENT_TYPE_UNKNOWN: self.sarsa_unknown_model_path,
-            OPPONENT_TYPE_FISH: self.sarsa_fish_model_path,
+            OPPONENT_TYPE_TIGHT: self.sarsa_tight_model_path,
             OPPONENT_TYPE_AGGRESSIVE: self.sarsa_aggressive_model_path,
             OPPONENT_TYPE_CALLING: self.sarsa_calling_model_path,
         }
@@ -179,13 +179,13 @@ class ModelBundle:
             )
 
         assert self.q_learning_unknown_model_path is not None
-        assert self.q_learning_fish_model_path is not None
+        assert self.q_learning_tight_model_path is not None
         assert self.q_learning_aggressive_model_path is not None
         assert self.q_learning_calling_model_path is not None
 
         return {
             OPPONENT_TYPE_UNKNOWN: self.q_learning_unknown_model_path,
-            OPPONENT_TYPE_FISH: self.q_learning_fish_model_path,
+            OPPONENT_TYPE_TIGHT: self.q_learning_tight_model_path,
             OPPONENT_TYPE_AGGRESSIVE: self.q_learning_aggressive_model_path,
             OPPONENT_TYPE_CALLING: self.q_learning_calling_model_path,
         }
@@ -423,7 +423,7 @@ def build_model_bundle(
         seed=seed,
         checkpoint_episode=checkpoint_episode,
         unknown_model_path=paths[OPPONENT_TYPE_UNKNOWN],
-        fish_model_path=paths[OPPONENT_TYPE_FISH],
+        tight_model_path=paths[OPPONENT_TYPE_TIGHT],
         aggressive_model_path=paths[OPPONENT_TYPE_AGGRESSIVE],
         calling_model_path=paths[OPPONENT_TYPE_CALLING],
         q_learning_training_run_directory=q_learning_root,
@@ -432,8 +432,8 @@ def build_model_bundle(
             if q_learning_paths is not None
             else None
         ),
-        q_learning_fish_model_path=(
-            q_learning_paths[OPPONENT_TYPE_FISH]
+        q_learning_tight_model_path=(
+            q_learning_paths[OPPONENT_TYPE_TIGHT]
             if q_learning_paths is not None
             else None
         ),
@@ -453,8 +453,8 @@ def build_model_bundle(
             if sarsa_paths is not None
             else None
         ),
-        sarsa_fish_model_path=(
-            sarsa_paths[OPPONENT_TYPE_FISH]
+        sarsa_tight_model_path=(
+            sarsa_paths[OPPONENT_TYPE_TIGHT]
             if sarsa_paths is not None
             else None
         ),
@@ -474,8 +474,8 @@ def build_model_bundle(
             if double_q_learning_paths is not None
             else None
         ),
-        double_q_learning_fish_model_path=(
-            double_q_learning_paths[OPPONENT_TYPE_FISH]
+        double_q_learning_tight_model_path=(
+            double_q_learning_paths[OPPONENT_TYPE_TIGHT]
             if double_q_learning_paths is not None
             else None
         ),

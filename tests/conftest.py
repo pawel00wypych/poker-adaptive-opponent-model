@@ -89,7 +89,7 @@ def adaptive_agents() -> dict[str, MonteCarloAgent]:
 
     for opponent_type in [
         "unknown",
-        "fish",
+        "tight",
         "aggressive",
         "calling",
     ]:

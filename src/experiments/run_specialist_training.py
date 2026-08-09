@@ -35,7 +35,7 @@ from src.training.training_metadata import (
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_TIGHT,
 )
 
 
@@ -62,7 +62,7 @@ def get_default_model_path(
     opponent_type: str,
 ) -> str:
     model_paths = {
-        OPPONENT_TYPE_FISH: training_config.fish_model_path,
+        OPPONENT_TYPE_TIGHT: training_config.tight_model_path,
         OPPONENT_TYPE_AGGRESSIVE: (
             training_config.aggressive_model_path
         ),

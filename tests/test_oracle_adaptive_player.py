@@ -86,7 +86,7 @@ def test_oracle_rejects_invalid_log_interval(
 @pytest.mark.parametrize(
     ("oracle_type", "expected_opponent_id"),
     [
-        ("fish", 1),
+        ("tight", 3),
         ("aggressive", 2),
         ("calling", 6),
     ],
@@ -142,7 +142,7 @@ def test_oracle_resets_tracking_on_game_start(
     player.initial_stack = 200
     player.hand_start_stack = 150
     player.policy_usage_counts["calling"] = 10
-    player.active_policy_type = "fish"
+    player.active_policy_type = "tight"
 
     player.receive_game_start_message(
         {}

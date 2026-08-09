@@ -2,7 +2,7 @@ import pytest
 
 from src.players.aggressive_player import AggressivePlayer
 from src.players.calling_player import CallingPlayer
-from src.players.fish_player import FishPlayer
+from src.players.tight_player import TightPlayer
 from src.experiments.training_opponents import (
     build_opponent,
     build_training_opponent,
@@ -12,7 +12,7 @@ from src.experiments.training_opponents import (
 @pytest.mark.parametrize(
     ("opponent_type", "expected_class"),
     [
-        ("fish", FishPlayer),
+        ("tight", TightPlayer),
         ("aggressive", AggressivePlayer),
         ("calling", CallingPlayer),
     ],
@@ -44,10 +44,10 @@ def test_build_opponent_rejects_unsupported_type():
 @pytest.mark.parametrize(
     ("episode", "expected_type"),
     [
-        (0, "fish"),
+        (0, "tight"),
         (1, "aggressive"),
         (2, "calling"),
-        (3, "fish"),
+        (3, "tight"),
         (4, "aggressive"),
         (5, "calling"),
     ],

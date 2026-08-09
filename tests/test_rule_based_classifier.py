@@ -25,11 +25,11 @@ def test_classifier_detects_aggressive_opponent():
     assert classifier.classify(stats) == "aggressive"
 
 
-def test_classifier_detects_fish_opponent():
+def test_classifier_detects_tight_opponent():
     classifier = RuleBasedOpponentClassifier(min_actions=5)
     stats = build_stats(["call", "call", "call", "fold", "fold"])
 
-    assert classifier.classify(stats) == "fish"
+    assert classifier.classify(stats) == "tight"
 
 
 def test_classifier_detects_tight_opponent():
@@ -63,7 +63,7 @@ def test_classifier_detects_calling_opponent():
 
     assert classifier.classify(stats) == "calling"
 
-def test_classifier_distinguishes_fish_from_calling():
+def test_classifier_distinguishes_tight_from_calling():
     classifier = RuleBasedOpponentClassifier(min_actions=10)
 
     stats = build_stats([
@@ -79,4 +79,4 @@ def test_classifier_distinguishes_fish_from_calling():
         "fold",
     ])
 
-    assert classifier.classify(stats) == "fish"
+    assert classifier.classify(stats) == "tight"

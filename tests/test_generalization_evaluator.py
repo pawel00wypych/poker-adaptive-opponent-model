@@ -28,14 +28,13 @@ from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.players.aggressive_variant_player import AggressiveExtremePlayer
-from src.players.calling_player import CallingPlayer
 from src.players.strong_calling_player import StrongCallingPlayer
 from src.players.oracle_adaptive_player import OracleAdaptivePlayer
 from src.players.rule_based_player import RuleBasedPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
 )
 
@@ -59,7 +58,7 @@ def sample_bundle(tmp_path: Path) -> ModelBundle:
         seed=42,
         checkpoint_episode=2000,
         unknown_model_path=Path("unknown.pkl"),
-        fish_model_path=Path("fish.pkl"),
+        tight_model_path=Path("tight.pkl"),
         aggressive_model_path=Path("aggressive.pkl"),
         calling_model_path=Path("calling.pkl"),
     )
@@ -68,7 +67,7 @@ def sample_bundle(tmp_path: Path) -> ModelBundle:
 def dummy_agents() -> dict[str, DummyAgent]:
     return {
         OPPONENT_TYPE_UNKNOWN: DummyAgent(),
-        OPPONENT_TYPE_FISH: DummyAgent(),
+        OPPONENT_TYPE_TIGHT: DummyAgent(),
         OPPONENT_TYPE_AGGRESSIVE: DummyAgent(),
         OPPONENT_TYPE_CALLING: DummyAgent(),
     }
@@ -126,8 +125,9 @@ def test_build_generalization_opponent_builds_aggressive_extreme():
     assert player.player_name == "aggressive_extreme"
 
 
-def test_validate_generalization_opponent_accepts_base_calling_reference():
-    validate_generalization_opponent("calling")
+def test_validate_generalization_opponent_rejects_base_calling_reference():
+    with pytest.raises(ValueError):
+        validate_generalization_opponent("calling")
 
 
 def test_validate_generalization_agent_rejects_single_policy_alias():
@@ -165,7 +165,7 @@ def test_build_generalization_oracle_uses_base_variant_family(
 
     player = build_generalization_tested_player(
         tested_agent_name=ORACLE_ADAPTIVE_AGENT,
-        opponent_name="aggressive_light",
+        opponent_name="aggressive_extreme",
         bundle=sample_bundle(tmp_path),
     )
 
@@ -358,6 +358,7 @@ def test_parse_args_accepts_custom_generalization_matchups():
             "--opponents",
             "strong_calling",
             "aggressive_extreme",
+            "tight_extreme",
             "--games",
             "50",
         ]
@@ -371,5 +372,6 @@ def test_parse_args_accepts_custom_generalization_matchups():
     assert args.opponents == [
         "strong_calling",
         "aggressive_extreme",
+        "tight_extreme",
     ]
     assert args.games == 50

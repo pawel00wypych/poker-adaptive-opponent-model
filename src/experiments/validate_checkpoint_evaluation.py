@@ -47,12 +47,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=1.0,
     )
     parser.add_argument(
-        "--min-fish-win-rate",
+        "--min-tight-win-rate",
         type=float,
         default=95.0,
     )
     parser.add_argument(
-        "--min-fish-mean-profit-bb",
+        "--min-tight-mean-profit-bb",
         type=float,
         default=15.0,
     )
@@ -158,8 +158,8 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         max_oracle_underperformance_bb=(
             args.max_oracle_underperformance_bb
         ),
-        min_fish_win_rate=args.min_fish_win_rate,
-        min_fish_mean_profit_bb=args.min_fish_mean_profit_bb,
+        min_tight_win_rate=args.min_tight_win_rate,
+        min_tight_mean_profit_bb=args.min_tight_mean_profit_bb,
         min_classifier_accuracy=args.min_classifier_accuracy,
         min_classifier_coverage=args.min_classifier_coverage,
         max_std_across_seeds_bb=args.max_std_across_seeds_bb,

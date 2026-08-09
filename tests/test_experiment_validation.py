@@ -136,13 +136,13 @@ def add_group(
 def write_sample_checkpoint_csv(path):
     rows = []
 
-    for opponent in ["aggressive", "calling", "fish"]:
+    for opponent in ["aggressive", "calling", "tight"]:
         add_group(
             rows,
             agent="adaptive_mc",
             opponent=opponent,
-            profit_by_seed=(14.0, 16.0) if opponent != "fish" else (19.8, 19.9),
-            classifier_accuracy=100.0 if opponent != "fish" else 70.0,
+            profit_by_seed=(14.0, 16.0) if opponent != "tight" else (19.8, 19.9),
+            classifier_accuracy=100.0 if opponent != "tight" else 70.0,
             classifier_coverage=95.0,
             policy_switches=1,
         )
@@ -150,7 +150,7 @@ def write_sample_checkpoint_csv(path):
             rows,
             agent="oracle_adaptive",
             opponent=opponent,
-            profit_by_seed=(15.0, 17.0) if opponent != "fish" else (19.8, 19.9),
+            profit_by_seed=(15.0, 17.0) if opponent != "tight" else (19.8, 19.9),
             classifier_accuracy=100.0,
             classifier_coverage=100.0,
         )
@@ -158,20 +158,20 @@ def write_sample_checkpoint_csv(path):
             rows,
             agent="rule_based",
             opponent=opponent,
-            profit_by_seed=(8.0, 9.0) if opponent != "fish" else (19.0, 19.2),
+            profit_by_seed=(8.0, 9.0) if opponent != "tight" else (19.0, 19.2),
         )
         add_group(
             rows,
             agent="always_raise",
             opponent=opponent,
             profit_by_seed=(19.3, 19.4)
-            if opponent in {"aggressive", "fish"}
+            if opponent in {"aggressive", "tight"}
             else (-1.0, -0.8),
             win_rate=100.0
-            if opponent in {"aggressive", "fish"}
+            if opponent in {"aggressive", "tight"}
             else 45.0,
             bust_rate=0.0
-            if opponent in {"aggressive", "fish"}
+            if opponent in {"aggressive", "tight"}
             else 52.0,
         )
 
@@ -186,7 +186,7 @@ def write_sample_head_to_head_csv(path):
     for agent, rule_based_profit in [
         ("policy_unknown", (10.0, 12.0)),
         ("adaptive_mc", (11.0, 13.0)),
-        ("policy_fish", (-18.0, -17.0)),
+        ("policy_tight", (-18.0, -17.0)),
         ("policy_aggressive", (-20.0, -20.0)),
         ("policy_calling", (15.0, 16.0)),
     ]:
@@ -205,7 +205,7 @@ def write_sample_head_to_head_csv(path):
     for agent, always_raise_profit in [
         ("policy_unknown", (-19.0, -20.0)),
         ("adaptive_mc", (-16.0, -17.0)),
-        ("policy_fish", (-20.0, -20.0)),
+        ("policy_tight", (-20.0, -20.0)),
         ("policy_aggressive", (-12.0, -18.0)),
         ("policy_calling", (-20.0, -20.0)),
     ]:
@@ -241,7 +241,7 @@ def test_validate_checkpoint_results_generates_expected_statuses(tmp_path):
     }
     assert "Adaptive beats rule-based vs aggressive" in check_names
     assert "Adaptive beats rule-based vs calling" in check_names
-    assert "Adaptive exploits FishPlayer" in check_names
+    assert "Adaptive exploits TightPlayer" in check_names
 
 
 def test_validate_checkpoint_results_fails_when_adaptive_loses_to_rule_based(
@@ -411,14 +411,14 @@ def test_validation_warns_about_trivial_always_raise_exploit(tmp_path):
         "Always-raise trivial exploit sanity check vs aggressive"
         in warning_names
     )
-    assert "Always-raise trivial exploit sanity check vs fish" in warning_names
+    assert "Always-raise trivial exploit sanity check vs tight" in warning_names
     assert (
         "Always-raise trivial exploit sanity check vs calling"
         not in warning_names
     )
 
 
-def test_validation_warns_when_fish_is_saturated_by_simple_baselines(
+def test_validation_warns_when_tight_is_saturated_by_simple_baselines(
     tmp_path,
 ):
     csv_path = tmp_path / "checkpoint_results.csv"
@@ -429,12 +429,12 @@ def test_validation_warns_when_fish_is_saturated_by_simple_baselines(
     checks = [
         check
         for check in report.checks
-        if check.check_name == "FishPlayer baseline saturation sanity check"
+        if check.check_name == "TightPlayer baseline saturation sanity check"
     ]
 
     assert len(checks) == 1
     assert checks[0].status == STATUS_WARNING
-    assert checks[0].opponent_name == "fish"
+    assert checks[0].opponent_name == "tight"
     assert "always_raise" in checks[0].details["saturated_agents"]
 
 
@@ -460,11 +460,11 @@ def test_head_to_head_validation_mode_uses_direct_matchup_checks(tmp_path):
     assert "OOD classifier coverage vs rule_based" in check_names
     assert "OOD classifier coverage vs always_raise" in check_names
     assert "AlwaysRaise stress test vs adaptive_mc" in check_names
-    assert "Adaptive exploits FishPlayer" not in check_names
+    assert "Adaptive exploits TightPlayer" not in check_names
 
     assert not any(
         check.status == STATUS_SKIPPED
-        and check.opponent_name in {"fish", "aggressive", "calling"}
+        and check.opponent_name in {"tight", "aggressive", "calling"}
         for check in report.checks
     )
 
@@ -524,68 +524,66 @@ def test_head_to_head_validation_fails_when_adaptive_loses_to_rule_based(
 def write_sample_generalization_csv(path):
     rows = []
     variants = [
-        "calling_weak",
-        "calling_medium",
-        "calling_strong",
-        "aggressive_light",
+        "strong_calling",
+        "tight_extreme",
         "aggressive_extreme",
     ]
 
     adaptive_profits = {
-        "calling_weak": (18.0, 18.5),
-        "calling_medium": (14.0, 14.5),
-        "calling_strong": (8.0, 8.5),
-        "aggressive_light": (6.0, 6.5),
+        "strong_calling": (18.0, 18.5),
+        "tight_extreme": (14.0, 14.5),
+        "legacy_calling_variant": (8.0, 8.5),
+        "tight_extreme": (6.0, 6.5),
         "aggressive_extreme": (-8.0, -7.5),
     }
     oracle_profits = {
-        "calling_weak": (19.0, 19.5),
-        "calling_medium": (15.0, 15.5),
-        "calling_strong": (9.0, 9.5),
-        "aggressive_light": (10.5, 11.0),
+        "strong_calling": (19.0, 19.5),
+        "tight_extreme": (15.0, 15.5),
+        "legacy_calling_variant": (9.0, 9.5),
+        "tight_extreme": (10.5, 11.0),
         "aggressive_extreme": (-4.0, -3.5),
     }
     unknown_profits = {
-        "calling_weak": (10.0, 10.5),
-        "calling_medium": (9.0, 9.5),
-        "calling_strong": (7.0, 7.5),
-        "aggressive_light": (5.0, 5.5),
+        "strong_calling": (10.0, 10.5),
+        "tight_extreme": (9.0, 9.5),
+        "legacy_calling_variant": (7.0, 7.5),
+        "tight_extreme": (5.0, 5.5),
         "aggressive_extreme": (-10.0, -9.5),
     }
     rule_based_profits = {
-        "calling_weak": (12.0, 12.5),
-        "calling_medium": (10.0, 10.5),
-        "calling_strong": (9.0, 9.5),
-        "aggressive_light": (8.0, 8.5),
+        "strong_calling": (12.0, 12.5),
+        "tight_extreme": (10.0, 10.5),
+        "legacy_calling_variant": (9.0, 9.5),
+        "tight_extreme": (8.0, 8.5),
         "aggressive_extreme": (-6.0, -5.5),
     }
     always_raise_profits = {
-        "calling_weak": (4.0, 4.5),
-        "calling_medium": (2.0, 2.5),
-        "calling_strong": (-2.0, -1.5),
-        "aggressive_light": (18.5, 19.0),
+        "strong_calling": (4.0, 4.5),
+        "tight_extreme": (2.0, 2.5),
+        "legacy_calling_variant": (-2.0, -1.5),
+        "tight_extreme": (18.5, 19.0),
         "aggressive_extreme": (17.0, 17.5),
     }
     specialist_profits = {
         "policy_calling": {
-            "calling_weak": (17.0, 17.5),
-            "calling_medium": (13.0, 13.5),
-            "calling_strong": (9.0, 9.5),
-            "aggressive_light": (-5.0, -4.5),
+            "strong_calling": (17.0, 17.5),
+            "tight_extreme": (13.0, 13.5),
+            "legacy_calling_variant": (9.0, 9.5),
+            "tight_extreme": (-5.0, -4.5),
             "aggressive_extreme": (-12.0, -11.5),
         },
         "policy_aggressive": {
-            "calling_weak": (-3.0, -2.5),
-            "calling_medium": (-2.0, -1.5),
-            "calling_strong": (-1.0, -0.5),
-            "aggressive_light": (7.0, 7.5),
+            "strong_calling": (-3.0, -2.5),
+            "tight_extreme": (-2.0, -1.5),
+            "legacy_calling_variant": (-1.0, -0.5),
+            "tight_extreme": (7.0, 7.5),
             "aggressive_extreme": (-6.0, -5.5),
         },
-        "policy_fish": {
-            "calling_weak": (-1.0, -0.5),
-            "calling_medium": (-1.0, -0.5),
-            "calling_strong": (-2.0, -1.5),
-            "aggressive_light": (-7.0, -6.5),
+        "policy_tight": {
+            "strong_calling": (-1.0, -0.5),
+            "tight_extreme": (-1.0, -0.5),
+            "legacy_calling_variant": (-2.0, -1.5),
+            "tight_extreme": (-7.0, -6.5),
             "aggressive_extreme": (-15.0, -14.5),
         },
     }
@@ -642,8 +640,8 @@ def write_sample_generalization_csv(path):
             agent="always_raise",
             opponent=variant,
             profit_by_seed=always_raise_profits[variant],
-            win_rate=95.0 if variant == "aggressive_light" else 50.0,
-            bust_rate=5.0 if variant == "aggressive_light" else 50.0,
+            win_rate=95.0 if variant == "tight_extreme" else 50.0,
+            bust_rate=5.0 if variant == "tight_extreme" else 50.0,
         )
 
         for agent_name, profits_by_variant in specialist_profits.items():
@@ -680,13 +678,13 @@ def test_generalization_validation_mode_uses_variant_checks(tmp_path):
         "Adaptive beats rule-based on generalization variants"
         in check_names
     )
-    assert "Generalization oracle gap vs aggressive_light" in check_names
+    assert "Generalization oracle gap vs tight_extreme" in check_names
     assert (
         "Generalization classifier coverage vs aggressive_extreme"
         in check_names
     )
     assert "Aggressive extreme robustness check" in check_names
-    assert "Adaptive exploits FishPlayer" not in check_names
+    assert "Adaptive exploits TightPlayer" not in check_names
 
 
 def test_generalization_validation_warns_for_oracle_gap_and_classifier(
@@ -706,7 +704,7 @@ def test_generalization_validation_warns_for_oracle_gap_and_classifier(
         if check.status == STATUS_WARNING
     }
 
-    assert "Generalization oracle gap vs aggressive_light" in warnings
+    assert "Generalization oracle gap vs tight_extreme" in warnings
     assert "Generalization oracle gap vs aggressive_extreme" in warnings
     assert (
         "Generalization classifier accuracy vs aggressive_extreme"

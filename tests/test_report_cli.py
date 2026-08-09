@@ -47,7 +47,7 @@ def test_compare_selected_q_tables_parser_accepts_general_arguments():
             "456",
             "--policies",
             "unknown",
-            "fish",
+            "tight",
             "aggressive",
             "calling",
             "--output-path",
@@ -64,7 +64,7 @@ def test_compare_selected_q_tables_parser_accepts_general_arguments():
     assert args.seeds == [42, 123, 456]
     assert args.policies == [
         "unknown",
-        "fish",
+        "tight",
         "aggressive",
         "calling",
     ]
