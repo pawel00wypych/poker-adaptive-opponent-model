@@ -55,12 +55,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=95.0,
     )
     parser.add_argument(
-        "--fish-saturation-win-rate",
+        "--tight-saturation-win-rate",
         type=float,
         default=95.0,
     )
     parser.add_argument(
-        "--fish-saturation-mean-profit-bb",
+        "--tight-saturation-mean-profit-bb",
         type=float,
         default=15.0,
     )
@@ -88,9 +88,9 @@ def build_thresholds(args: argparse.Namespace) -> SummaryThresholds:
             args.high_always_raise_mean_profit_bb
         ),
         high_always_raise_win_rate=args.high_always_raise_win_rate,
-        fish_saturation_win_rate=args.fish_saturation_win_rate,
-        fish_saturation_mean_profit_bb=(
-            args.fish_saturation_mean_profit_bb
+        tight_saturation_win_rate=args.tight_saturation_win_rate,
+        tight_saturation_mean_profit_bb=(
+            args.tight_saturation_mean_profit_bb
         ),
     )
 

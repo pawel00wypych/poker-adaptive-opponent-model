@@ -19,7 +19,7 @@ def sample_round_state():
                 "state": "participating",
             },
             {
-                "name": "fish",
+                "name": "tight",
                 "uuid": "uuid-2",
                 "stack": 120,
                 "state": "participating",
@@ -72,7 +72,7 @@ def test_get_player_stack_missing_player_returns_zero():
 def test_get_player_name():
     state = sample_round_state()
 
-    assert get_player_name(state, "uuid-2") == "fish"
+    assert get_player_name(state, "uuid-2") == "tight"
 
 
 def test_get_alive_players():
@@ -81,7 +81,7 @@ def test_get_alive_players():
     alive = get_alive_players(state)
 
     assert len(alive) == 2
-    assert {player["name"] for player in alive} == {"adaptive_rl", "fish"}
+    assert {player["name"] for player in alive} == {"adaptive_rl", "tight"}
 
 
 def test_get_round_count():

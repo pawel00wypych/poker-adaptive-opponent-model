@@ -26,7 +26,7 @@ from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
 )
 
@@ -54,7 +54,7 @@ def create_checkpoint_bundle_files(
 ) -> None:
     files = [
         ("single_policy", "single_policy"),
-        ("specialist_fish", "specialist_fish"),
+        ("specialist_tight", "specialist_tight"),
         ("specialist_aggressive", "specialist_aggressive"),
         ("specialist_calling", "specialist_calling"),
     ]
@@ -83,12 +83,12 @@ def make_bundle_with_sarsa_paths(tmp_path: Path) -> ModelBundle:
         seed=42,
         checkpoint_episode=2000,
         unknown_model_path=Path("mc_unknown.pkl"),
-        fish_model_path=Path("mc_fish.pkl"),
+        tight_model_path=Path("mc_tight.pkl"),
         aggressive_model_path=Path("mc_aggressive.pkl"),
         calling_model_path=Path("mc_calling.pkl"),
         sarsa_training_run_directory=tmp_path / "sarsa_run",
         sarsa_unknown_model_path=Path("sarsa_unknown.pkl"),
-        sarsa_fish_model_path=Path("sarsa_fish.pkl"),
+        sarsa_tight_model_path=Path("sarsa_tight.pkl"),
         sarsa_aggressive_model_path=Path("sarsa_aggressive.pkl"),
         sarsa_calling_model_path=Path("sarsa_calling.pkl"),
     )
@@ -97,7 +97,7 @@ def make_bundle_with_sarsa_paths(tmp_path: Path) -> ModelBundle:
 def dummy_agents() -> dict[str, DummyAgent]:
     return {
         OPPONENT_TYPE_UNKNOWN: DummyAgent(),
-        OPPONENT_TYPE_FISH: DummyAgent(),
+        OPPONENT_TYPE_TIGHT: DummyAgent(),
         OPPONENT_TYPE_AGGRESSIVE: DummyAgent(),
         OPPONENT_TYPE_CALLING: DummyAgent(),
     }
@@ -183,7 +183,7 @@ def test_sarsa_agents_require_sarsa_run_dir(tmp_path):
         seed=42,
         checkpoint_episode=2000,
         unknown_model_path=Path("mc_unknown.pkl"),
-        fish_model_path=Path("mc_fish.pkl"),
+        tight_model_path=Path("mc_tight.pkl"),
         aggressive_model_path=Path("mc_aggressive.pkl"),
         calling_model_path=Path("mc_calling.pkl"),
     )

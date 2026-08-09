@@ -143,7 +143,7 @@ def test_state_encoding_with_weak_hand():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["H7", "D2"],
-        opponent_type="fish",
+        opponent_type="tight",
     )
 
     assert state == (
@@ -153,7 +153,7 @@ def test_state_encoding_with_weak_hand():
         0,
         3,
         3,
-        1,
+        3,
     )
 
 
@@ -505,7 +505,6 @@ def test_state_encoder_rejects_invalid_community_card_count():
     ("opponent_type", "expected_id"),
     [
         ("unknown", 0),
-        ("fish", 1),
         ("aggressive", 2),
         ("tight", 3),
         ("balanced", 4),

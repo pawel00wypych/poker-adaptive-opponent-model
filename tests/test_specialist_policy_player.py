@@ -44,7 +44,7 @@ def test_specialist_player_accepts_supported_opponent_type(
 @pytest.mark.parametrize(
     "opponent_type",
     [
-        "fish",
+        "tight",
         "aggressive",
         "calling",
     ],
@@ -83,7 +83,7 @@ def test_specialist_player_rejects_invalid_log_interval(
     ):
         SpecialistPolicyPlayer(
             agent=training_agent,
-            opponent_type="fish",
+            opponent_type="tight",
             log_interval=0,
         )
 
@@ -149,7 +149,7 @@ def test_specialist_player_returns_legal_action(
 ):
     player = SpecialistPolicyPlayer(
         agent=training_agent,
-        opponent_type="fish",
+        opponent_type="tight",
         player_name="tested_player",
     )
     player.uuid = "uuid-tested"
@@ -181,7 +181,7 @@ def test_specialist_player_updates_reward_after_round(
 ):
     player = SpecialistPolicyPlayer(
         agent=training_agent,
-        opponent_type="fish",
+        opponent_type="tight",
         player_name="tested_player",
     )
     player.uuid = "uuid-tested"
@@ -221,7 +221,7 @@ def test_specialist_player_resets_tracking_on_game_start(
 ):
     player = SpecialistPolicyPlayer(
         agent=training_agent,
-        opponent_type="fish",
+        opponent_type="tight",
     )
 
     player.initial_stack = 200

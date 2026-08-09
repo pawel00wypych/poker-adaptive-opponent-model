@@ -73,7 +73,7 @@ def test_job_paths_are_unique_for_seeds(
     tmp_path,
 ):
     first = TrainingJob(
-        model_type="fish",
+        model_type="tight",
         seed=42,
         episodes=5_000,
         epsilon_schedule="linear",
@@ -83,7 +83,7 @@ def test_job_paths_are_unique_for_seeds(
     )
 
     second = TrainingJob(
-        model_type="fish",
+        model_type="tight",
         seed=123,
         episodes=5_000,
         epsilon_schedule="linear",
@@ -109,7 +109,7 @@ def test_build_jobs_creates_every_model_seed_pair(
     runnable, skipped = build_jobs(
         models=[
             "single_policy",
-            "fish",
+            "tight",
             "aggressive",
             "calling",
         ],

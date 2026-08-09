@@ -36,8 +36,8 @@ class TrainingConfig:
         "results/models/monte_carlo_single_policy.pkl"
     )
 
-    fish_model_path: str = (
-        "results/models/monte_carlo_vs_fish.pkl"
+    tight_model_path: str = (
+        "results/models/monte_carlo_vs_tight.pkl"
     )
 
     aggressive_model_path: str = (

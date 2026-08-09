@@ -39,7 +39,7 @@ from src.players.constants import (
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
     TRAINING_OPPONENT_TYPES,
 )
@@ -63,8 +63,8 @@ def load_adaptive_agents(
         OPPONENT_TYPE_UNKNOWN: load_eval_agent(
             training_config.single_policy_model_path
         ),
-        OPPONENT_TYPE_FISH: load_eval_agent(
-            training_config.fish_model_path
+        OPPONENT_TYPE_TIGHT: load_eval_agent(
+            training_config.tight_model_path
         ),
         OPPONENT_TYPE_AGGRESSIVE: load_eval_agent(
             training_config.aggressive_model_path
