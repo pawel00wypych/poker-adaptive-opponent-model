@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Iterable
 
 import numpy as np
-from PyPokerEngine.pypokerengine.api.game import (
+from pypokerengine.api.game import (
     setup_config,
     start_poker,
 )

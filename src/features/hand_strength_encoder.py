@@ -1,7 +1,7 @@
 from typing import Sequence
 
-from PyPokerEngine.pypokerengine.engine.card import Card
-from PyPokerEngine.pypokerengine.engine.hand_evaluator import HandEvaluator
+from pypokerengine.engine.card import Card
+from pypokerengine.engine.hand_evaluator import HandEvaluator
 
 from src.features.preflop_hand_encoder import PreflopHandEncoder
 
