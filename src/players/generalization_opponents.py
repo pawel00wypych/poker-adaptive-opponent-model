@@ -8,10 +8,10 @@ from src.players.constants import (
     GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,
     OPPONENT_AGGRESSIVE_LIGHT,
-    OPPONENT_STRONG_CALLING,
+    OPPONENT_CALLING_EXTREME,
     OPPONENT_TIGHT_EXTREME,
 )
-from src.players.strong_calling_player import StrongCallingPlayer
+from src.players.calling_extreme_player import CallingExtremePlayer
 from src.players.tight_extreme_player import TightExtremePlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
@@ -21,7 +21,7 @@ from src.poker.constants import (
 
 
 GENERALIZATION_OPPONENT_TO_BASE_TYPE = {
-    OPPONENT_STRONG_CALLING: OPPONENT_TYPE_CALLING,
+    OPPONENT_CALLING_EXTREME: OPPONENT_TYPE_CALLING,
     OPPONENT_AGGRESSIVE_EXTREME: OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TIGHT_EXTREME: OPPONENT_TYPE_TIGHT,
 }
@@ -33,7 +33,7 @@ LEGACY_GENERALIZATION_OPPONENT_TO_BASE_TYPE = {
 }
 
 GENERALIZATION_OPPONENT_SEEN_IN_TRAINING = {
-    OPPONENT_STRONG_CALLING: False,
+    OPPONENT_CALLING_EXTREME: False,
     OPPONENT_AGGRESSIVE_EXTREME: False,
     OPPONENT_TIGHT_EXTREME: False,
 }
@@ -43,9 +43,9 @@ def build_generalization_opponent_player(
     opponent_name: str,
     rng: random.Random | None = None,
 ):
-    if opponent_name == OPPONENT_STRONG_CALLING:
-        return StrongCallingPlayer(
-            player_name=OPPONENT_STRONG_CALLING,
+    if opponent_name == OPPONENT_CALLING_EXTREME:
+        return CallingExtremePlayer(
+            player_name=OPPONENT_CALLING_EXTREME,
             rng=rng,
         )
 
