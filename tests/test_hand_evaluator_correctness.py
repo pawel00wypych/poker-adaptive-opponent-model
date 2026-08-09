@@ -1,7 +1,7 @@
 import pytest
 
-from PyPokerEngine.pypokerengine.engine.card import Card
-from PyPokerEngine.pypokerengine.engine.hand_evaluator import HandEvaluator
+from pypokerengine.engine.card import Card
+from pypokerengine.engine.hand_evaluator import HandEvaluator
 
 
 def cards(card_strings: list[str]) -> list[Card]:
