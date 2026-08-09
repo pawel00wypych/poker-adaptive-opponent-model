@@ -9,26 +9,26 @@ ACTION_LABELS = {
 }
 
 UNKNOWN_POLICY = "unknown"
-FISH_POLICY = "fish"
+TIGHT_POLICY = "tight"
 AGGRESSIVE_POLICY = "aggressive"
 CALLING_POLICY = "calling"
 
 SUPPORTED_POLICY_TYPES = (
     UNKNOWN_POLICY,
-    FISH_POLICY,
+    TIGHT_POLICY,
     AGGRESSIVE_POLICY,
     CALLING_POLICY,
 )
 
 SPECIALIST_POLICY_TYPES = (
-    FISH_POLICY,
+    TIGHT_POLICY,
     AGGRESSIVE_POLICY,
     CALLING_POLICY,
 )
 
 MODEL_DIRECTORIES = {
     UNKNOWN_POLICY: "single_policy",
-    FISH_POLICY: "specialist_fish",
+    TIGHT_POLICY: "specialist_tight",
     AGGRESSIVE_POLICY: "specialist_aggressive",
     CALLING_POLICY: "specialist_calling",
 }
@@ -38,7 +38,7 @@ MODEL_DIRECTORY_BY_POLICY_TYPE = MODEL_DIRECTORIES
 
 CHECKPOINT_PREFIXES = {
     UNKNOWN_POLICY: "single_policy",
-    FISH_POLICY: "specialist_fish",
+    TIGHT_POLICY: "specialist_tight",
     AGGRESSIVE_POLICY: "specialist_aggressive",
     CALLING_POLICY: "specialist_calling",
 }
@@ -48,7 +48,7 @@ CHECKPOINT_PREFIX_BY_POLICY_TYPE = CHECKPOINT_PREFIXES
 
 POLICY_DISPLAY_NAMES = {
     UNKNOWN_POLICY: "General policy",
-    FISH_POLICY: "Fish specialist",
+    TIGHT_POLICY: "Tight specialist",
     AGGRESSIVE_POLICY: "Aggressive specialist",
     CALLING_POLICY: "Calling specialist",
 }
@@ -81,7 +81,7 @@ POLICY_UNKNOWN_MC_AGENT = "policy_unknown_mc"
 POLICY_UNKNOWN_Q_LEARNING_AGENT = "policy_unknown_q_learning"
 POLICY_UNKNOWN_SARSA_AGENT = "policy_unknown_sarsa"
 POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT = "policy_unknown_double_q_learning"
-POLICY_FISH_AGENT = "policy_fish"
+POLICY_TIGHT_AGENT = "policy_tight"
 POLICY_AGGRESSIVE_AGENT = "policy_aggressive"
 POLICY_CALLING_AGENT = "policy_calling"
 
@@ -100,7 +100,7 @@ SUPPORTED_TESTED_AGENTS = {
     POLICY_UNKNOWN_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_SARSA_AGENT,
     POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
-    POLICY_FISH_AGENT,
+    POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
 }
@@ -108,7 +108,7 @@ SUPPORTED_TESTED_AGENTS = {
 CROSS_POLICY_AGENT_TO_POLICY_TYPE = {
     POLICY_UNKNOWN_AGENT: UNKNOWN_POLICY,
     POLICY_UNKNOWN_MC_AGENT: UNKNOWN_POLICY,
-    POLICY_FISH_AGENT: FISH_POLICY,
+    POLICY_TIGHT_AGENT: TIGHT_POLICY,
     POLICY_AGGRESSIVE_AGENT: AGGRESSIVE_POLICY,
     POLICY_CALLING_AGENT: CALLING_POLICY,
 }
@@ -140,7 +140,7 @@ AGENT_DISPLAY_NAMES = {
     POLICY_UNKNOWN_Q_LEARNING_AGENT: "Fixed general Q-learning policy",
     POLICY_UNKNOWN_SARSA_AGENT: "Fixed general SARSA policy",
     POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT: "Fixed general Double Q-learning policy",
-    POLICY_FISH_AGENT: "Fixed fish specialist",
+    POLICY_TIGHT_AGENT: "Fixed tight specialist",
     POLICY_AGGRESSIVE_AGENT: "Fixed aggressive specialist",
     POLICY_CALLING_AGENT: "Fixed calling specialist",
 }

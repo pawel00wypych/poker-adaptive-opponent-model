@@ -132,19 +132,19 @@ def write_sample_results_csv(path):
     add_group(
         rows,
         agent="always_raise",
-        opponent="fish",
+        opponent="tight",
         profit_by_seed=(19.0, 20.0),
     )
     add_group(
         rows,
         agent="adaptive_mc",
-        opponent="fish",
+        opponent="tight",
         profit_by_seed=(18.0, 19.0),
     )
     add_group(
         rows,
         agent="rule_based",
-        opponent="fish",
+        opponent="tight",
         profit_by_seed=(17.0, 18.0),
     )
     add_group(

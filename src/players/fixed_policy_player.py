@@ -15,7 +15,7 @@ class FixedPolicyPlayer(PlayerTemplate):
 
     It is used for cross-policy evaluation, for example:
         unknown policy vs calling opponent
-        fish policy vs calling opponent
+        tight policy vs calling opponent
         aggressive policy vs calling opponent
         calling policy vs calling opponent
     """

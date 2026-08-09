@@ -45,7 +45,7 @@ def start_fixed_policy_round(
     "policy_type",
     [
         "unknown",
-        "fish",
+        "tight",
         "aggressive",
         "calling",
     ],
@@ -93,7 +93,7 @@ def test_fixed_policy_player_rejects_invalid_log_interval(
     ("policy_type", "expected_opponent_id"),
     [
         ("unknown", 0),
-        ("fish", 1),
+        ("tight", 3),
         ("aggressive", 2),
         ("calling", 6),
     ],

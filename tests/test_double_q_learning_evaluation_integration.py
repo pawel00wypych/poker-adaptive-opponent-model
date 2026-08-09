@@ -26,7 +26,7 @@ from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
 )
 
@@ -54,7 +54,7 @@ def create_checkpoint_bundle_files(
 ) -> None:
     files = [
         ("single_policy", "single_policy"),
-        ("specialist_fish", "specialist_fish"),
+        ("specialist_tight", "specialist_tight"),
         ("specialist_aggressive", "specialist_aggressive"),
         ("specialist_calling", "specialist_calling"),
     ]
@@ -83,12 +83,12 @@ def make_bundle_with_double_q_learning_paths(tmp_path: Path) -> ModelBundle:
         seed=42,
         checkpoint_episode=2000,
         unknown_model_path=Path("mc_unknown.pkl"),
-        fish_model_path=Path("mc_fish.pkl"),
+        tight_model_path=Path("mc_tight.pkl"),
         aggressive_model_path=Path("mc_aggressive.pkl"),
         calling_model_path=Path("mc_calling.pkl"),
         double_q_learning_training_run_directory=tmp_path / "double_q_learning_run",
         double_q_learning_unknown_model_path=Path("double_q_unknown.pkl"),
-        double_q_learning_fish_model_path=Path("double_q_fish.pkl"),
+        double_q_learning_tight_model_path=Path("double_q_tight.pkl"),
         double_q_learning_aggressive_model_path=Path("double_q_aggressive.pkl"),
         double_q_learning_calling_model_path=Path("double_q_calling.pkl"),
     )
@@ -97,7 +97,7 @@ def make_bundle_with_double_q_learning_paths(tmp_path: Path) -> ModelBundle:
 def dummy_agents() -> dict[str, DummyAgent]:
     return {
         OPPONENT_TYPE_UNKNOWN: DummyAgent(),
-        OPPONENT_TYPE_FISH: DummyAgent(),
+        OPPONENT_TYPE_TIGHT: DummyAgent(),
         OPPONENT_TYPE_AGGRESSIVE: DummyAgent(),
         OPPONENT_TYPE_CALLING: DummyAgent(),
     }
@@ -186,7 +186,7 @@ def test_double_q_learning_agents_require_double_q_learning_run_dir(tmp_path):
         seed=42,
         checkpoint_episode=2000,
         unknown_model_path=Path("mc_unknown.pkl"),
-        fish_model_path=Path("mc_fish.pkl"),
+        tight_model_path=Path("mc_tight.pkl"),
         aggressive_model_path=Path("mc_aggressive.pkl"),
         calling_model_path=Path("mc_calling.pkl"),
     )

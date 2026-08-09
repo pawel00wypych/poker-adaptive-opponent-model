@@ -519,16 +519,16 @@ def test_final_predicted_type_returns_current_type(
         adaptive_agents,
     )
 
-    player.current_opponent_type = "fish"
+    player.current_opponent_type = "tight"
 
-    assert player.final_predicted_type == "fish"
+    assert player.final_predicted_type == "tight"
 
 def create_training_adaptive_agents() -> dict[str, MonteCarloAgent]:
     agents = {}
 
     for opponent_type in [
         "unknown",
-        "fish",
+        "tight",
         "aggressive",
         "calling",
     ]:

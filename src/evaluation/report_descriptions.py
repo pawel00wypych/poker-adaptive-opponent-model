@@ -38,7 +38,7 @@ AGENT_LABELS = {
     "policy_unknown_sarsa": "Fixed unknown SARSA policy",
     "policy_unknown_double_q_learning": "Fixed unknown Double Q-learning policy",
     "policy_calling": "Fixed calling specialist",
-    "policy_fish": "Fixed fish specialist",
+    "policy_tight": "Fixed tight specialist",
     "policy_aggressive": "Fixed aggressive specialist",
     "rule_based": "Rule-based baseline",
     "always_raise": "Always-raise baseline",

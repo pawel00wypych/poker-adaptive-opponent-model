@@ -17,7 +17,7 @@ from src.evaluation.constants import (
     ORACLE_ADAPTIVE_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
-    POLICY_FISH_AGENT,
+    POLICY_TIGHT_AGENT,
     POLICY_UNKNOWN_AGENT,
     RULE_BASED_AGENT,
 )
@@ -31,7 +31,7 @@ from src.players.constants import (
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_FISH,
+    OPPONENT_TYPE_TIGHT,
     TRAINING_OPPONENT_TYPES,
 )
 
@@ -69,7 +69,7 @@ HEAD_TO_HEAD_RULE_BASED_OPPONENT = RULE_BASED_AGENT
 HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT = ALWAYS_RAISE_AGENT
 
 HEAD_TO_HEAD_SPECIALIST_AGENTS = (
-    POLICY_FISH_AGENT,
+    POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
 )
@@ -77,7 +77,7 @@ HEAD_TO_HEAD_SPECIALIST_AGENTS = (
 HEAD_TO_HEAD_LEARNED_AGENTS = (
     POLICY_UNKNOWN_AGENT,
     ADAPTIVE_MC_AGENT,
-    POLICY_FISH_AGENT,
+    POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
 )
@@ -91,7 +91,7 @@ GENERALIZATION_CORE_AGENTS = (
 )
 
 GENERALIZATION_SPECIALIST_AGENTS = (
-    POLICY_FISH_AGENT,
+    POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
 )
@@ -101,8 +101,8 @@ GENERALIZATION_SPECIALIST_AGENTS = (
 class ValidationThresholds:
     min_adaptive_delta_vs_rule_based_bb: float = 0.0
     max_oracle_underperformance_bb: float = 1.0
-    min_fish_win_rate: float = 95.0
-    min_fish_mean_profit_bb: float = 15.0
+    min_tight_win_rate: float = 95.0
+    min_tight_mean_profit_bb: float = 15.0
     min_classifier_accuracy: float = 80.0
     min_classifier_coverage: float = 80.0
     max_std_across_seeds_bb: float = 5.0
@@ -464,56 +464,56 @@ def validate_oracle_not_worse_than_adaptive(
     return results
 
 
-def validate_fish_exploitation(
+def validate_tight_exploitation(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     adaptive_row = _find_row(
         best_rows,
         ADAPTIVE_MC_AGENT,
-        OPPONENT_TYPE_FISH,
+        OPPONENT_TYPE_TIGHT,
     )
-    check_name = "Adaptive exploits FishPlayer"
+    check_name = "Adaptive exploits TightPlayer"
 
     if adaptive_row is None:
         return [
             _missing_row_result(
                 check_name,
-                "fish_exploitation",
+                "tight_exploitation",
                 ADAPTIVE_MC_AGENT,
-                OPPONENT_TYPE_FISH,
+                OPPONENT_TYPE_TIGHT,
             )
         ]
 
     mean_profit_bb = float(adaptive_row["mean_profit_bb"])
     win_rate = float(adaptive_row["win_rate"])
     passed = (
-        mean_profit_bb >= thresholds.min_fish_mean_profit_bb
-        and win_rate >= thresholds.min_fish_win_rate
+        mean_profit_bb >= thresholds.min_tight_mean_profit_bb
+        and win_rate >= thresholds.min_tight_win_rate
     )
 
     return [
         ValidationCheckResult(
             check_name=check_name,
             status=STATUS_PASS if passed else STATUS_FAIL,
-            category="fish_exploitation",
+            category="tight_exploitation",
             agent_name=ADAPTIVE_MC_AGENT,
-            opponent_name=OPPONENT_TYPE_FISH,
+            opponent_name=OPPONENT_TYPE_TIGHT,
             checkpoint_episode=_checkpoint_episode(adaptive_row),
             observed_value=mean_profit_bb,
-            threshold=thresholds.min_fish_mean_profit_bb,
+            threshold=thresholds.min_tight_mean_profit_bb,
             message=(
-                "Adaptive vs fish: "
+                "Adaptive vs tight: "
                 f"mean_profit_bb={_format_float(mean_profit_bb)}, "
                 f"win_rate={_format_float(win_rate)}%."
             ),
             details={
                 "mean_profit_bb": mean_profit_bb,
                 "min_mean_profit_bb": (
-                    thresholds.min_fish_mean_profit_bb
+                    thresholds.min_tight_mean_profit_bb
                 ),
                 "win_rate": win_rate,
-                "min_win_rate": thresholds.min_fish_win_rate,
+                "min_win_rate": thresholds.min_tight_win_rate,
             },
         )
     ]
@@ -841,7 +841,7 @@ def validate_always_raise_trivial_exploit(
     return results
 
 
-def validate_fish_baseline_saturation(
+def validate_tight_baseline_saturation(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
@@ -854,11 +854,11 @@ def validate_fish_baseline_saturation(
         agent_name: _find_row(
             best_rows,
             agent_name,
-            OPPONENT_TYPE_FISH,
+            OPPONENT_TYPE_TIGHT,
         )
         for agent_name in required_agents
     }
-    check_name = "FishPlayer baseline saturation sanity check"
+    check_name = "TightPlayer baseline saturation sanity check"
 
     for agent_name, row in rows_by_agent.items():
         if row is None:
@@ -867,7 +867,7 @@ def validate_fish_baseline_saturation(
                     check_name,
                     "always_raise_sanity",
                     agent_name,
-                    OPPONENT_TYPE_FISH,
+                    OPPONENT_TYPE_TIGHT,
                 )
             ]
 
@@ -884,8 +884,8 @@ def validate_fish_baseline_saturation(
         details[f"{agent_name}_win_rate"] = win_rate
 
         if (
-            mean_profit_bb >= thresholds.min_fish_mean_profit_bb
-            and win_rate >= thresholds.min_fish_win_rate
+            mean_profit_bb >= thresholds.min_tight_mean_profit_bb
+            and win_rate >= thresholds.min_tight_win_rate
         ):
             saturated_agents.append(agent_name)
 
@@ -897,30 +897,30 @@ def validate_fish_baseline_saturation(
             status=STATUS_WARNING if is_saturated else STATUS_PASS,
             category="always_raise_sanity",
             agent_name=ALWAYS_RAISE_AGENT,
-            opponent_name=OPPONENT_TYPE_FISH,
+            opponent_name=OPPONENT_TYPE_TIGHT,
             checkpoint_episode=_checkpoint_episode(
                 rows_by_agent[ALWAYS_RAISE_AGENT]
             ),
             observed_value=float(
                 rows_by_agent[ALWAYS_RAISE_AGENT]["mean_profit_bb"]
             ),
-            threshold=thresholds.min_fish_mean_profit_bb,
+            threshold=thresholds.min_tight_mean_profit_bb,
             message=(
-                "FishPlayer may be too weak to distinguish agent "
+                "TightPlayer may be too weak to distinguish agent "
                 "quality when adaptive, rule-based, and always-raise "
-                "all reach the fish exploitation thresholds."
+                "all reach the tight exploitation thresholds."
                 if is_saturated
-                else "FishPlayer still differentiates at least one "
+                else "TightPlayer still differentiates at least one "
                 "baseline below the exploitation thresholds."
             ),
             details={
                 **details,
                 "saturated_agents": saturated_agents,
                 "required_agents": list(required_agents),
-                "min_fish_mean_profit_bb": (
-                    thresholds.min_fish_mean_profit_bb
+                "min_tight_mean_profit_bb": (
+                    thresholds.min_tight_mean_profit_bb
                 ),
-                "min_fish_win_rate": thresholds.min_fish_win_rate,
+                "min_tight_win_rate": thresholds.min_tight_win_rate,
             },
         )
     ]
@@ -1954,7 +1954,7 @@ def validate_checkpoint_results(
             )
         )
         checks.extend(
-            validate_fish_exploitation(
+            validate_tight_exploitation(
                 best_rows,
                 thresholds,
             )
@@ -1990,7 +1990,7 @@ def validate_checkpoint_results(
             )
         )
         checks.extend(
-            validate_fish_baseline_saturation(
+            validate_tight_baseline_saturation(
                 best_rows,
                 thresholds,
             )

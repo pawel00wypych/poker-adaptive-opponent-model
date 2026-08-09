@@ -224,14 +224,14 @@ def test_checkpoint_evaluator_builds_always_raise_player(
         seed=42,
         checkpoint_episode=2000,
         unknown_model_path=Path("unknown.pkl"),
-        fish_model_path=Path("fish.pkl"),
+        tight_model_path=Path("tight.pkl"),
         aggressive_model_path=Path("aggressive.pkl"),
         calling_model_path=Path("calling.pkl"),
     )
 
     player = build_tested_player(
         tested_agent_name="always_raise",
-        opponent_name="fish",
+        opponent_name="tight",
         bundle=bundle,
     )
 
