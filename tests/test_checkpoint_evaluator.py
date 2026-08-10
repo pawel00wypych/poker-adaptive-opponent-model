@@ -22,8 +22,8 @@ def create_checkpoint_bundle_files(
 ) -> None:
     files = [
         (
-            "single_policy",
-            "single_policy",
+            "general_policy",
+            "general_policy",
         ),
         (
             "specialist_tight",
@@ -66,7 +66,7 @@ def create_checkpoint_bundle_files(
         )
 
 
-def test_checkpoint_filename_for_single_policy():
+def test_checkpoint_filename_for_general_policy():
     filename = checkpoint_filename(
         policy_type="unknown",
         checkpoint_episode=5000,
@@ -74,7 +74,7 @@ def test_checkpoint_filename_for_single_policy():
     )
 
     assert filename == (
-        "single_policy"
+        "general_policy"
         "_episodes_5000"
         "_seed_42.pkl"
     )
@@ -366,7 +366,7 @@ def test_supported_agents_include_oracle_and_cross_policy_agents():
     assert "oracle_q_learning" in SUPPORTED_TESTED_AGENTS
     assert "oracle_sarsa" in SUPPORTED_TESTED_AGENTS
     assert "oracle_double_q_learning" in SUPPORTED_TESTED_AGENTS
-    assert "policy_general" in SUPPORTED_TESTED_AGENTS
+    assert "policy_general_mc" in SUPPORTED_TESTED_AGENTS
     assert "policy_tight" in SUPPORTED_TESTED_AGENTS
     assert "policy_aggressive" in SUPPORTED_TESTED_AGENTS
     assert "policy_calling" in SUPPORTED_TESTED_AGENTS
@@ -374,7 +374,7 @@ def test_supported_agents_include_oracle_and_cross_policy_agents():
 
 def test_cross_policy_agent_mapping():
     assert (
-        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_general"]
+        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_general_mc"]
         == "unknown"
     )
     assert (

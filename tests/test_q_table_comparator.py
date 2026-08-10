@@ -37,7 +37,7 @@ def test_checkpoint_filename_for_unknown_policy():
         policy_type="unknown",
         checkpoint_episode=2000,
         seed=42,
-    ) == "single_policy_episodes_2000_seed_42.pkl"
+    ) == "general_policy_episodes_2000_seed_42.pkl"
 
 
 def test_checkpoint_filename_for_specialist_policy():
@@ -68,9 +68,9 @@ def test_checkpoint_model_path_for_unknown_policy(tmp_path):
     assert path == (
         tmp_path
         / "seed_42"
-        / "single_policy"
+        / "general_policy"
         / "checkpoints"
-        / "single_policy_episodes_2000_seed_42.pkl"
+        / "general_policy_episodes_2000_seed_42.pkl"
     )
 
 
@@ -154,9 +154,9 @@ def test_build_selected_targets_uses_all_requested_seeds_and_policies(tmp_path):
     assert targets[0].path == (
         tmp_path
         / "seed_42"
-        / "single_policy"
+        / "general_policy"
         / "checkpoints"
-        / "single_policy_episodes_2000_seed_42.pkl"
+        / "general_policy_episodes_2000_seed_42.pkl"
     )
 
     assert targets[1].path == (

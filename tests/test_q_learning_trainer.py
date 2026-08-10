@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from src.agents.q_learning_agent import QLearningAgent
-from src.experiments.constants import MODEL_TYPE_SINGLE_POLICY
+from src.experiments.constants import MODEL_TYPE_GENERAL_POLICY
 from src.poker.constants import OPPONENT_TYPE_CALLING
 from src.training.q_learning_trainer import (
     build_q_learning_metadata,
@@ -14,8 +14,8 @@ from src.training.q_learning_trainer import (
 )
 
 
-def test_model_run_name_supports_single_policy_and_specialists():
-    assert model_run_name(MODEL_TYPE_SINGLE_POLICY) == "single_policy"
+def test_model_run_name_supports_general_policy_and_specialists():
+    assert model_run_name(MODEL_TYPE_GENERAL_POLICY) == "general_policy"
     assert model_run_name(OPPONENT_TYPE_CALLING) == "specialist_calling"
 
 
@@ -38,7 +38,7 @@ def test_build_q_learning_metadata_contains_algorithm_fields():
     )
 
     metadata = build_q_learning_metadata(
-        model_type=MODEL_TYPE_SINGLE_POLICY,
+        model_type=MODEL_TYPE_GENERAL_POLICY,
         opponent_type="mixed",
         completed_episodes=2,
         total_episodes=10,
@@ -51,7 +51,7 @@ def test_build_q_learning_metadata_contains_algorithm_fields():
     )
 
     assert metadata["algorithm"] == "q_learning"
-    assert metadata["model_type"] == MODEL_TYPE_SINGLE_POLICY
+    assert metadata["model_type"] == MODEL_TYPE_GENERAL_POLICY
     assert metadata["opponent_type"] == "mixed"
     assert metadata["alpha"] == pytest.approx(0.2)
     assert metadata["gamma"] == pytest.approx(0.95)
@@ -64,7 +64,7 @@ def test_run_q_learning_model_training_smoke(tmp_path):
     checkpoint_dir = tmp_path / "checkpoints"
 
     metadata = run_q_learning_model_training(
-        model_type=MODEL_TYPE_SINGLE_POLICY,
+        model_type=MODEL_TYPE_GENERAL_POLICY,
         episodes=1,
         seed=42,
         output_path=str(output_path),
@@ -76,7 +76,7 @@ def test_run_q_learning_model_training_smoke(tmp_path):
         log_interval=1,
     )
 
-    checkpoint_path = checkpoint_dir / "single_policy_episodes_1_seed_42.pkl"
+    checkpoint_path = checkpoint_dir / "general_policy_episodes_1_seed_42.pkl"
 
     assert output_path.exists()
     assert output_path.with_suffix(".json").exists()
