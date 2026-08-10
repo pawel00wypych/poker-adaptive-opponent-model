@@ -1,7 +1,7 @@
 from collections import Counter
 from time import perf_counter
 
-from PyPokerEngine.pypokerengine.api.game import (
+from pypokerengine.api.game import (
     setup_config,
     start_poker,
 )

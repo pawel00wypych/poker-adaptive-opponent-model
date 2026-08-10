@@ -16,8 +16,8 @@ class TightPlayer(PlayerTemplate):
     """
     Conservative fold-heavy training opponent.
 
-    TightPlayer replaces the previous fish-like archetype. It is designed to
-    be behaviourally distinct from CallingPlayer: it folds weak and expensive
+    TightPlayer is designed to be behaviourally distinct from CallingPlayer:
+    it folds weak and expensive
     spots frequently, continues mostly with medium-or-better hands, and only
     rarely raises strong hands. It remains a simple scripted opponent rather
     than a strong poker bot.

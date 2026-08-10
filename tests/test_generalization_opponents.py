@@ -11,7 +11,7 @@ from src.players.constants import (
     GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,
     OPPONENT_AGGRESSIVE_LIGHT,
-    OPPONENT_STRONG_CALLING,
+    OPPONENT_CALLING_EXTREME,
     OPPONENT_TIGHT_EXTREME,
     TIGHT_GENERALIZATION_OPPONENTS,
 )
@@ -20,7 +20,7 @@ from src.players.generalization_opponents import (
     get_generalization_opponent_base_type,
     was_generalization_opponent_seen_during_training,
 )
-from src.players.strong_calling_player import StrongCallingPlayer
+from src.players.calling_extreme_player import CallingExtremePlayer
 from src.players.tight_extreme_player import TightExtremePlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
@@ -62,14 +62,14 @@ def round_state(
     }
 
 
-def test_build_generalization_opponent_builds_strong_calling():
+def test_build_generalization_opponent_builds_calling_extreme():
     player = build_generalization_opponent_player(
-        OPPONENT_STRONG_CALLING,
+        OPPONENT_CALLING_EXTREME,
         rng=random.Random(1),
     )
 
-    assert isinstance(player, StrongCallingPlayer)
-    assert player.player_name == OPPONENT_STRONG_CALLING
+    assert isinstance(player, CallingExtremePlayer)
+    assert player.player_name == OPPONENT_CALLING_EXTREME
 
 
 def test_build_generalization_opponent_builds_aggressive_extreme():
@@ -118,7 +118,7 @@ def test_generalization_opponent_factory_supports_all_defaults():
 
 
 def test_generalization_opponent_to_base_type_mapping():
-    assert get_generalization_opponent_base_type(OPPONENT_STRONG_CALLING) == OPPONENT_TYPE_CALLING
+    assert get_generalization_opponent_base_type(OPPONENT_CALLING_EXTREME) == OPPONENT_TYPE_CALLING
 
     for opponent_name in AGGRESSIVE_GENERALIZATION_OPPONENTS:
         assert get_generalization_opponent_base_type(opponent_name) == OPPONENT_TYPE_AGGRESSIVE
@@ -132,9 +132,9 @@ def test_generalization_opponents_are_held_out_from_training():
         assert was_generalization_opponent_seen_during_training(opponent_name) is False
 
 
-def test_strong_calling_folds_weak_expensive_call():
+def test_calling_extreme_folds_weak_expensive_call():
     player = build_generalization_opponent_player(
-        OPPONENT_STRONG_CALLING,
+        OPPONENT_CALLING_EXTREME,
         rng=random.Random(1),
     )
     player.uuid = "uuid-variant"
@@ -152,9 +152,9 @@ def test_strong_calling_folds_weak_expensive_call():
     assert amount == 0
 
 
-def test_strong_calling_remains_passive_with_ordinary_call():
+def test_calling_extreme_remains_passive_with_ordinary_call():
     player = build_generalization_opponent_player(
-        OPPONENT_STRONG_CALLING,
+        OPPONENT_CALLING_EXTREME,
         rng=random.Random(5),
     )
     player.uuid = "uuid-variant"

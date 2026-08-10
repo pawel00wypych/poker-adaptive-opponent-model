@@ -213,7 +213,7 @@ def test_build_generalization_double_q_learning_adaptive_uses_base_family(
 
     player = build_generalization_tested_player(
         tested_agent_name=ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
         bundle=make_bundle_with_double_q_learning_paths(tmp_path),
     )
 
@@ -235,7 +235,7 @@ def test_build_generalization_double_q_learning_unknown_policy(tmp_path, monkeyp
 
     player = build_generalization_tested_player(
         tested_agent_name=POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
         bundle=make_bundle_with_double_q_learning_paths(tmp_path),
     )
 

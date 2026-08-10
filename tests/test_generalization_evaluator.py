@@ -28,7 +28,7 @@ from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.players.aggressive_variant_player import AggressiveExtremePlayer
-from src.players.strong_calling_player import StrongCallingPlayer
+from src.players.calling_extreme_player import CallingExtremePlayer
 from src.players.oracle_adaptive_player import OracleAdaptivePlayer
 from src.players.rule_based_player import RuleBasedPlayer
 from src.poker.constants import (
@@ -79,10 +79,10 @@ def sample_raw_row() -> dict:
         "model_seed": 42,
         "checkpoint_episode": 2000,
         "experiment_id": "seed_42_episodes_2000",
-        "experiment_name": "adaptive_mc_vs_strong_calling",
+        "experiment_name": "adaptive_mc_vs_calling_extreme",
         "game_id": 0,
         "agent_name": ADAPTIVE_MC_AGENT,
-        "opponent_name": "strong_calling",
+        "opponent_name": "calling_extreme",
         "final_stack": 120,
         "initial_stack": 100,
         "profit": 20,
@@ -107,13 +107,13 @@ def sample_raw_row() -> dict:
     }
 
 
-def test_build_generalization_opponent_builds_strong_calling():
+def test_build_generalization_opponent_builds_calling_extreme():
     player = build_generalization_opponent(
-        "strong_calling"
+        "calling_extreme"
     )
 
-    assert isinstance(player, StrongCallingPlayer)
-    assert player.player_name == "strong_calling"
+    assert isinstance(player, CallingExtremePlayer)
+    assert player.player_name == "calling_extreme"
 
 
 def test_build_generalization_opponent_builds_aggressive_extreme():
@@ -146,7 +146,7 @@ def test_build_generalization_adaptive_uses_base_variant_family(
 
     player = build_generalization_tested_player(
         tested_agent_name=ADAPTIVE_MC_AGENT,
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
         bundle=sample_bundle(tmp_path),
     )
 
@@ -190,7 +190,7 @@ def test_build_generalization_fixed_calling_specialist_does_not_use_variant_poli
 
     player = build_generalization_tested_player(
         tested_agent_name=POLICY_CALLING_AGENT,
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
         bundle=sample_bundle(tmp_path),
     )
 
@@ -202,7 +202,7 @@ def test_build_generalization_fixed_calling_specialist_does_not_use_variant_poli
 def test_build_generalization_rule_based_baseline(tmp_path):
     player = build_generalization_tested_player(
         tested_agent_name=RULE_BASED_AGENT,
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
         bundle=sample_bundle(tmp_path),
     )
 
@@ -226,7 +226,7 @@ def test_build_generalization_always_raise_baseline(tmp_path):
 def test_build_generalization_always_call_baseline(tmp_path):
     player = build_generalization_tested_player(
         tested_agent_name=ALWAYS_CALL_AGENT,
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
         bundle=sample_bundle(tmp_path),
     )
 
@@ -237,14 +237,14 @@ def test_build_generalization_always_call_baseline(tmp_path):
 def test_add_generalization_metadata_marks_variant_as_unseen():
     row = add_generalization_metadata(
         sample_raw_row(),
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
     )
 
     assert row["evaluation_type"] == "generalization"
     assert row["trained_on"] == "base_opponents"
     assert row["seen_during_training"] == 0
     assert row["opponent_family"] == OPPONENT_TYPE_CALLING
-    assert row["opponent_variant"] == "strong_calling"
+    assert row["opponent_variant"] == "calling_extreme"
 
 
 def test_evaluate_generalization_bundle_runs_all_matchups(
@@ -286,7 +286,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
 
     config = GeneralizationEvaluationConfig(
         games_per_matchup=2,
-        opponents=("strong_calling", "aggressive_extreme"),
+        opponents=("calling_extreme", "aggressive_extreme"),
         tested_agents=(POLICY_UNKNOWN_AGENT, ADAPTIVE_MC_AGENT),
         eval_seed_base=400_000,
         output_path=tmp_path / "generalization.csv",
@@ -299,7 +299,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
 
     assert len(rows) == 8
     assert len(calls) == 8
-    assert rows[0]["experiment_name"] == "policy_unknown_vs_strong_calling"
+    assert rows[0]["experiment_name"] == "policy_unknown_vs_calling_extreme"
     assert rows[-1]["experiment_name"] == "adaptive_mc_vs_aggressive_extreme"
     assert [row["game_id"] for row in rows] == list(range(8))
     assert rows[0]["evaluation_type"] == "generalization"
@@ -309,7 +309,7 @@ def test_write_generalization_rows_creates_csv_with_metadata(tmp_path):
     output_path = tmp_path / "generalization.csv"
     row = add_generalization_metadata(
         sample_raw_row(),
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
     )
 
     write_generalization_rows(
@@ -321,7 +321,7 @@ def test_write_generalization_rows_creates_csv_with_metadata(tmp_path):
         encoding="utf-8"
     )
 
-    assert "adaptive_mc_vs_strong_calling" in text
+    assert "adaptive_mc_vs_calling_extreme" in text
     assert "evaluation_type" in text
     assert "opponent_family" in text
     assert "base_opponents" in text
@@ -356,7 +356,7 @@ def test_parse_args_accepts_custom_generalization_matchups():
             "adaptive_mc",
             "oracle_adaptive",
             "--opponents",
-            "strong_calling",
+            "calling_extreme",
             "aggressive_extreme",
             "tight_extreme",
             "--games",
@@ -370,7 +370,7 @@ def test_parse_args_accepts_custom_generalization_matchups():
         "oracle_adaptive",
     ]
     assert args.opponents == [
-        "strong_calling",
+        "calling_extreme",
         "aggressive_extreme",
         "tight_extreme",
     ]

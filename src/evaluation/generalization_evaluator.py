@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Iterable
 
 import numpy as np
-from PyPokerEngine.pypokerengine.api.game import (
+from pypokerengine.api.game import (
     setup_config,
     start_poker,
 )
@@ -111,7 +111,7 @@ class GeneralizationEvaluationConfig:
     opponent variants.
 
     No new specialist policies are trained for these variants. Oracle adaptive
-    receives only the base opponent family, e.g. strong_calling -> calling.
+    receives only the base opponent family, e.g. calling_extreme -> calling.
     """
 
     games_per_matchup: int
