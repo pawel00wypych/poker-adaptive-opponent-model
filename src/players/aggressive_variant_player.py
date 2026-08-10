@@ -8,38 +8,6 @@ WEAK_HAND_STRENGTH_BIN = 0
 STRONG_HAND_STRENGTH_BIN = 3
 
 
-class AggressiveLightPlayer(PlayerTemplate):
-    """
-    Moderate aggressive-family opponent for generalization tests.
-
-    It raises often enough to differ from the base AggressivePlayer, but it can
-    still call or fold. This keeps it useful as a behavioural variant rather
-    than a deterministic always-raise baseline.
-    """
-
-    def __init__(self, player_name: str = "aggressive_light", rng: random.Random | None = None):
-        super().__init__(player_name=player_name)
-        self.rng = rng or random.Random()
-
-    def declare_action(self, valid_actions, hole_card, round_state):
-        return _choose_aggressive_action(
-            valid_actions=valid_actions,
-            hole_card=hole_card,
-            round_state=round_state,
-            rng=self.rng,
-            base_raise_probability_by_street={
-                "preflop": 0.40,
-                "flop": 0.50,
-                "turn": 0.50,
-                "river": 0.45,
-            },
-            call_probability=0.38,
-            strong_raise_bonus=0.18,
-            weak_raise_penalty=0.18,
-            max_raise_probability=0.0,
-        )
-
-
 class AggressiveExtremePlayer(PlayerTemplate):
     """
     Stronger aggressive-family opponent for generalization tests.
