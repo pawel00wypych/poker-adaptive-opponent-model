@@ -32,8 +32,8 @@ class TrainingConfig:
         7_500,
     )
 
-    single_policy_model_path: str = (
-        "results/models/monte_carlo_single_policy.pkl"
+    general_policy_model_path: str = (
+        "results/models/monte_carlo_general_policy.pkl"
     )
 
     tight_model_path: str = (

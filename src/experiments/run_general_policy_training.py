@@ -10,13 +10,13 @@ from pypokerengine.api.game import (
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.config import GameConfig, TrainingConfig
-from src.experiments.constants import MODEL_TYPE_SINGLE_POLICY
+from src.experiments.constants import MODEL_TYPE_GENERAL_POLICY
 from src.experiments.cli_utils import parse_training_args
 from src.experiments.training_opponents import (
     build_training_opponent,
 )
-from src.players.single_policy_player import (
-    SinglePolicyPlayer,
+from src.players.general_policy_player import (
+    GeneralPolicyPlayer,
 )
 from src.training.checkpoint_utils import (
     build_checkpoint_episodes,
@@ -51,7 +51,7 @@ def build_metadata(
     opponent_counter: Counter,
 ) -> dict:
     return {
-        "model_type": MODEL_TYPE_SINGLE_POLICY,
+        "model_type": MODEL_TYPE_GENERAL_POLICY,
         "opponent_type": "mixed",
         "completed_episodes": completed_episodes,
         "total_planned_episodes": total_episodes,
@@ -73,7 +73,7 @@ def build_metadata(
     }
 
 
-def run_single_policy_training(
+def run_general_policy_training(
     episodes: int | None = None,
     seed: int | None = None,
     epsilon_schedule: str | None = None,
@@ -119,7 +119,7 @@ def run_single_policy_training(
     final_model_path = (
         output_path
         if output_path is not None
-        else training_config.single_policy_model_path
+        else training_config.general_policy_model_path
     )
 
     selected_checkpoint_directory = (
@@ -181,9 +181,9 @@ def run_single_policy_training(
             ),
         )
 
-        player = SinglePolicyPlayer(
+        player = GeneralPolicyPlayer(
             agent=agent,
-            player_name="single_policy_mc",
+            player_name="policy_general_mc",
             verbose=player_verbose,
             log_interval=player_log_interval,
         )
@@ -195,7 +195,7 @@ def run_single_policy_training(
         opponent_counter[opponent_name] += 1
 
         config.register_player(
-            name="single_policy_mc",
+            name="policy_general_mc",
             algorithm=player,
         )
 
@@ -230,7 +230,7 @@ def run_single_policy_training(
             )
 
             print(
-                f"Single-policy: "
+                f"General-policy: "
                 f"episode={completed_episodes}/"
                 f"{total_episodes}, "
                 f"seed={training_seed}, "
@@ -252,7 +252,7 @@ def run_single_policy_training(
                 checkpoint_directory=(
                     selected_checkpoint_directory
                 ),
-                model_name=MODEL_TYPE_SINGLE_POLICY,
+                model_name=MODEL_TYPE_GENERAL_POLICY,
                 completed_episodes=completed_episodes,
                 seed=training_seed,
             )
@@ -307,7 +307,7 @@ def run_single_policy_training(
     )
 
     print(
-        "Single-policy training finished\n"
+        "General-policy training finished\n"
         f"episodes={total_episodes}\n"
         f"seed={training_seed}\n"
         f"epsilon_schedule={selected_schedule}\n"
@@ -327,7 +327,7 @@ def run_single_policy_training(
 if __name__ == "__main__":
     args = parse_training_args()
 
-    run_single_policy_training(
+    run_general_policy_training(
         episodes=args.episodes,
         seed=args.seed,
         epsilon_schedule=args.epsilon_schedule,

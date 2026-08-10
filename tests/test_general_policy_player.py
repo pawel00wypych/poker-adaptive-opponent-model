@@ -1,5 +1,5 @@
 from src.agents.monte_carlo_agent import MonteCarloAgent
-from src.players.single_policy_player import SinglePolicyPlayer
+from src.players.general_policy_player import GeneralPolicyPlayer
 
 
 def sample_round_state(stack: int = 100) -> dict:
@@ -8,7 +8,7 @@ def sample_round_state(stack: int = 100) -> dict:
         "community_card": [],
         "seats": [
             {
-                "name": "single_policy",
+                "name": "general_policy",
                 "uuid": "uuid-single",
                 "stack": stack,
                 "state": "participating",
@@ -35,13 +35,13 @@ def sample_valid_actions() -> list[dict]:
         {"action": "raise", "amount": {"min": 20, "max": 100}},
     ]
 
-def start_single_policy_round(player, stack=100):
+def start_general_policy_round(player, stack=100):
     player.receive_round_start_message(
         round_count=1,
         hole_card=["HA", "DA"],
         seats=[
             {
-                "name": "single_policy",
+                "name": "general_policy",
                 "uuid": "uuid-single",
                 "stack": stack,
                 "state": "participating",
@@ -55,12 +55,12 @@ def start_single_policy_round(player, stack=100):
         ],
     )
 
-def test_single_policy_player_declares_legal_action():
+def test_general_policy_player_declares_legal_action():
     agent = MonteCarloAgent(epsilon=0.0)
 
-    player = SinglePolicyPlayer(
+    player = GeneralPolicyPlayer(
         agent=agent,
-        player_name="single_policy",
+        player_name="general_policy",
     )
     player.uuid = "uuid-single"
 
@@ -80,16 +80,16 @@ def test_single_policy_player_declares_legal_action():
         assert amount == 20
 
 
-def test_single_policy_player_updates_positive_reward_after_round():
+def test_general_policy_player_updates_positive_reward_after_round():
     agent = MonteCarloAgent(alpha=0.5, epsilon=0.0)
 
-    player = SinglePolicyPlayer(
+    player = GeneralPolicyPlayer(
         agent=agent,
-        player_name="single_policy",
+        player_name="general_policy",
     )
     player.uuid = "uuid-single"
 
-    start_single_policy_round(player, stack=100)
+    start_general_policy_round(player, stack=100)
 
     player.declare_action(
         valid_actions=sample_valid_actions(),
@@ -109,16 +109,16 @@ def test_single_policy_player_updates_positive_reward_after_round():
     assert player.hand_start_stack is None
 
 
-def test_single_policy_player_updates_negative_reward_after_round():
+def test_general_policy_player_updates_negative_reward_after_round():
     agent = MonteCarloAgent(alpha=0.5, epsilon=0.0)
 
-    player = SinglePolicyPlayer(
+    player = GeneralPolicyPlayer(
         agent=agent,
-        player_name="single_policy",
+        player_name="general_policy",
     )
     player.uuid = "uuid-single"
 
-    start_single_policy_round(player, stack=100)
+    start_general_policy_round(player, stack=100)
 
     player.declare_action(
         valid_actions=sample_valid_actions(),
@@ -138,12 +138,12 @@ def test_single_policy_player_updates_negative_reward_after_round():
     assert player.hand_start_stack is None
 
 
-def test_single_policy_player_uses_unknown_opponent_state():
+def test_general_policy_player_uses_unknown_opponent_state():
     agent = MonteCarloAgent(epsilon=0.0)
 
-    player = SinglePolicyPlayer(
+    player = GeneralPolicyPlayer(
         agent=agent,
-        player_name="single_policy",
+        player_name="general_policy",
     )
     player.uuid = "uuid-single"
 
@@ -160,12 +160,12 @@ def test_single_policy_player_uses_unknown_opponent_state():
     assert state[-1] == 0
 
 
-def test_single_policy_player_resets_tracking_on_game_start():
+def test_general_policy_player_resets_tracking_on_game_start():
     agent = MonteCarloAgent(epsilon=0.0)
 
-    player = SinglePolicyPlayer(
+    player = GeneralPolicyPlayer(
         agent=agent,
-        player_name="single_policy",
+        player_name="general_policy",
     )
 
     player.hands_played = 5
@@ -180,23 +180,23 @@ def test_single_policy_player_resets_tracking_on_game_start():
     assert player.hand_start_stack is None
     assert player.initial_stack is None
 
-def test_single_policy_player_accepts_verbose_flag():
+def test_general_policy_player_accepts_verbose_flag():
     agent = MonteCarloAgent(epsilon=0.0)
 
-    player = SinglePolicyPlayer(
+    player = GeneralPolicyPlayer(
         agent=agent,
-        player_name="single_policy_mc",
+        player_name="policy_general_mc",
         verbose=True,
     )
 
     assert player.verbose is True
 
-def test_single_policy_player_reward_includes_blind_paid_before_first_decision():
+def test_general_policy_player_reward_includes_blind_paid_before_first_decision():
     agent = MonteCarloAgent(alpha=1.0, epsilon=0.0)
 
-    player = SinglePolicyPlayer(
+    player = GeneralPolicyPlayer(
         agent=agent,
-        player_name="single_policy",
+        player_name="general_policy",
     )
     player.uuid = "uuid-single"
 
@@ -205,7 +205,7 @@ def test_single_policy_player_reward_includes_blind_paid_before_first_decision()
         hole_card=["HA", "DA"],
         seats=[
             {
-                "name": "single_policy",
+                "name": "general_policy",
                 "uuid": "uuid-single",
                 "stack": 100,
                 "state": "participating",

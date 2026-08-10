@@ -9,7 +9,7 @@ from src.evaluation.head_to_head_evaluator import (
     ALWAYS_RAISE_AGENT,
     DEFAULT_HEAD_TO_HEAD_AGENTS,
     DEFAULT_HEAD_TO_HEAD_OPPONENTS,
-    POLICY_GENERAL_AGENT,
+    POLICY_GENERAL_MC_AGENT,
     RULE_BASED_AGENT,
     HeadToHeadEvaluationConfig,
     build_head_to_head_opponent,
@@ -132,13 +132,13 @@ def test_build_head_to_head_fixed_general_policy(
     )
 
     player = build_head_to_head_tested_player(
-        tested_agent_name=POLICY_GENERAL_AGENT,
+        tested_agent_name=POLICY_GENERAL_MC_AGENT,
         bundle=sample_bundle(tmp_path),
     )
 
     assert isinstance(player, FixedPolicyPlayer)
     assert player.policy_type == OPPONENT_TYPE_UNKNOWN
-    assert player.player_name == POLICY_GENERAL_AGENT
+    assert player.player_name == POLICY_GENERAL_MC_AGENT
 
 
 
@@ -245,9 +245,9 @@ def test_write_head_to_head_rows_creates_csv(tmp_path):
                 "model_seed": 42,
                 "checkpoint_episode": 2000,
                 "experiment_id": "seed_42_episodes_2000",
-                "experiment_name": "policy_general_vs_rule_based",
+                "experiment_name": "policy_general_mc_vs_rule_based",
                 "game_id": 0,
-                "agent_name": POLICY_GENERAL_AGENT,
+                "agent_name": POLICY_GENERAL_MC_AGENT,
                 "opponent_name": RULE_BASED_AGENT,
                 "final_stack": 120,
                 "initial_stack": 100,
@@ -278,7 +278,7 @@ def test_write_head_to_head_rows_creates_csv(tmp_path):
         encoding="utf-8"
     )
 
-    assert "policy_general_vs_rule_based" in text
+    assert "policy_general_mc_vs_rule_based" in text
     assert "opponent_name" in text
 
 

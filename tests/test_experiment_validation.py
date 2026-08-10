@@ -184,7 +184,7 @@ def write_sample_head_to_head_csv(path):
     rows = []
 
     for agent, rule_based_profit in [
-        ("policy_general", (10.0, 12.0)),
+        ("policy_general_mc", (10.0, 12.0)),
         ("adaptive_mc", (11.0, 13.0)),
         ("policy_tight", (-18.0, -17.0)),
         ("policy_aggressive", (-20.0, -20.0)),
@@ -203,7 +203,7 @@ def write_sample_head_to_head_csv(path):
         )
 
     for agent, always_raise_profit in [
-        ("policy_general", (-19.0, -20.0)),
+        ("policy_general_mc", (-19.0, -20.0)),
         ("adaptive_mc", (-16.0, -17.0)),
         ("policy_tight", (-20.0, -20.0)),
         ("policy_aggressive", (-12.0, -18.0)),
@@ -621,7 +621,7 @@ def write_sample_generalization_csv(path):
         )
         add_group(
             rows,
-            agent="policy_general",
+            agent="policy_general_mc",
             opponent=variant,
             profit_by_seed=general_profits[variant],
             win_rate=70.0 if variant != "aggressive_extreme" else 5.0,

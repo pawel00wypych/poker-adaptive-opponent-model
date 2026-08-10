@@ -7,11 +7,11 @@ from src.experiments.run_training_suite import (
 )
 
 
-def test_single_policy_command_uses_correct_module(
+def test_general_policy_command_uses_correct_module(
     tmp_path,
 ):
     job = TrainingJob(
-        model_type="single_policy",
+        model_type="general_policy",
         seed=42,
         episodes=5_000,
         epsilon_schedule="linear",
@@ -27,7 +27,7 @@ def test_single_policy_command_uses_correct_module(
     command = build_command(job)
 
     assert (
-        "src.experiments.run_single_policy_training"
+        "src.experiments.run_general_policy_training"
         in command
     )
 
@@ -108,7 +108,7 @@ def test_build_jobs_creates_every_model_seed_pair(
 ):
     runnable, skipped = build_jobs(
         models=[
-            "single_policy",
+            "general_policy",
             "tight",
             "aggressive",
             "calling",
@@ -135,7 +135,7 @@ def test_existing_final_model_is_skipped(
     job_directory = (
         Path(tmp_path)
         / "seed_42"
-        / "single_policy"
+        / "general_policy"
     )
 
     job_directory.mkdir(
@@ -147,7 +147,7 @@ def test_existing_final_model_is_skipped(
     ).write_bytes(b"existing")
 
     runnable, skipped = build_jobs(
-        models=["single_policy"],
+        models=["general_policy"],
         seeds=[42],
         episodes=5_000,
         epsilon_schedule="linear",
