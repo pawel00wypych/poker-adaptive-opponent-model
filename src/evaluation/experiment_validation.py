@@ -18,7 +18,7 @@ from src.evaluation.constants import (
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_TIGHT_AGENT,
-    POLICY_UNKNOWN_AGENT,
+    POLICY_GENERAL_AGENT,
     RULE_BASED_AGENT,
 )
 from src.evaluation.html_utils import write_text
@@ -75,7 +75,7 @@ HEAD_TO_HEAD_SPECIALIST_AGENTS = (
 )
 
 HEAD_TO_HEAD_LEARNED_AGENTS = (
-    POLICY_UNKNOWN_AGENT,
+    POLICY_GENERAL_AGENT,
     ADAPTIVE_MC_AGENT,
     POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
@@ -85,7 +85,7 @@ HEAD_TO_HEAD_LEARNED_AGENTS = (
 GENERALIZATION_CORE_AGENTS = (
     ADAPTIVE_MC_AGENT,
     ORACLE_MC_AGENT,
-    POLICY_UNKNOWN_AGENT,
+    POLICY_GENERAL_AGENT,
     RULE_BASED_AGENT,
     ALWAYS_RAISE_AGENT,
 )
@@ -112,11 +112,11 @@ class ValidationThresholds:
     high_always_raise_mean_profit_bb: float = 18.0
     high_always_raise_win_rate: float = 95.0
     min_head_to_head_mean_profit_bb: float = 0.0
-    max_adaptive_underperformance_vs_unknown_bb: float = 1.0
+    max_adaptive_underperformance_vs_general_bb: float = 1.0
     always_raise_stress_loss_bb: float = -15.0
     always_raise_stress_bust_rate: float = 80.0
     min_generalization_positive_variants: int = 3
-    min_generalization_adaptive_beats_unknown_variants: int = 3
+    min_generalization_adaptive_beats_general_variants: int = 3
     min_generalization_adaptive_beats_rule_based_variants: int = 3
     max_generalization_oracle_gap_bb: float = 3.0
     generalization_extreme_aggressive_min_profit_bb: float = -5.0
@@ -984,9 +984,9 @@ def validate_head_to_head_rule_based_performance(
     return [
         _profit_check_result(
             best_rows=best_rows,
-            agent_name=POLICY_UNKNOWN_AGENT,
+            agent_name=POLICY_GENERAL_AGENT,
             opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
-            check_name="Fixed unknown policy beats RuleBasedPlayer",
+            check_name="Fixed general policy beats RuleBasedPlayer",
             category="head_to_head_rule_based",
             thresholds=thresholds,
         ),
@@ -1072,12 +1072,12 @@ def validate_head_to_head_specialist_rule_based_performance(
     ]
 
 
-def validate_adaptive_not_worse_than_unknown_rule_based(
+def validate_adaptive_not_worse_than_general_rule_based(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     check_name = (
-        "Adaptive not significantly worse than fixed unknown "
+        "Adaptive not significantly worse than fixed general "
         "vs RuleBasedPlayer"
     )
     adaptive_row = _find_row(
@@ -1085,9 +1085,9 @@ def validate_adaptive_not_worse_than_unknown_rule_based(
         ADAPTIVE_MC_AGENT,
         HEAD_TO_HEAD_RULE_BASED_OPPONENT,
     )
-    unknown_row = _find_row(
+    general_row = _find_row(
         best_rows,
-        POLICY_UNKNOWN_AGENT,
+        POLICY_GENERAL_AGENT,
         HEAD_TO_HEAD_RULE_BASED_OPPONENT,
     )
 
@@ -1101,20 +1101,20 @@ def validate_adaptive_not_worse_than_unknown_rule_based(
             )
         ]
 
-    if unknown_row is None:
+    if general_row is None:
         return [
             _missing_row_result(
                 check_name,
                 "head_to_head_adaptive_gap",
-                POLICY_UNKNOWN_AGENT,
+                POLICY_GENERAL_AGENT,
                 HEAD_TO_HEAD_RULE_BASED_OPPONENT,
             )
         ]
 
     adaptive_gap = float(
-        adaptive_row["mean_profit_bb"] - unknown_row["mean_profit_bb"]
+        adaptive_row["mean_profit_bb"] - general_row["mean_profit_bb"]
     )
-    threshold = -thresholds.max_adaptive_underperformance_vs_unknown_bb
+    threshold = -thresholds.max_adaptive_underperformance_vs_general_bb
     status = STATUS_PASS if adaptive_gap >= threshold else STATUS_WARNING
 
     return [
@@ -1128,7 +1128,7 @@ def validate_adaptive_not_worse_than_unknown_rule_based(
             observed_value=adaptive_gap,
             threshold=threshold,
             message=(
-                "Adaptive minus fixed unknown mean profit vs "
+                "Adaptive minus fixed general mean profit vs "
                 "RuleBasedPlayer is "
                 f"{_format_float(adaptive_gap)} BB/game."
             ),
@@ -1136,11 +1136,11 @@ def validate_adaptive_not_worse_than_unknown_rule_based(
                 "adaptive_mean_profit_bb": float(
                     adaptive_row["mean_profit_bb"]
                 ),
-                "unknown_mean_profit_bb": float(
-                    unknown_row["mean_profit_bb"]
+                "general_mean_profit_bb": float(
+                    general_row["mean_profit_bb"]
                 ),
                 "max_underperformance_bb": (
-                    thresholds.max_adaptive_underperformance_vs_unknown_bb
+                    thresholds.max_adaptive_underperformance_vs_general_bb
                 ),
             },
         )
@@ -1780,14 +1780,14 @@ def validate_generalization_results_from_best_rows(
         validate_generalization_adaptive_beats_agent(
             best_rows,
             thresholds,
-            baseline_agent_name=POLICY_UNKNOWN_AGENT,
+            baseline_agent_name=POLICY_GENERAL_AGENT,
             min_successful_variants=(
-                thresholds.min_generalization_adaptive_beats_unknown_variants
+                thresholds.min_generalization_adaptive_beats_general_variants
             ),
             check_name=(
-                "Adaptive beats fixed unknown on generalization variants"
+                "Adaptive beats fixed general on generalization variants"
             ),
-            category="generalization_adaptive_delta_vs_unknown",
+            category="generalization_adaptive_delta_vs_general",
             fail_on_underperformance=True,
             opponents=opponents,
         )
@@ -1881,7 +1881,7 @@ def validate_head_to_head_results_from_best_rows(
         )
     )
     checks.extend(
-        validate_adaptive_not_worse_than_unknown_rule_based(
+        validate_adaptive_not_worse_than_general_rule_based(
             best_rows,
             thresholds,
         )

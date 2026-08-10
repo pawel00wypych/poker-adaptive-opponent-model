@@ -26,10 +26,10 @@ TESTED_AGENT_ORACLE_DOUBLE_Q_LEARNING = "oracle_double_q_learning"
 TESTED_AGENT_ADAPTIVE_Q_LEARNING = "adaptive_q_learning"
 TESTED_AGENT_ADAPTIVE_SARSA = "adaptive_sarsa"
 TESTED_AGENT_ADAPTIVE_DOUBLE_Q_LEARNING = "adaptive_double_q_learning"
-TESTED_AGENT_POLICY_UNKNOWN_MC = "policy_unknown_mc"
-TESTED_AGENT_POLICY_UNKNOWN_Q_LEARNING = "policy_unknown_q_learning"
-TESTED_AGENT_POLICY_UNKNOWN_SARSA = "policy_unknown_sarsa"
-TESTED_AGENT_POLICY_UNKNOWN_DOUBLE_Q_LEARNING = "policy_unknown_double_q_learning"
+TESTED_AGENT_POLICY_GENERAL_MC = "policy_general_mc"
+TESTED_AGENT_POLICY_GENERAL_Q_LEARNING = "policy_general_q_learning"
+TESTED_AGENT_POLICY_GENERAL_SARSA = "policy_general_sarsa"
+TESTED_AGENT_POLICY_GENERAL_DOUBLE_Q_LEARNING = "policy_general_double_q_learning"
 
 TESTED_AGENTS = (
     TESTED_AGENT_RULE_BASED,

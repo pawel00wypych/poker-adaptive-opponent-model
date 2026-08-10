@@ -145,9 +145,9 @@ def test_build_selected_targets_uses_all_requested_seeds_and_policies(tmp_path):
     ]
 
     assert names == [
-        "policy_unknown_seed_42_cp_2000",
+        "policy_general_seed_42_cp_2000",
         "policy_calling_seed_42_cp_2000",
-        "policy_unknown_seed_123_cp_2000",
+        "policy_general_seed_123_cp_2000",
         "policy_calling_seed_123_cp_2000",
     ]
 
@@ -224,7 +224,7 @@ def test_summarize_q_table_counts_best_actions(tmp_path):
         q_table=q_table,
     )
 
-    assert summary.name == "policy_unknown_seed_42_cp_2000"
+    assert summary.name == "policy_general_seed_42_cp_2000"
     assert summary.policy_type == "unknown"
     assert summary.seed == 42
     assert summary.checkpoint_episode == 2000
