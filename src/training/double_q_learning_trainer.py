@@ -11,14 +11,14 @@ from pypokerengine.api.game import (
 from src.agents.double_q_learning_agent import DoubleQLearningAgent
 from src.config import GameConfig, TrainingConfig
 from src.experiments.constants import (
-    MODEL_TYPE_SINGLE_POLICY,
+    MODEL_TYPE_GENERAL_POLICY,
     MODEL_TYPE_SPECIALIST,
 )
 from src.experiments.training_opponents import (
     build_opponent,
     build_training_opponent,
 )
-from src.players.single_policy_player import SinglePolicyPlayer
+from src.players.general_policy_player import GeneralPolicyPlayer
 from src.players.specialist_policy_player import SpecialistPolicyPlayer
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 from src.training.checkpoint_utils import (
@@ -44,8 +44,8 @@ def format_duration(seconds: float) -> str:
 
 
 def model_run_name(model_type: str) -> str:
-    if model_type == MODEL_TYPE_SINGLE_POLICY:
-        return MODEL_TYPE_SINGLE_POLICY
+    if model_type == MODEL_TYPE_GENERAL_POLICY:
+        return MODEL_TYPE_GENERAL_POLICY
 
     if model_type in TRAINING_OPPONENT_TYPES:
         return f"specialist_{model_type}"
@@ -136,10 +136,10 @@ def build_training_player(
     player_verbose: bool,
     player_log_interval: int,
 ):
-    if model_type == MODEL_TYPE_SINGLE_POLICY:
-        return SinglePolicyPlayer(
+    if model_type == MODEL_TYPE_GENERAL_POLICY:
+        return GeneralPolicyPlayer(
             agent=agent,
-            player_name="single_policy_double_q_learning",
+            player_name="general_policy_double_q_learning",
             verbose=player_verbose,
             log_interval=player_log_interval,
         )
@@ -163,7 +163,7 @@ def build_episode_opponent(
     model_type: str,
     episode_index: int,
 ):
-    if model_type == MODEL_TYPE_SINGLE_POLICY:
+    if model_type == MODEL_TYPE_GENERAL_POLICY:
         return build_training_opponent(episode_index)
 
     if model_type in TRAINING_OPPONENT_TYPES:
@@ -368,13 +368,13 @@ def run_double_q_learning_model_training(
 
             metadata = build_double_q_learning_metadata(
                 model_type=(
-                    MODEL_TYPE_SINGLE_POLICY
-                    if model_type == MODEL_TYPE_SINGLE_POLICY
+                    MODEL_TYPE_GENERAL_POLICY
+                    if model_type == MODEL_TYPE_GENERAL_POLICY
                     else MODEL_TYPE_SPECIALIST
                 ),
                 opponent_type=(
                     "mixed"
-                    if model_type == MODEL_TYPE_SINGLE_POLICY
+                    if model_type == MODEL_TYPE_GENERAL_POLICY
                     else model_type
                 ),
                 completed_episodes=completed_episodes,
@@ -387,7 +387,7 @@ def run_double_q_learning_model_training(
                 total_hands=total_hands,
                 opponent_counter=(
                     opponent_counter
-                    if model_type == MODEL_TYPE_SINGLE_POLICY
+                    if model_type == MODEL_TYPE_GENERAL_POLICY
                     else None
                 ),
             )
@@ -411,13 +411,13 @@ def run_double_q_learning_model_training(
 
     final_metadata = build_double_q_learning_metadata(
         model_type=(
-            MODEL_TYPE_SINGLE_POLICY
-            if model_type == MODEL_TYPE_SINGLE_POLICY
+            MODEL_TYPE_GENERAL_POLICY
+            if model_type == MODEL_TYPE_GENERAL_POLICY
             else MODEL_TYPE_SPECIALIST
         ),
         opponent_type=(
             "mixed"
-            if model_type == MODEL_TYPE_SINGLE_POLICY
+            if model_type == MODEL_TYPE_GENERAL_POLICY
             else model_type
         ),
         completed_episodes=total_episodes,
@@ -430,7 +430,7 @@ def run_double_q_learning_model_training(
         total_hands=total_hands,
         opponent_counter=(
             opponent_counter
-            if model_type == MODEL_TYPE_SINGLE_POLICY
+            if model_type == MODEL_TYPE_GENERAL_POLICY
             else None
         ),
     )

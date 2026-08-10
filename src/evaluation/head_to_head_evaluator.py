@@ -28,16 +28,14 @@ from src.evaluation.constants import (
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_TIGHT_AGENT,
-    POLICY_GENERAL_AGENT,
+    POLICY_GENERAL_MC_AGENT,
     RULE_BASED_AGENT,
-    SINGLE_POLICY_MC_AGENT,
 )
 from src.players.adaptive_player import AdaptivePlayer
 from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.players.rule_based_player import RuleBasedPlayer
-from src.players.single_policy_player import SinglePolicyPlayer
 
 
 HEAD_TO_HEAD_RULE_BASED_OPPONENT = RULE_BASED_AGENT
@@ -57,8 +55,8 @@ DEFAULT_HEAD_TO_HEAD_OPPONENTS = (
 )
 
 DEFAULT_HEAD_TO_HEAD_AGENTS = (
-    POLICY_GENERAL_AGENT,
     ADAPTIVE_MC_AGENT,
+    POLICY_GENERAL_MC_AGENT,
     POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
@@ -67,9 +65,8 @@ DEFAULT_HEAD_TO_HEAD_AGENTS = (
 )
 
 SUPPORTED_HEAD_TO_HEAD_AGENTS = {
-    SINGLE_POLICY_MC_AGENT,
     ADAPTIVE_MC_AGENT,
-    POLICY_GENERAL_AGENT,
+    POLICY_GENERAL_MC_AGENT,
     POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
@@ -158,16 +155,6 @@ def build_head_to_head_tested_player(
     validate_head_to_head_agent(
         tested_agent_name
     )
-
-    if tested_agent_name == SINGLE_POLICY_MC_AGENT:
-        agent = load_eval_agent(
-            bundle.unknown_model_path
-        )
-
-        return SinglePolicyPlayer(
-            agent=agent,
-            player_name=SINGLE_POLICY_MC_AGENT,
-        )
 
     if tested_agent_name == ALWAYS_RAISE_AGENT:
         return AlwaysRaisePlayer(

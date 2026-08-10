@@ -36,7 +36,7 @@ from src.evaluation.constants import (
     SARSA_POLICY_AGENT_TO_POLICY_TYPE,
     DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
     RULE_BASED_AGENT,
-    SINGLE_POLICY_MC_AGENT,
+    POLICY_GENERAL_MC_AGENT,
     SUPPORTED_TESTED_AGENTS,
 )
 from src.experiments.training_opponents import build_opponent
@@ -44,7 +44,6 @@ from src.players.adaptive_player import AdaptivePlayer
 from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.rule_based_player import RuleBasedPlayer
-from src.players.single_policy_player import SinglePolicyPlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.players.oracle_player import OraclePlayer
 from src.poker.constants import (
@@ -638,16 +637,6 @@ def build_tested_player(
     if tested_agent_name == ALWAYS_CALL_AGENT:
         return AlwaysCallPlayer(
             player_name=ALWAYS_CALL_AGENT
-        )
-
-    if tested_agent_name == SINGLE_POLICY_MC_AGENT:
-        agent = load_eval_agent(
-            bundle.unknown_model_path
-        )
-
-        return SinglePolicyPlayer(
-            agent=agent,
-            player_name=SINGLE_POLICY_MC_AGENT,
         )
 
     if tested_agent_name == ADAPTIVE_MC_AGENT:

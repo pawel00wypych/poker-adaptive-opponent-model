@@ -5,7 +5,7 @@ from time import perf_counter
 from typing import Sequence
 
 from src.experiments.constants import (
-    MODEL_TYPE_SINGLE_POLICY,
+    MODEL_TYPE_GENERAL_POLICY,
     MODEL_TYPES,
 )
 from src.training.constants import SUPPORTED_EPSILON_SCHEDULES
@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Train tabular Double Q-learning poker policies. "
-            "By default this trains the general single policy "
+            "By default this trains the general general policy "
             "and all specialist policies."
         )
     )
@@ -47,7 +47,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         default=list(MODEL_TYPES),
         help=(
-            "Models to train: single_policy or one of the "
+            "Models to train: general_policy or one of the "
             "specialist opponent types."
         ),
     )

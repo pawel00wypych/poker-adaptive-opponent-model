@@ -17,7 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Train tabular SARSA poker policies. "
-            "By default this trains the general single policy "
+            "By default this trains the general general policy "
             "and all specialist policies."
         )
     )
@@ -43,7 +43,7 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         default=list(MODEL_TYPES),
         help=(
-            "Models to train: single_policy or one of the "
+            "Models to train: general_policy or one of the "
             "specialist opponent types."
         ),
     )

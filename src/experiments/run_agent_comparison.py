@@ -11,8 +11,8 @@ from src.agents.monte_carlo_agent import (
 from src.players.rule_based_player import (
     RuleBasedPlayer,
 )
-from src.players.single_policy_player import (
-    SinglePolicyPlayer,
+from src.players.general_policy_player import (
+    GeneralPolicyPlayer,
 )
 from src.config import (
     EvaluationConfig,
@@ -26,7 +26,7 @@ from src.experiments.constants import (
     TESTED_AGENT_ADAPTIVE_MC,
     TESTED_AGENT_RULE_BASED,
     TESTED_AGENT_ALWAYS_RAISE,
-    TESTED_AGENT_SINGLE_POLICY_MC,
+    TESTED_AGENT_POLICY_GENERAL_MC,
     TESTED_AGENTS,
 )
 from src.experiments.training_opponents import (
@@ -34,7 +34,7 @@ from src.experiments.training_opponents import (
 )
 from src.players.constants import (
     PLAYER_NAME_ADAPTIVE_MC,
-    PLAYER_NAME_SINGLE_POLICY_MC,
+    PLAYER_NAME_POLICY_GENERAL_MC,
 )
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
@@ -61,7 +61,7 @@ def load_adaptive_agents(
 ) -> dict[str, MonteCarloAgent]:
     return {
         OPPONENT_TYPE_UNKNOWN: load_eval_agent(
-            training_config.single_policy_model_path
+            training_config.general_policy_model_path
         ),
         OPPONENT_TYPE_TIGHT: load_eval_agent(
             training_config.tight_model_path
@@ -91,14 +91,14 @@ def build_tested_player(
             player_name=TESTED_AGENT_ALWAYS_RAISE
         )
 
-    if agent_name == TESTED_AGENT_SINGLE_POLICY_MC:
+    if agent_name == TESTED_AGENT_POLICY_GENERAL_MC:
         agent = load_eval_agent(
-            training_config.single_policy_model_path
+            training_config.general_policy_model_path
         )
 
-        return SinglePolicyPlayer(
+        return GeneralPolicyPlayer(
             agent=agent,
-            player_name=PLAYER_NAME_SINGLE_POLICY_MC,
+            player_name=PLAYER_NAME_POLICY_GENERAL_MC,
         )
 
     if agent_name == TESTED_AGENT_ADAPTIVE_MC:

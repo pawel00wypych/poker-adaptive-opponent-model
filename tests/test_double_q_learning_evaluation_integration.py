@@ -53,7 +53,7 @@ def create_checkpoint_bundle_files(
     episode: int,
 ) -> None:
     files = [
-        ("single_policy", "single_policy"),
+        ("general_policy", "general_policy"),
         ("specialist_tight", "specialist_tight"),
         ("specialist_aggressive", "specialist_aggressive"),
         ("specialist_calling", "specialist_calling"),
@@ -128,7 +128,7 @@ def test_build_model_bundle_includes_double_q_learning_paths(tmp_path):
         == tmp_path / "double_q_learning_run"
     )
     assert bundle.double_q_learning_agent_paths()[OPPONENT_TYPE_UNKNOWN].name == (
-        "single_policy_episodes_2000_seed_42.pkl"
+        "general_policy_episodes_2000_seed_42.pkl"
     )
 
 

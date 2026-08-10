@@ -18,7 +18,7 @@ from src.evaluation.constants import (
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_TIGHT_AGENT,
-    POLICY_GENERAL_AGENT,
+    POLICY_GENERAL_MC_AGENT,
     RULE_BASED_AGENT,
 )
 from src.evaluation.html_utils import write_text
@@ -75,7 +75,7 @@ HEAD_TO_HEAD_SPECIALIST_AGENTS = (
 )
 
 HEAD_TO_HEAD_LEARNED_AGENTS = (
-    POLICY_GENERAL_AGENT,
+    POLICY_GENERAL_MC_AGENT,
     ADAPTIVE_MC_AGENT,
     POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
@@ -85,7 +85,7 @@ HEAD_TO_HEAD_LEARNED_AGENTS = (
 GENERALIZATION_CORE_AGENTS = (
     ADAPTIVE_MC_AGENT,
     ORACLE_MC_AGENT,
-    POLICY_GENERAL_AGENT,
+    POLICY_GENERAL_MC_AGENT,
     RULE_BASED_AGENT,
     ALWAYS_RAISE_AGENT,
 )
@@ -984,7 +984,7 @@ def validate_head_to_head_rule_based_performance(
     return [
         _profit_check_result(
             best_rows=best_rows,
-            agent_name=POLICY_GENERAL_AGENT,
+            agent_name=POLICY_GENERAL_MC_AGENT,
             opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
             check_name="Fixed general policy beats RuleBasedPlayer",
             category="head_to_head_rule_based",
@@ -1087,7 +1087,7 @@ def validate_adaptive_not_worse_than_general_rule_based(
     )
     general_row = _find_row(
         best_rows,
-        POLICY_GENERAL_AGENT,
+        POLICY_GENERAL_MC_AGENT,
         HEAD_TO_HEAD_RULE_BASED_OPPONENT,
     )
 
@@ -1106,7 +1106,7 @@ def validate_adaptive_not_worse_than_general_rule_based(
             _missing_row_result(
                 check_name,
                 "head_to_head_adaptive_gap",
-                POLICY_GENERAL_AGENT,
+                POLICY_GENERAL_MC_AGENT,
                 HEAD_TO_HEAD_RULE_BASED_OPPONENT,
             )
         ]
@@ -1780,7 +1780,7 @@ def validate_generalization_results_from_best_rows(
         validate_generalization_adaptive_beats_agent(
             best_rows,
             thresholds,
-            baseline_agent_name=POLICY_GENERAL_AGENT,
+            baseline_agent_name=POLICY_GENERAL_MC_AGENT,
             min_successful_variants=(
                 thresholds.min_generalization_adaptive_beats_general_variants
             ),

@@ -15,7 +15,7 @@ from time import perf_counter
 from typing import Sequence
 
 from src.experiments.constants import (
-    MODEL_TYPE_SINGLE_POLICY,
+    MODEL_TYPE_GENERAL_POLICY,
     MODEL_TYPES,
 )
 from src.training.constants import (
@@ -38,8 +38,8 @@ class TrainingJob:
 
     @property
     def run_name(self) -> str:
-        if self.model_type == MODEL_TYPE_SINGLE_POLICY:
-            return MODEL_TYPE_SINGLE_POLICY
+        if self.model_type == MODEL_TYPE_GENERAL_POLICY:
+            return MODEL_TYPE_GENERAL_POLICY
 
         return f"specialist_{self.model_type}"
 
@@ -263,11 +263,11 @@ def build_command(job: TrainingJob) -> list[str]:
         "--no-engine-verbose",
     ]
 
-    if job.model_type == MODEL_TYPE_SINGLE_POLICY:
+    if job.model_type == MODEL_TYPE_GENERAL_POLICY:
         return [
             sys.executable,
             "-m",
-            "src.experiments.run_single_policy_training",
+            "src.experiments.run_general_policy_training",
             *common_arguments,
         ]
 

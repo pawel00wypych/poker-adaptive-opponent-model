@@ -53,7 +53,7 @@ def create_checkpoint_bundle_files(
     episode: int,
 ) -> None:
     files = [
-        ("single_policy", "single_policy"),
+        ("general_policy", "general_policy"),
         ("specialist_tight", "specialist_tight"),
         ("specialist_aggressive", "specialist_aggressive"),
         ("specialist_calling", "specialist_calling"),
@@ -125,7 +125,7 @@ def test_build_model_bundle_includes_sarsa_paths(tmp_path):
     assert bundle.has_sarsa_models()
     assert bundle.sarsa_training_run_directory == tmp_path / "sarsa_run"
     assert bundle.sarsa_agent_paths()[OPPONENT_TYPE_UNKNOWN].name == (
-        "single_policy_episodes_2000_seed_42.pkl"
+        "general_policy_episodes_2000_seed_42.pkl"
     )
 
 

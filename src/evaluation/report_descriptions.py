@@ -34,8 +34,6 @@ AGENT_LABELS = {
     "oracle_q_learning": "Oracle Q-learning",
     "oracle_sarsa": "Oracle SARSA",
     "oracle_double_q_learning": "Oracle Double Q-learning",
-    "single_policy_mc": "Single-policy Monte Carlo",
-    "policy_general": "Fixed general policy",
     "policy_general_mc": "Fixed general Monte Carlo policy",
     "policy_general_q_learning": "Fixed general Q-learning policy",
     "policy_general_sarsa": "Fixed general SARSA policy",

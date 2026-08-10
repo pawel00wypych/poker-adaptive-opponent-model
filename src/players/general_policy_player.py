@@ -1,12 +1,12 @@
 from src.players.player_template import PlayerTemplate
 from src.features.state_encoder import StateEncoder
 from src.poker.constants import OPPONENT_TYPE_UNKNOWN
-from src.players.constants import PLAYER_NAME_SINGLE_POLICY
+from src.players.constants import PLAYER_NAME_GENERAL_POLICY
 from src.poker.action_mapper import ActionMapper
 from src.poker.round_state_utils import get_player_stack
 
 
-class SinglePolicyPlayer(PlayerTemplate):
+class GeneralPolicyPlayer(PlayerTemplate):
     """
     Poker player using one shared policy without opponent modelling.
     """
@@ -14,7 +14,7 @@ class SinglePolicyPlayer(PlayerTemplate):
     def __init__(
         self,
         agent,
-        player_name: str = PLAYER_NAME_SINGLE_POLICY,
+        player_name: str = PLAYER_NAME_GENERAL_POLICY,
         verbose: bool = False,
         log_interval: int = 1,
     ):
@@ -69,7 +69,7 @@ class SinglePolicyPlayer(PlayerTemplate):
 
         if self.verbose and self.hands_played % self.log_interval == 0:
             print(
-                "[SinglePolicyPlayer] "
+                "[GeneralPolicyPlayer] "
                 f"round={round_state.get('round_count')}, "
                 f"stack={final_stack}, "
                 f"reward_bb={reward_bb:.2f}, "

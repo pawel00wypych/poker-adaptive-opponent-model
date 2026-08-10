@@ -10,7 +10,7 @@ from time import perf_counter
 from src.experiments.constants import (
     TESTED_AGENT_ADAPTIVE_MC,
     TESTED_AGENT_RULE_BASED,
-    TESTED_AGENT_SINGLE_POLICY_MC,
+    TESTED_AGENT_POLICY_GENERAL_MC,
 )
 from src.evaluation.checkpoint_evaluator import (
     SUPPORTED_TESTED_AGENTS,
@@ -105,7 +105,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=sorted(SUPPORTED_TESTED_AGENTS),
         nargs="+",
         default=[
-            TESTED_AGENT_SINGLE_POLICY_MC,
+            TESTED_AGENT_POLICY_GENERAL_MC,
             TESTED_AGENT_ADAPTIVE_MC,
             TESTED_AGENT_RULE_BASED,
         ],
