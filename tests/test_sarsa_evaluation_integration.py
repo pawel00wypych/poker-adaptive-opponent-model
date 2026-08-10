@@ -210,7 +210,7 @@ def test_build_generalization_sarsa_adaptive_uses_base_family(
 
     player = build_generalization_tested_player(
         tested_agent_name=ADAPTIVE_SARSA_AGENT,
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
         bundle=make_bundle_with_sarsa_paths(tmp_path),
     )
 
@@ -232,7 +232,7 @@ def test_build_generalization_sarsa_unknown_policy(tmp_path, monkeypatch):
 
     player = build_generalization_tested_player(
         tested_agent_name=POLICY_UNKNOWN_SARSA_AGENT,
-        opponent_name="strong_calling",
+        opponent_name="calling_extreme",
         bundle=make_bundle_with_sarsa_paths(tmp_path),
     )
 

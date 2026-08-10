@@ -2,7 +2,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Iterable
 
-from PyPokerEngine.pypokerengine.api.game import (
+from pypokerengine.api.game import (
     setup_config,
     start_poker,
 )

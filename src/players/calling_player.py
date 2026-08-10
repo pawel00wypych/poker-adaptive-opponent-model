@@ -9,7 +9,7 @@ class CallingPlayer(TrackingPlayerMixin, PlayerTemplate):
 
     This player intentionally models a clear call-heavy behavioural profile,
     not a strong poker heuristic. More selective passive play is represented by
-    StrongCallingPlayer and rule-based logic is kept in RuleBasedPlayer.
+    CallingExtremePlayer and rule-based logic is kept in RuleBasedPlayer.
     """
 
     def __init__(self, player_name: str = "calling_player"):

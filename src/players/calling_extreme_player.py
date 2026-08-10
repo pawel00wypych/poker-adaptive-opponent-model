@@ -11,7 +11,7 @@ MEDIUM_HAND_STRENGTH_BIN = 2
 STRONG_HAND_STRENGTH_BIN = 3
 
 
-class StrongCallingPlayer(TrackingPlayerMixin, PlayerTemplate):
+class CallingExtremePlayer(TrackingPlayerMixin, PlayerTemplate):
     """
     More selective calling-family opponent for generalization tests.
 
@@ -22,7 +22,7 @@ class StrongCallingPlayer(TrackingPlayerMixin, PlayerTemplate):
 
     def __init__(
         self,
-        player_name: str = "strong_calling",
+        player_name: str = "calling_extreme",
         rng: random.Random | None = None,
         call_probability: float = 0.82,
         max_call_stack_ratio: float = 0.40,

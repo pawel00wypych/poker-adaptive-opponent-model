@@ -1,6 +1,6 @@
 from typing import Any
 
-from PyPokerEngine.pypokerengine.engine.card import Card
+from pypokerengine.engine.card import Card
 
 
 class PokerContextEncoder:
