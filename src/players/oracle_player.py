@@ -11,10 +11,10 @@ from src.poker.round_state_utils import (
     get_player_stack,
     get_round_count,
 )
-from src.players.constants import PLAYER_NAME_ORACLE_ADAPTIVE
+from src.players.constants import PLAYER_NAME_ORACLE_MC
 
 
-class OracleAdaptivePlayer(PlayerTemplate):
+class OraclePlayer(PlayerTemplate):
     """
     Adaptive upper-bound baseline.
 
@@ -32,7 +32,7 @@ class OracleAdaptivePlayer(PlayerTemplate):
         self,
         agents: dict,
         oracle_opponent_type: str,
-        player_name: str = PLAYER_NAME_ORACLE_ADAPTIVE,
+        player_name: str = PLAYER_NAME_ORACLE_MC,
         verbose: bool = False,
         log_interval: int = 1,
     ):
@@ -117,7 +117,7 @@ class OracleAdaptivePlayer(PlayerTemplate):
 
         if self.verbose:
             print(
-                "[OracleAdaptiveDecision] "
+                "[OracleDecision] "
                 f"round={get_round_count(round_state)}, "
                 f"oracle_type={self.oracle_opponent_type}, "
                 f"active_policy={self.active_policy_type}, "
@@ -168,7 +168,7 @@ class OracleAdaptivePlayer(PlayerTemplate):
             and self.hands_played % self.log_interval == 0
         ):
             print(
-                "[OracleAdaptivePlayer] "
+                "[OraclePlayer] "
                 f"round={get_round_count(round_state)}, "
                 f"stack={final_stack}, "
                 f"reward_bb={reward_bb:.2f}, "

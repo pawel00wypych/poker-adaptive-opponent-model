@@ -98,7 +98,10 @@ def write_sample_results_csv(path):
     add_group(rows, agent="adaptive_sarsa", opponent="calling", profits=(11.0, 11.0))
     add_group(rows, agent="adaptive_double_q_learning", opponent="calling", profits=(9.0, 9.0))
     add_group(rows, agent="rule_based", opponent="calling", profits=(0.0, 0.0))
-    add_group(rows, agent="oracle_adaptive", opponent="calling", profits=(14.0, 14.0))
+    add_group(rows, agent="oracle_mc", opponent="calling", profits=(14.0, 14.0))
+    add_group(rows, agent="oracle_q_learning", opponent="calling", profits=(15.0, 15.0))
+    add_group(rows, agent="oracle_sarsa", opponent="calling", profits=(14.0, 14.0))
+    add_group(rows, agent="oracle_double_q_learning", opponent="calling", profits=(13.0, 13.0))
 
     # aggressive_extreme: Double Q-learning is best and beats MC.
     add_group(rows, agent="adaptive_mc", opponent="aggressive_extreme", profits=(-8.0, -8.0))
@@ -106,7 +109,10 @@ def write_sample_results_csv(path):
     add_group(rows, agent="adaptive_sarsa", opponent="aggressive_extreme", profits=(-3.0, -3.0))
     add_group(rows, agent="adaptive_double_q_learning", opponent="aggressive_extreme", profits=(1.0, 1.0))
     add_group(rows, agent="rule_based", opponent="aggressive_extreme", profits=(-10.0, -10.0))
-    add_group(rows, agent="oracle_adaptive", opponent="aggressive_extreme", profits=(2.0, 2.0))
+    add_group(rows, agent="oracle_mc", opponent="aggressive_extreme", profits=(2.0, 2.0))
+    add_group(rows, agent="oracle_q_learning", opponent="aggressive_extreme", profits=(3.0, 3.0))
+    add_group(rows, agent="oracle_sarsa", opponent="aggressive_extreme", profits=(2.5, 2.5))
+    add_group(rows, agent="oracle_double_q_learning", opponent="aggressive_extreme", profits=(4.0, 4.0))
 
     pd.DataFrame(rows).to_csv(path, index=False)
 
@@ -173,11 +179,22 @@ def test_algorithm_ranking_and_deltas_are_computed_per_opponent():
                 "training_run": "run",
                 "opponent_name": "calling",
                 "checkpoint_episode": 1000,
-                "agent_name": "oracle_adaptive",
+                "agent_name": "oracle_mc",
                 "mean_profit_bb": 14.0,
                 "bb_per_100": 28.0,
                 "win_rate": 90.0,
                 "bust_rate": 2.0,
+                "mean_profit_bb_std_across_seeds": 1.0,
+            },
+            {
+                "training_run": "run",
+                "opponent_name": "calling",
+                "checkpoint_episode": 1000,
+                "agent_name": "oracle_q_learning",
+                "mean_profit_bb": 15.0,
+                "bb_per_100": 30.0,
+                "win_rate": 92.0,
+                "bust_rate": 1.0,
                 "mean_profit_bb_std_across_seeds": 1.0,
             },
         ]
@@ -193,7 +210,8 @@ def test_algorithm_ranking_and_deltas_are_computed_per_opponent():
     assert q_row["rank"] == 1
     assert q_row["delta_vs_monte_carlo"] == 2.0
     assert q_row["delta_vs_rule_based"] == 11.0
-    assert q_row["delta_vs_oracle"] == -2.0
+    assert q_row["delta_vs_oracle"] == -3.0
+    assert mc_row["delta_vs_oracle"] == -4.0
     assert mc_row["delta_vs_monte_carlo"] == 0.0
 
 

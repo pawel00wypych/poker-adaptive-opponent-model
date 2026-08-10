@@ -358,11 +358,14 @@ from src.evaluation.checkpoint_evaluator import (
     get_classifier_metrics,
 )
 from src.players.fixed_policy_player import FixedPolicyPlayer
-from src.players.oracle_adaptive_player import OracleAdaptivePlayer
+from src.players.oracle_player import OraclePlayer
 
 
 def test_supported_agents_include_oracle_and_cross_policy_agents():
-    assert "oracle_adaptive" in SUPPORTED_TESTED_AGENTS
+    assert "oracle_mc" in SUPPORTED_TESTED_AGENTS
+    assert "oracle_q_learning" in SUPPORTED_TESTED_AGENTS
+    assert "oracle_sarsa" in SUPPORTED_TESTED_AGENTS
+    assert "oracle_double_q_learning" in SUPPORTED_TESTED_AGENTS
     assert "policy_unknown" in SUPPORTED_TESTED_AGENTS
     assert "policy_tight" in SUPPORTED_TESTED_AGENTS
     assert "policy_aggressive" in SUPPORTED_TESTED_AGENTS
@@ -391,7 +394,7 @@ def test_cross_policy_agent_mapping():
 def test_oracle_classifier_metrics_are_perfect(
     adaptive_agents,
 ):
-    player = OracleAdaptivePlayer(
+    player = OraclePlayer(
         agents=adaptive_agents,
         oracle_opponent_type="calling",
     )

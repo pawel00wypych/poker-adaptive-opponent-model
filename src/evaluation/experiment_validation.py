@@ -14,7 +14,7 @@ from src.evaluation.checkpoint_report import (
 from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
     ALWAYS_RAISE_AGENT,
-    ORACLE_ADAPTIVE_AGENT,
+    ORACLE_MC_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_TIGHT_AGENT,
@@ -84,7 +84,7 @@ HEAD_TO_HEAD_LEARNED_AGENTS = (
 
 GENERALIZATION_CORE_AGENTS = (
     ADAPTIVE_MC_AGENT,
-    ORACLE_ADAPTIVE_AGENT,
+    ORACLE_MC_AGENT,
     POLICY_UNKNOWN_AGENT,
     RULE_BASED_AGENT,
     ALWAYS_RAISE_AGENT,
@@ -388,7 +388,7 @@ def validate_oracle_not_worse_than_adaptive(
     for opponent_name in opponents:
         oracle_row = _find_row(
             best_rows,
-            ORACLE_ADAPTIVE_AGENT,
+            ORACLE_MC_AGENT,
             opponent_name,
         )
         adaptive_row = _find_row(
@@ -406,7 +406,7 @@ def validate_oracle_not_worse_than_adaptive(
                 _missing_row_result(
                     check_name,
                     "oracle_gap",
-                    ORACLE_ADAPTIVE_AGENT,
+                    ORACLE_MC_AGENT,
                     opponent_name,
                 )
             )
@@ -438,7 +438,7 @@ def validate_oracle_not_worse_than_adaptive(
                 check_name=check_name,
                 status=status,
                 category="oracle_gap",
-                agent_name=ORACLE_ADAPTIVE_AGENT,
+                agent_name=ORACLE_MC_AGENT,
                 opponent_name=opponent_name,
                 checkpoint_episode=_checkpoint_episode(oracle_row),
                 observed_value=oracle_gap,
@@ -1500,7 +1500,7 @@ def validate_generalization_oracle_gap(
         )
         oracle_row = _find_row(
             best_rows,
-            ORACLE_ADAPTIVE_AGENT,
+            ORACLE_MC_AGENT,
             opponent_name,
         )
         check_name = f"Generalization oracle gap vs {opponent_name}"
@@ -1521,7 +1521,7 @@ def validate_generalization_oracle_gap(
                 _missing_row_result(
                     check_name,
                     "generalization_oracle_gap",
-                    ORACLE_ADAPTIVE_AGENT,
+                    ORACLE_MC_AGENT,
                     opponent_name,
                 )
             )

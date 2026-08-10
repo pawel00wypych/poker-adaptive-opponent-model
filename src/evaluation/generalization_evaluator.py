@@ -34,7 +34,10 @@ from src.evaluation.constants import (
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
     CROSS_POLICY_AGENT_TO_POLICY_TYPE,
-    ORACLE_ADAPTIVE_AGENT,
+    ORACLE_MC_AGENT,
+    ORACLE_Q_LEARNING_AGENT,
+    ORACLE_SARSA_AGENT,
+    ORACLE_DOUBLE_Q_LEARNING_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_TIGHT_AGENT,
@@ -58,7 +61,7 @@ from src.players.generalization_opponents import (
     get_generalization_opponent_base_type,
     was_generalization_opponent_seen_during_training,
 )
-from src.players.oracle_adaptive_player import OracleAdaptivePlayer
+from src.players.oracle_player import OraclePlayer
 from src.players.rule_based_player import RuleBasedPlayer
 
 
@@ -70,7 +73,7 @@ DEFAULT_GENERALIZATION_OPPONENTS = GENERALIZATION_OPPONENTS
 DEFAULT_GENERALIZATION_AGENTS = (
     POLICY_UNKNOWN_AGENT,
     ADAPTIVE_MC_AGENT,
-    ORACLE_ADAPTIVE_AGENT,
+    ORACLE_MC_AGENT,
     POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
@@ -83,6 +86,9 @@ SUPPORTED_GENERALIZATION_AGENTS = set(DEFAULT_GENERALIZATION_AGENTS) | {
     ADAPTIVE_Q_LEARNING_AGENT,
     ADAPTIVE_SARSA_AGENT,
     ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
+    ORACLE_Q_LEARNING_AGENT,
+    ORACLE_SARSA_AGENT,
+    ORACLE_DOUBLE_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_MC_AGENT,
     POLICY_UNKNOWN_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_SARSA_AGENT,
@@ -227,11 +233,35 @@ def build_generalization_tested_player(
             verbose=False,
         )
 
-    if tested_agent_name == ORACLE_ADAPTIVE_AGENT:
-        return OracleAdaptivePlayer(
+    if tested_agent_name == ORACLE_MC_AGENT:
+        return OraclePlayer(
             agents=load_adaptive_agents(bundle),
             oracle_opponent_type=opponent_family,
-            player_name=ORACLE_ADAPTIVE_AGENT,
+            player_name=ORACLE_MC_AGENT,
+            verbose=False,
+        )
+
+    if tested_agent_name == ORACLE_Q_LEARNING_AGENT:
+        return OraclePlayer(
+            agents=load_q_learning_adaptive_agents(bundle),
+            oracle_opponent_type=opponent_family,
+            player_name=ORACLE_Q_LEARNING_AGENT,
+            verbose=False,
+        )
+
+    if tested_agent_name == ORACLE_SARSA_AGENT:
+        return OraclePlayer(
+            agents=load_sarsa_adaptive_agents(bundle),
+            oracle_opponent_type=opponent_family,
+            player_name=ORACLE_SARSA_AGENT,
+            verbose=False,
+        )
+
+    if tested_agent_name == ORACLE_DOUBLE_Q_LEARNING_AGENT:
+        return OraclePlayer(
+            agents=load_double_q_learning_adaptive_agents(bundle),
+            oracle_opponent_type=opponent_family,
+            player_name=ORACLE_DOUBLE_Q_LEARNING_AGENT,
             verbose=False,
         )
 
