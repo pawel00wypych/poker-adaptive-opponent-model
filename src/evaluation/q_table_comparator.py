@@ -114,13 +114,30 @@ def checkpoint_model_path(
     )
 
 
+def public_policy_label(policy_type: str) -> str:
+    """
+    Return the public report label for a persisted policy type.
+
+    Internally, the general fixed policy is still stored as policy_type
+    "unknown" because it uses the unknown/general opponent-state encoding.
+    Public reports should call it "general" to avoid suggesting that this
+    is an unknown-behaviour agent.
+    """
+    validate_policy_type(policy_type)
+
+    if policy_type == "unknown":
+        return "general"
+
+    return policy_type
+
+
 def target_name(
     policy_type: str,
     seed: int,
     checkpoint_episode: int,
 ) -> str:
     return (
-        f"policy_{policy_type}"
+        f"policy_{public_policy_label(policy_type)}"
         f"_seed_{seed}"
         f"_cp_{checkpoint_episode}"
     )

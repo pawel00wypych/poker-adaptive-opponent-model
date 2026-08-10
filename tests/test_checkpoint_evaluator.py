@@ -366,7 +366,7 @@ def test_supported_agents_include_oracle_and_cross_policy_agents():
     assert "oracle_q_learning" in SUPPORTED_TESTED_AGENTS
     assert "oracle_sarsa" in SUPPORTED_TESTED_AGENTS
     assert "oracle_double_q_learning" in SUPPORTED_TESTED_AGENTS
-    assert "policy_unknown" in SUPPORTED_TESTED_AGENTS
+    assert "policy_general" in SUPPORTED_TESTED_AGENTS
     assert "policy_tight" in SUPPORTED_TESTED_AGENTS
     assert "policy_aggressive" in SUPPORTED_TESTED_AGENTS
     assert "policy_calling" in SUPPORTED_TESTED_AGENTS
@@ -374,7 +374,7 @@ def test_supported_agents_include_oracle_and_cross_policy_agents():
 
 def test_cross_policy_agent_mapping():
     assert (
-        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_unknown"]
+        CROSS_POLICY_AGENT_TO_POLICY_TYPE["policy_general"]
         == "unknown"
     )
     assert (

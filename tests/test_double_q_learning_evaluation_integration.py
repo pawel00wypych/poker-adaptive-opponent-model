@@ -11,7 +11,7 @@ from src.evaluation.checkpoint_evaluator import (
 from src.evaluation.checkpoint_report import display_agent_name
 from src.evaluation.constants import (
     ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
-    POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
+    POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
     SUPPORTED_TESTED_AGENTS,
 )
 from src.evaluation.experiment_summary import build_experiment_summary
@@ -134,12 +134,12 @@ def test_build_model_bundle_includes_double_q_learning_paths(tmp_path):
 
 def test_double_q_learning_agent_names_are_supported():
     assert ADAPTIVE_DOUBLE_Q_LEARNING_AGENT in SUPPORTED_TESTED_AGENTS
-    assert POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT in SUPPORTED_TESTED_AGENTS
+    assert POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT in SUPPORTED_TESTED_AGENTS
     assert ADAPTIVE_DOUBLE_Q_LEARNING_AGENT in SUPPORTED_GENERALIZATION_AGENTS
-    assert POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT in SUPPORTED_GENERALIZATION_AGENTS
+    assert POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT in SUPPORTED_GENERALIZATION_AGENTS
 
 
-def test_build_double_q_learning_unknown_policy_player(tmp_path, monkeypatch):
+def test_build_double_q_learning_general_policy_player(tmp_path, monkeypatch):
     loaded_paths = []
 
     def fake_load_double_q_learning_eval_agent(path):
@@ -152,14 +152,14 @@ def test_build_double_q_learning_unknown_policy_player(tmp_path, monkeypatch):
     )
 
     player = build_tested_player(
-        tested_agent_name=POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
+        tested_agent_name=POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
         opponent_name="calling",
         bundle=make_bundle_with_double_q_learning_paths(tmp_path),
     )
 
     assert isinstance(player, FixedPolicyPlayer)
     assert player.policy_type == OPPONENT_TYPE_UNKNOWN
-    assert player.player_name == POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT
+    assert player.player_name == POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT
     assert loaded_paths == [Path("double_q_unknown.pkl")]
 
 
@@ -196,7 +196,7 @@ def test_double_q_learning_agents_require_double_q_learning_run_dir(tmp_path):
         match="Pass --double-q-learning-run-dir",
     ):
         build_tested_player(
-            tested_agent_name=POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
+            tested_agent_name=POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
             opponent_name="calling",
             bundle=bundle,
         )
@@ -221,7 +221,7 @@ def test_build_generalization_double_q_learning_adaptive_uses_base_family(
     assert player.expected_opponent_type == OPPONENT_TYPE_CALLING
 
 
-def test_build_generalization_double_q_learning_unknown_policy(tmp_path, monkeypatch):
+def test_build_generalization_double_q_learning_general_policy(tmp_path, monkeypatch):
     loaded_paths = []
 
     def fake_load_double_q_learning_eval_agent(path):
@@ -234,7 +234,7 @@ def test_build_generalization_double_q_learning_unknown_policy(tmp_path, monkeyp
     )
 
     player = build_generalization_tested_player(
-        tested_agent_name=POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
+        tested_agent_name=POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
         opponent_name="calling_extreme",
         bundle=make_bundle_with_double_q_learning_paths(tmp_path),
     )
@@ -256,7 +256,7 @@ def test_checkpoint_cli_accepts_double_q_learning_run_dir():
             "--agents",
             "adaptive_mc",
             "adaptive_double_q_learning",
-            "policy_unknown_double_q_learning",
+            "policy_general_double_q_learning",
         ]
     )
 
@@ -264,7 +264,7 @@ def test_checkpoint_cli_accepts_double_q_learning_run_dir():
         "results/training_runs/double_q_learning_2000"
     )
     assert ADAPTIVE_DOUBLE_Q_LEARNING_AGENT in args.agents
-    assert POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT in args.agents
+    assert POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT in args.agents
 
 
 def test_generalization_cli_accepts_double_q_learning_run_dir():
@@ -279,7 +279,7 @@ def test_generalization_cli_accepts_double_q_learning_run_dir():
             "--agents",
             "adaptive_mc",
             "adaptive_double_q_learning",
-            "policy_unknown_double_q_learning",
+            "policy_general_double_q_learning",
         ]
     )
 
@@ -287,15 +287,15 @@ def test_generalization_cli_accepts_double_q_learning_run_dir():
         "results/training_runs/double_q_learning_2000"
     )
     assert ADAPTIVE_DOUBLE_Q_LEARNING_AGENT in args.agents
-    assert POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT in args.agents
+    assert POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT in args.agents
 
 
 def test_report_labels_include_double_q_learning_agents():
     assert display_agent_name(ADAPTIVE_DOUBLE_Q_LEARNING_AGENT) == (
         "Adaptive Double Q-learning"
     )
-    assert display_agent_name(POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT) == (
-        "Fixed unknown Double Q-learning policy"
+    assert display_agent_name(POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT) == (
+        "Fixed general Double Q-learning policy"
     )
 
 
@@ -340,7 +340,7 @@ def test_experiment_summary_accepts_double_q_learning_rows(tmp_path):
         rows.append(make_result_row("oracle_mc", 10.0, seed))
         rows.append(make_result_row("adaptive_mc", 9.0, seed))
         rows.append(make_result_row(ADAPTIVE_DOUBLE_Q_LEARNING_AGENT, 8.0, seed))
-        rows.append(make_result_row(POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT, 4.0, seed))
+        rows.append(make_result_row(POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT, 4.0, seed))
 
     input_path = tmp_path / "results.csv"
     pd.DataFrame(rows).to_csv(input_path, index=False)

@@ -14,7 +14,7 @@ from src.evaluation.generalization_evaluator import (
     ORACLE_SARSA_AGENT,
     ORACLE_DOUBLE_Q_LEARNING_AGENT,
     POLICY_CALLING_AGENT,
-    POLICY_UNKNOWN_AGENT,
+    POLICY_GENERAL_AGENT,
     RULE_BASED_AGENT,
     GeneralizationEvaluationConfig,
     add_generalization_metadata,
@@ -302,7 +302,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
     config = GeneralizationEvaluationConfig(
         games_per_matchup=2,
         opponents=("calling_extreme", "aggressive_extreme"),
-        tested_agents=(POLICY_UNKNOWN_AGENT, ADAPTIVE_MC_AGENT),
+        tested_agents=(POLICY_GENERAL_AGENT, ADAPTIVE_MC_AGENT),
         eval_seed_base=400_000,
         output_path=tmp_path / "generalization.csv",
     )
@@ -314,7 +314,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
 
     assert len(rows) == 8
     assert len(calls) == 8
-    assert rows[0]["experiment_name"] == "policy_unknown_vs_calling_extreme"
+    assert rows[0]["experiment_name"] == "policy_general_vs_calling_extreme"
     assert rows[-1]["experiment_name"] == "adaptive_mc_vs_aggressive_extreme"
     assert [row["game_id"] for row in rows] == list(range(8))
     assert rows[0]["evaluation_type"] == "generalization"
@@ -367,7 +367,7 @@ def test_parse_args_accepts_custom_generalization_matchups():
             "--checkpoint-episodes",
             "2000",
             "--agents",
-            "policy_unknown",
+            "policy_general",
             "adaptive_mc",
             "oracle_mc",
             "--opponents",
@@ -380,7 +380,7 @@ def test_parse_args_accepts_custom_generalization_matchups():
     )
 
     assert args.agents == [
-        "policy_unknown",
+        "policy_general",
         "adaptive_mc",
         "oracle_mc",
     ]
