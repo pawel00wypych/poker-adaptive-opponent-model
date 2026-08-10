@@ -14,8 +14,10 @@ from src.evaluation.checkpoint_report import (
 )
 from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
+    AGENT_TO_ORACLE_AGENT,
     ALWAYS_RAISE_AGENT,
-    ORACLE_ADAPTIVE_AGENT,
+    ORACLE_AGENTS,
+    ORACLE_MC_AGENT,
     RULE_BASED_AGENT,
 )
 from src.evaluation.experiment_charts import (
@@ -235,28 +237,45 @@ def build_agent_ranking(aggregated: pd.DataFrame) -> pd.DataFrame:
 def add_baseline_deltas(ranking: pd.DataFrame) -> pd.DataFrame:
     result = ranking.copy()
 
-    for baseline_agent, column_name in [
-        (RULE_BASED_AGENT, "delta_vs_rule_based"),
-        (ORACLE_ADAPTIVE_AGENT, "delta_vs_oracle"),
-    ]:
-        baseline = result[
-            result["agent_name"] == baseline_agent
-        ][SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]].rename(
-            columns={"mean_profit_bb": f"{baseline_agent}_mean_profit_bb"}
-        )
+    rule_based = result[
+        result["agent_name"] == RULE_BASED_AGENT
+    ][SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]].rename(
+        columns={"mean_profit_bb": "rule_based_mean_profit_bb"}
+    )
 
-        result = result.merge(
-            baseline,
-            on=SUMMARY_GROUP_COLUMNS,
-            how="left",
-        )
-        result[column_name] = (
-            result["mean_profit_bb"]
-            - result[f"{baseline_agent}_mean_profit_bb"]
-        )
-        result = result.drop(columns=[f"{baseline_agent}_mean_profit_bb"])
+    result = result.merge(
+        rule_based,
+        on=SUMMARY_GROUP_COLUMNS,
+        how="left",
+    )
+    result["delta_vs_rule_based"] = (
+        result["mean_profit_bb"] - result["rule_based_mean_profit_bb"]
+    )
+    result = result.drop(columns=["rule_based_mean_profit_bb"])
 
-    return result
+    oracle = result[
+        result["agent_name"].isin(ORACLE_AGENTS)
+    ][SUMMARY_GROUP_COLUMNS + ["agent_name", "mean_profit_bb"]].rename(
+        columns={
+            "agent_name": "oracle_agent_name",
+            "mean_profit_bb": "oracle_mean_profit_bb",
+        }
+    )
+
+    result["oracle_agent_name"] = result["agent_name"].map(
+        AGENT_TO_ORACLE_AGENT
+    )
+    result = result.merge(
+        oracle,
+        on=SUMMARY_GROUP_COLUMNS + ["oracle_agent_name"],
+        how="left",
+    )
+    result["delta_vs_oracle"] = (
+        result["mean_profit_bb"] - result["oracle_mean_profit_bb"]
+    )
+    return result.drop(
+        columns=["oracle_agent_name", "oracle_mean_profit_bb"]
+    )
 
 
 def _quality_status_and_reason(
@@ -418,7 +437,7 @@ def _oracle_gap_finding(summary_table: pd.DataFrame) -> str | None:
 
     comparable = summary_table[
         summary_table["delta_vs_oracle"].notna()
-        & (summary_table["agent_name"] != ORACLE_ADAPTIVE_AGENT)
+        & (~summary_table["agent_name"].isin(ORACLE_AGENTS))
     ]
 
     if comparable.empty:

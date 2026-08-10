@@ -332,7 +332,7 @@ def test_experiment_summary_accepts_q_learning_rows(tmp_path):
     rows = []
     for seed in (42, 123):
         rows.append(make_result_row("rule_based", -1.0, seed))
-        rows.append(make_result_row("oracle_adaptive", 10.0, seed))
+        rows.append(make_result_row("oracle_mc", 10.0, seed))
         rows.append(make_result_row("adaptive_mc", 9.0, seed))
         rows.append(make_result_row(ADAPTIVE_Q_LEARNING_AGENT, 8.0, seed))
         rows.append(make_result_row(POLICY_UNKNOWN_Q_LEARNING_AGENT, 4.0, seed))

@@ -9,7 +9,10 @@ from src.evaluation.generalization_evaluator import (
     ALWAYS_RAISE_AGENT,
     DEFAULT_GENERALIZATION_AGENTS,
     DEFAULT_GENERALIZATION_OPPONENTS,
-    ORACLE_ADAPTIVE_AGENT,
+    ORACLE_MC_AGENT,
+    ORACLE_Q_LEARNING_AGENT,
+    ORACLE_SARSA_AGENT,
+    ORACLE_DOUBLE_Q_LEARNING_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_UNKNOWN_AGENT,
     RULE_BASED_AGENT,
@@ -29,7 +32,7 @@ from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.players.aggressive_variant_player import AggressiveExtremePlayer
 from src.players.calling_extreme_player import CallingExtremePlayer
-from src.players.oracle_adaptive_player import OracleAdaptivePlayer
+from src.players.oracle_player import OraclePlayer
 from src.players.rule_based_player import RuleBasedPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
@@ -154,6 +157,18 @@ def test_build_generalization_adaptive_uses_base_variant_family(
     assert player.expected_opponent_type == OPPONENT_TYPE_CALLING
 
 
+
+
+def test_all_algorithm_oracles_are_supported_generalization_agents():
+    for agent_name in (
+        ORACLE_MC_AGENT,
+        ORACLE_Q_LEARNING_AGENT,
+        ORACLE_SARSA_AGENT,
+        ORACLE_DOUBLE_Q_LEARNING_AGENT,
+    ):
+        validate_generalization_agent(agent_name)
+
+
 def test_build_generalization_oracle_uses_base_variant_family(
     tmp_path,
     monkeypatch,
@@ -164,12 +179,12 @@ def test_build_generalization_oracle_uses_base_variant_family(
     )
 
     player = build_generalization_tested_player(
-        tested_agent_name=ORACLE_ADAPTIVE_AGENT,
+        tested_agent_name=ORACLE_MC_AGENT,
         opponent_name="aggressive_extreme",
         bundle=sample_bundle(tmp_path),
     )
 
-    assert isinstance(player, OracleAdaptivePlayer)
+    assert isinstance(player, OraclePlayer)
     assert player.oracle_opponent_type == OPPONENT_TYPE_AGGRESSIVE
 
 
@@ -341,7 +356,7 @@ def test_parse_args_uses_expected_defaults():
     assert args.checkpoint_episodes == [2000]
     assert args.agents == list(DEFAULT_GENERALIZATION_AGENTS)
     assert args.opponents == list(DEFAULT_GENERALIZATION_OPPONENTS)
-    assert ORACLE_ADAPTIVE_AGENT in args.agents
+    assert ORACLE_MC_AGENT in args.agents
 
 
 def test_parse_args_accepts_custom_generalization_matchups():
@@ -354,7 +369,7 @@ def test_parse_args_accepts_custom_generalization_matchups():
             "--agents",
             "policy_unknown",
             "adaptive_mc",
-            "oracle_adaptive",
+            "oracle_mc",
             "--opponents",
             "calling_extreme",
             "aggressive_extreme",
@@ -367,7 +382,7 @@ def test_parse_args_accepts_custom_generalization_matchups():
     assert args.agents == [
         "policy_unknown",
         "adaptive_mc",
-        "oracle_adaptive",
+        "oracle_mc",
     ]
     assert args.opponents == [
         "calling_extreme",

@@ -148,7 +148,7 @@ def write_sample_checkpoint_csv(path):
         )
         add_group(
             rows,
-            agent="oracle_adaptive",
+            agent="oracle_mc",
             opponent=opponent,
             profit_by_seed=(15.0, 17.0) if opponent != "tight" else (19.8, 19.9),
             classifier_accuracy=100.0,
@@ -278,14 +278,14 @@ def test_validate_checkpoint_results_skips_missing_required_rows(tmp_path):
     write_sample_checkpoint_csv(csv_path)
 
     df = pd.read_csv(csv_path)
-    df = df[df["agent_name"] != "oracle_adaptive"]
+    df = df[df["agent_name"] != "oracle_mc"]
     df.to_csv(csv_path, index=False)
 
     report = validate_checkpoint_results(csv_path)
 
     assert any(
         check.status == STATUS_SKIPPED
-        and check.agent_name == "oracle_adaptive"
+        and check.agent_name == "oracle_mc"
         for check in report.checks
     )
 
@@ -611,7 +611,7 @@ def write_sample_generalization_csv(path):
         )
         add_group(
             rows,
-            agent="oracle_adaptive",
+            agent="oracle_mc",
             opponent=variant,
             profit_by_seed=oracle_profits[variant],
             win_rate=85.0 if variant != "aggressive_extreme" else 30.0,

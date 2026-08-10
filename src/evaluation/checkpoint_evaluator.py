@@ -25,7 +25,10 @@ from src.evaluation.constants import (
     CHECKPOINT_PREFIX_BY_POLICY_TYPE,
     CROSS_POLICY_AGENT_TO_POLICY_TYPE,
     MODEL_DIRECTORY_BY_POLICY_TYPE,
-    ORACLE_ADAPTIVE_AGENT,
+    ORACLE_MC_AGENT,
+    ORACLE_Q_LEARNING_AGENT,
+    ORACLE_SARSA_AGENT,
+    ORACLE_DOUBLE_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_DOUBLE_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_Q_LEARNING_AGENT,
     POLICY_UNKNOWN_SARSA_AGENT,
@@ -43,7 +46,7 @@ from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.rule_based_player import RuleBasedPlayer
 from src.players.single_policy_player import SinglePolicyPlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
-from src.players.oracle_adaptive_player import OracleAdaptivePlayer
+from src.players.oracle_player import OraclePlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
@@ -679,11 +682,35 @@ def build_tested_player(
             verbose=False,
         )
 
-    if tested_agent_name == ORACLE_ADAPTIVE_AGENT:
-        return OracleAdaptivePlayer(
+    if tested_agent_name == ORACLE_MC_AGENT:
+        return OraclePlayer(
             agents=load_adaptive_agents(bundle),
             oracle_opponent_type=opponent_name,
-            player_name=ORACLE_ADAPTIVE_AGENT,
+            player_name=ORACLE_MC_AGENT,
+            verbose=False,
+        )
+
+    if tested_agent_name == ORACLE_Q_LEARNING_AGENT:
+        return OraclePlayer(
+            agents=load_q_learning_adaptive_agents(bundle),
+            oracle_opponent_type=opponent_name,
+            player_name=ORACLE_Q_LEARNING_AGENT,
+            verbose=False,
+        )
+
+    if tested_agent_name == ORACLE_SARSA_AGENT:
+        return OraclePlayer(
+            agents=load_sarsa_adaptive_agents(bundle),
+            oracle_opponent_type=opponent_name,
+            player_name=ORACLE_SARSA_AGENT,
+            verbose=False,
+        )
+
+    if tested_agent_name == ORACLE_DOUBLE_Q_LEARNING_AGENT:
+        return OraclePlayer(
+            agents=load_double_q_learning_adaptive_agents(bundle),
+            oracle_opponent_type=opponent_name,
+            player_name=ORACLE_DOUBLE_Q_LEARNING_AGENT,
             verbose=False,
         )
 
@@ -818,7 +845,7 @@ def get_classifier_metrics(player) -> dict:
             ),
         }
 
-    if isinstance(player, OracleAdaptivePlayer):
+    if isinstance(player, OraclePlayer):
         return {
             "classified_decisions": 1,
             "correct_classifications": 1,
