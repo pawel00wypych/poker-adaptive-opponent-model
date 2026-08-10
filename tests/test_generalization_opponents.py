@@ -2,15 +2,11 @@ import random
 
 import pytest
 
-from src.players.aggressive_variant_player import (
-    AggressiveExtremePlayer,
-    AggressiveLightPlayer,
-)
+from src.players.aggressive_variant_player import AggressiveExtremePlayer
 from src.players.constants import (
     AGGRESSIVE_GENERALIZATION_OPPONENTS,
     GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,
-    OPPONENT_AGGRESSIVE_LIGHT,
     OPPONENT_CALLING_EXTREME,
     OPPONENT_TIGHT_EXTREME,
     TIGHT_GENERALIZATION_OPPONENTS,
@@ -90,16 +86,6 @@ def test_build_generalization_opponent_builds_tight_extreme():
 
     assert isinstance(player, TightExtremePlayer)
     assert player.player_name == OPPONENT_TIGHT_EXTREME
-
-
-def test_legacy_aggressive_light_can_still_be_constructed_for_ad_hoc_runs():
-    player = build_generalization_opponent_player(
-        OPPONENT_AGGRESSIVE_LIGHT,
-        rng=random.Random(1),
-    )
-
-    assert isinstance(player, AggressiveLightPlayer)
-    assert player.player_name == OPPONENT_AGGRESSIVE_LIGHT
 
 
 def test_generalization_opponent_factory_supports_all_defaults():
