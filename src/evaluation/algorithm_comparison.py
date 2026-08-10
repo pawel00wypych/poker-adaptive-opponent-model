@@ -18,7 +18,7 @@ from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
     ADAPTIVE_Q_LEARNING_AGENT,
     ADAPTIVE_SARSA_AGENT,
-    ORACLE_ADAPTIVE_AGENT,
+    ADAPTIVE_AGENT_TO_ORACLE_AGENT,
     RULE_BASED_AGENT,
 )
 from src.evaluation.experiment_summary import (
@@ -39,6 +39,11 @@ ADAPTIVE_AGENT_TO_ALGORITHM = {
     ADAPTIVE_Q_LEARNING_AGENT: ALGORITHM_Q_LEARNING,
     ADAPTIVE_SARSA_AGENT: ALGORITHM_SARSA,
     ADAPTIVE_DOUBLE_Q_LEARNING_AGENT: ALGORITHM_DOUBLE_Q_LEARNING,
+}
+
+ORACLE_AGENT_TO_ALGORITHM = {
+    oracle_agent: ADAPTIVE_AGENT_TO_ALGORITHM[adaptive_agent]
+    for adaptive_agent, oracle_agent in ADAPTIVE_AGENT_TO_ORACLE_AGENT.items()
 }
 
 ALGORITHM_ORDER = {
@@ -254,15 +259,27 @@ def add_algorithm_deltas(
         baseline_column_name="rule_based_mean_profit_bb",
     )
 
-    oracle = aggregated[aggregated["agent_name"] == ORACLE_ADAPTIVE_AGENT]
-    result = _merge_baseline_delta(
-        result,
-        oracle,
-        column_name="delta_vs_oracle",
-        baseline_column_name="oracle_mean_profit_bb",
-    )
+    oracle = aggregated[
+        aggregated["agent_name"].isin(ORACLE_AGENT_TO_ALGORITHM)
+    ].copy()
+    if oracle.empty:
+        result["delta_vs_oracle"] = pd.NA
+        return result
 
-    return result
+    oracle["algorithm"] = oracle["agent_name"].map(ORACLE_AGENT_TO_ALGORITHM)
+    oracle_values = oracle[
+        GROUP_COLUMNS + ["algorithm", "mean_profit_bb"]
+    ].rename(columns={"mean_profit_bb": "oracle_mean_profit_bb"})
+
+    result = result.merge(
+        oracle_values,
+        on=GROUP_COLUMNS + ["algorithm"],
+        how="left",
+    )
+    result["delta_vs_oracle"] = (
+        result["mean_profit_bb"] - result["oracle_mean_profit_bb"]
+    )
+    return result.drop(columns=["oracle_mean_profit_bb"])
 
 
 def build_global_algorithm_ranking(algorithm_by_opponent: pd.DataFrame) -> pd.DataFrame:

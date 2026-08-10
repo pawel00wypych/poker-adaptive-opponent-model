@@ -1,13 +1,13 @@
 import pytest
 
-from src.players.oracle_adaptive_player import OracleAdaptivePlayer
+from src.players.oracle_player import OraclePlayer
 
 
 def create_player(
     adaptive_agents,
     oracle_opponent_type: str = "calling",
-) -> OracleAdaptivePlayer:
-    player = OracleAdaptivePlayer(
+) -> OraclePlayer:
+    player = OraclePlayer(
         agents=adaptive_agents,
         oracle_opponent_type=oracle_opponent_type,
         player_name="tested_player",
@@ -50,7 +50,7 @@ def test_oracle_requires_all_agents(
         ValueError,
         match="Missing oracle agents",
     ):
-        OracleAdaptivePlayer(
+        OraclePlayer(
             agents=adaptive_agents,
             oracle_opponent_type="calling",
         )
@@ -63,7 +63,7 @@ def test_oracle_rejects_unknown_opponent_type(
         ValueError,
         match="Unsupported oracle opponent type",
     ):
-        OracleAdaptivePlayer(
+        OraclePlayer(
             agents=adaptive_agents,
             oracle_opponent_type="unknown",
         )
@@ -76,7 +76,7 @@ def test_oracle_rejects_invalid_log_interval(
         ValueError,
         match="log_interval must be greater than zero",
     ):
-        OracleAdaptivePlayer(
+        OraclePlayer(
             agents=adaptive_agents,
             oracle_opponent_type="calling",
             log_interval=0,

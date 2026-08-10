@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from src.evaluation.checkpoint_metrics import calculate_checkpoint_metrics
+from src.evaluation.constants import ORACLE_AGENTS
 from src.evaluation.html_utils import definition_list, html_page, write_text
 from src.evaluation.plot_utils import ensure_output_dir, save_current_figure
 from src.evaluation.report_descriptions import (
@@ -202,7 +203,7 @@ def create_checkpoint_plots(
         plots.append(path)
 
     classifier_df = aggregated[
-        aggregated["agent_name"].isin(["adaptive_mc", "oracle_adaptive"])
+        aggregated["agent_name"].isin(["adaptive_mc", *ORACLE_AGENTS])
     ]
 
     for metric, ylabel in CLASSIFIER_PLOT_METRICS:

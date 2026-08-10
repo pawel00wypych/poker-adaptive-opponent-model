@@ -125,7 +125,7 @@ def write_sample_results_csv(path):
     )
     add_group(
         rows,
-        agent="oracle_adaptive",
+        agent="oracle_mc",
         opponent="calling",
         profit_by_seed=(19.0, 21.0),
     )
@@ -213,7 +213,7 @@ def test_add_baseline_deltas_calculates_rule_based_and_oracle_gap():
                 "opponent_name": "calling",
                 "checkpoint_episode": 2000,
                 "rank": 3,
-                "agent_name": "oracle_adaptive",
+                "agent_name": "oracle_mc",
                 "mean_profit_bb": 20.0,
             },
         ]

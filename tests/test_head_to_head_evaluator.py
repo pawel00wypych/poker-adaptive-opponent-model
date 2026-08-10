@@ -101,7 +101,7 @@ def test_validate_head_to_head_opponent_rejects_training_opponent():
 
 def test_validate_head_to_head_agent_rejects_oracle_for_ood_baselines():
     with pytest.raises(ValueError):
-        validate_head_to_head_agent("oracle_adaptive")
+        validate_head_to_head_agent("oracle_mc")
 
 
 def test_build_head_to_head_adaptive_uses_no_expected_type(
