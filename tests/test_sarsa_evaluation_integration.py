@@ -11,7 +11,7 @@ from src.evaluation.checkpoint_evaluator import (
 from src.evaluation.checkpoint_report import display_agent_name
 from src.evaluation.constants import (
     ADAPTIVE_SARSA_AGENT,
-    POLICY_UNKNOWN_SARSA_AGENT,
+    POLICY_GENERAL_SARSA_AGENT,
     SUPPORTED_TESTED_AGENTS,
 )
 from src.evaluation.experiment_summary import build_experiment_summary
@@ -131,12 +131,12 @@ def test_build_model_bundle_includes_sarsa_paths(tmp_path):
 
 def test_sarsa_agent_names_are_supported():
     assert ADAPTIVE_SARSA_AGENT in SUPPORTED_TESTED_AGENTS
-    assert POLICY_UNKNOWN_SARSA_AGENT in SUPPORTED_TESTED_AGENTS
+    assert POLICY_GENERAL_SARSA_AGENT in SUPPORTED_TESTED_AGENTS
     assert ADAPTIVE_SARSA_AGENT in SUPPORTED_GENERALIZATION_AGENTS
-    assert POLICY_UNKNOWN_SARSA_AGENT in SUPPORTED_GENERALIZATION_AGENTS
+    assert POLICY_GENERAL_SARSA_AGENT in SUPPORTED_GENERALIZATION_AGENTS
 
 
-def test_build_sarsa_unknown_policy_player(tmp_path, monkeypatch):
+def test_build_sarsa_general_policy_player(tmp_path, monkeypatch):
     loaded_paths = []
 
     def fake_load_sarsa_eval_agent(path):
@@ -149,14 +149,14 @@ def test_build_sarsa_unknown_policy_player(tmp_path, monkeypatch):
     )
 
     player = build_tested_player(
-        tested_agent_name=POLICY_UNKNOWN_SARSA_AGENT,
+        tested_agent_name=POLICY_GENERAL_SARSA_AGENT,
         opponent_name="calling",
         bundle=make_bundle_with_sarsa_paths(tmp_path),
     )
 
     assert isinstance(player, FixedPolicyPlayer)
     assert player.policy_type == OPPONENT_TYPE_UNKNOWN
-    assert player.player_name == POLICY_UNKNOWN_SARSA_AGENT
+    assert player.player_name == POLICY_GENERAL_SARSA_AGENT
     assert loaded_paths == [Path("sarsa_unknown.pkl")]
 
 
@@ -193,7 +193,7 @@ def test_sarsa_agents_require_sarsa_run_dir(tmp_path):
         match="Pass --sarsa-run-dir",
     ):
         build_tested_player(
-            tested_agent_name=POLICY_UNKNOWN_SARSA_AGENT,
+            tested_agent_name=POLICY_GENERAL_SARSA_AGENT,
             opponent_name="calling",
             bundle=bundle,
         )
@@ -218,7 +218,7 @@ def test_build_generalization_sarsa_adaptive_uses_base_family(
     assert player.expected_opponent_type == OPPONENT_TYPE_CALLING
 
 
-def test_build_generalization_sarsa_unknown_policy(tmp_path, monkeypatch):
+def test_build_generalization_sarsa_general_policy(tmp_path, monkeypatch):
     loaded_paths = []
 
     def fake_load_sarsa_eval_agent(path):
@@ -231,7 +231,7 @@ def test_build_generalization_sarsa_unknown_policy(tmp_path, monkeypatch):
     )
 
     player = build_generalization_tested_player(
-        tested_agent_name=POLICY_UNKNOWN_SARSA_AGENT,
+        tested_agent_name=POLICY_GENERAL_SARSA_AGENT,
         opponent_name="calling_extreme",
         bundle=make_bundle_with_sarsa_paths(tmp_path),
     )
@@ -253,13 +253,13 @@ def test_checkpoint_cli_accepts_sarsa_run_dir():
             "--agents",
             "adaptive_mc",
             "adaptive_sarsa",
-            "policy_unknown_sarsa",
+            "policy_general_sarsa",
         ]
     )
 
     assert args.sarsa_run_dir == "results/training_runs/sarsa_2000"
     assert ADAPTIVE_SARSA_AGENT in args.agents
-    assert POLICY_UNKNOWN_SARSA_AGENT in args.agents
+    assert POLICY_GENERAL_SARSA_AGENT in args.agents
 
 
 def test_generalization_cli_accepts_sarsa_run_dir():
@@ -274,19 +274,19 @@ def test_generalization_cli_accepts_sarsa_run_dir():
             "--agents",
             "adaptive_mc",
             "adaptive_sarsa",
-            "policy_unknown_sarsa",
+            "policy_general_sarsa",
         ]
     )
 
     assert args.sarsa_run_dir == "results/training_runs/sarsa_2000"
     assert ADAPTIVE_SARSA_AGENT in args.agents
-    assert POLICY_UNKNOWN_SARSA_AGENT in args.agents
+    assert POLICY_GENERAL_SARSA_AGENT in args.agents
 
 
 def test_report_labels_include_sarsa_agents():
     assert display_agent_name(ADAPTIVE_SARSA_AGENT) == "Adaptive SARSA"
-    assert display_agent_name(POLICY_UNKNOWN_SARSA_AGENT) == (
-        "Fixed unknown SARSA policy"
+    assert display_agent_name(POLICY_GENERAL_SARSA_AGENT) == (
+        "Fixed general SARSA policy"
     )
 
 
@@ -331,7 +331,7 @@ def test_experiment_summary_accepts_sarsa_rows(tmp_path):
         rows.append(make_result_row("oracle_mc", 10.0, seed))
         rows.append(make_result_row("adaptive_mc", 9.0, seed))
         rows.append(make_result_row(ADAPTIVE_SARSA_AGENT, 8.0, seed))
-        rows.append(make_result_row(POLICY_UNKNOWN_SARSA_AGENT, 4.0, seed))
+        rows.append(make_result_row(POLICY_GENERAL_SARSA_AGENT, 4.0, seed))
 
     input_path = tmp_path / "results.csv"
     pd.DataFrame(rows).to_csv(input_path, index=False)

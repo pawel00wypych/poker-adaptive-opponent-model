@@ -102,7 +102,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=0.0,
     )
     parser.add_argument(
-        "--max-adaptive-underperformance-vs-unknown-bb",
+        "--max-adaptive-underperformance-vs-general-bb",
         type=float,
         default=1.0,
     )
@@ -122,7 +122,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=3,
     )
     parser.add_argument(
-        "--min-generalization-adaptive-beats-unknown-variants",
+        "--min-generalization-adaptive-beats-general-variants",
         type=int,
         default=3,
     )
@@ -179,16 +179,16 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         min_head_to_head_mean_profit_bb=(
             args.min_head_to_head_mean_profit_bb
         ),
-        max_adaptive_underperformance_vs_unknown_bb=(
-            args.max_adaptive_underperformance_vs_unknown_bb
+        max_adaptive_underperformance_vs_general_bb=(
+            args.max_adaptive_underperformance_vs_general_bb
         ),
         always_raise_stress_loss_bb=args.always_raise_stress_loss_bb,
         always_raise_stress_bust_rate=args.always_raise_stress_bust_rate,
         min_generalization_positive_variants=(
             args.min_generalization_positive_variants
         ),
-        min_generalization_adaptive_beats_unknown_variants=(
-            args.min_generalization_adaptive_beats_unknown_variants
+        min_generalization_adaptive_beats_general_variants=(
+            args.min_generalization_adaptive_beats_general_variants
         ),
         min_generalization_adaptive_beats_rule_based_variants=(
             args.min_generalization_adaptive_beats_rule_based_variants

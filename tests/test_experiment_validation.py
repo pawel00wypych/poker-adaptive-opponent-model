@@ -184,7 +184,7 @@ def write_sample_head_to_head_csv(path):
     rows = []
 
     for agent, rule_based_profit in [
-        ("policy_unknown", (10.0, 12.0)),
+        ("policy_general", (10.0, 12.0)),
         ("adaptive_mc", (11.0, 13.0)),
         ("policy_tight", (-18.0, -17.0)),
         ("policy_aggressive", (-20.0, -20.0)),
@@ -203,7 +203,7 @@ def write_sample_head_to_head_csv(path):
         )
 
     for agent, always_raise_profit in [
-        ("policy_unknown", (-19.0, -20.0)),
+        ("policy_general", (-19.0, -20.0)),
         ("adaptive_mc", (-16.0, -17.0)),
         ("policy_tight", (-20.0, -20.0)),
         ("policy_aggressive", (-12.0, -18.0)),
@@ -351,7 +351,7 @@ def test_validation_cli_parser_accepts_threshold_overrides():
             "90",
             "--min-head-to-head-mean-profit-bb",
             "1",
-            "--max-adaptive-underperformance-vs-unknown-bb",
+            "--max-adaptive-underperformance-vs-general-bb",
             "2",
             "--always-raise-stress-loss-bb",
             "-12",
@@ -369,7 +369,7 @@ def test_validation_cli_parser_accepts_threshold_overrides():
     assert thresholds.high_always_raise_mean_profit_bb == 17.0
     assert thresholds.high_always_raise_win_rate == 90.0
     assert thresholds.min_head_to_head_mean_profit_bb == 1.0
-    assert thresholds.max_adaptive_underperformance_vs_unknown_bb == 2.0
+    assert thresholds.max_adaptive_underperformance_vs_general_bb == 2.0
     assert thresholds.always_raise_stress_loss_bb == -12.0
     assert thresholds.always_raise_stress_bust_rate == 75.0
 
@@ -450,11 +450,11 @@ def test_head_to_head_validation_mode_uses_direct_matchup_checks(tmp_path):
     check_names = {check.check_name for check in report.checks}
 
     assert report.validation_mode == "head-to-head"
-    assert "Fixed unknown policy beats RuleBasedPlayer" in check_names
+    assert "Fixed general policy beats RuleBasedPlayer" in check_names
     assert "Adaptive Monte Carlo beats RuleBasedPlayer" in check_names
     assert "At least one specialist beats RuleBasedPlayer" in check_names
     assert (
-        "Adaptive not significantly worse than fixed unknown "
+        "Adaptive not significantly worse than fixed general "
         "vs RuleBasedPlayer"
     ) in check_names
     assert "OOD classifier coverage vs rule_based" in check_names
@@ -543,7 +543,7 @@ def write_sample_generalization_csv(path):
         "tight_extreme": (10.5, 11.0),
         "aggressive_extreme": (-4.0, -3.5),
     }
-    unknown_profits = {
+    general_profits = {
         "calling_extreme": (10.0, 10.5),
         "tight_extreme": (9.0, 9.5),
         "legacy_calling_variant": (7.0, 7.5),
@@ -621,9 +621,9 @@ def write_sample_generalization_csv(path):
         )
         add_group(
             rows,
-            agent="policy_unknown",
+            agent="policy_general",
             opponent=variant,
-            profit_by_seed=unknown_profits[variant],
+            profit_by_seed=general_profits[variant],
             win_rate=70.0 if variant != "aggressive_extreme" else 5.0,
             bust_rate=20.0 if variant != "aggressive_extreme" else 95.0,
         )
@@ -671,7 +671,7 @@ def test_generalization_validation_mode_uses_variant_checks(tmp_path):
     assert report.validation_mode == "generalization"
     assert "Adaptive positive on generalization variants" in check_names
     assert (
-        "Adaptive beats fixed unknown on generalization variants"
+        "Adaptive beats fixed general on generalization variants"
         in check_names
     )
     assert (
@@ -752,7 +752,7 @@ def test_generalization_validation_cli_parser_accepts_thresholds():
             "generalization",
             "--min-generalization-positive-variants",
             "4",
-            "--min-generalization-adaptive-beats-unknown-variants",
+            "--min-generalization-adaptive-beats-general-variants",
             "4",
             "--min-generalization-adaptive-beats-rule-based-variants",
             "2",
@@ -769,7 +769,7 @@ def test_generalization_validation_cli_parser_accepts_thresholds():
     assert args.validation_mode == "generalization"
     assert thresholds.min_generalization_positive_variants == 4
     assert (
-        thresholds.min_generalization_adaptive_beats_unknown_variants
+        thresholds.min_generalization_adaptive_beats_general_variants
         == 4
     )
     assert (
