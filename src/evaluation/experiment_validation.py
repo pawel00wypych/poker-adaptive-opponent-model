@@ -23,10 +23,11 @@ from src.evaluation.constants import (
 )
 from src.evaluation.html_utils import write_text
 from src.players.constants import (
-    AGGRESSIVE_OPPONENT_VARIANTS,
-    CALLING_OPPONENT_VARIANTS,
-    GENERALIZATION_OPPONENT_VARIANTS,
-    OPPONENT_VARIANT_AGGRESSIVE_EXTREME,
+    AGGRESSIVE_GENERALIZATION_OPPONENTS,
+    CALLING_GENERALIZATION_OPPONENTS,
+    GENERALIZATION_OPPONENTS,
+    OPPONENT_AGGRESSIVE_EXTREME,
+    TIGHT_GENERALIZATION_OPPONENTS,
 )
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
@@ -1284,7 +1285,7 @@ def validate_always_raise_head_to_head_stress_test(
 
 def _existing_generalization_opponents(
     best_rows: pd.DataFrame,
-    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
 ) -> tuple[str, ...]:
     available_opponents = set(best_rows["opponent_name"].unique())
     return tuple(
@@ -1321,7 +1322,7 @@ def _collect_agent_profit_rows(
 def validate_generalization_adaptive_positive_variants(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
-    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
 ) -> list[ValidationCheckResult]:
     check_name = "Adaptive positive on generalization variants"
     rows, missing_opponents = _collect_agent_profit_rows(
@@ -1389,7 +1390,7 @@ def validate_generalization_adaptive_beats_agent(
     check_name: str,
     category: str,
     fail_on_underperformance: bool = True,
-    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
 ) -> list[ValidationCheckResult]:
     successful_variants: list[str] = []
     failing_variants: list[str] = []
@@ -1488,7 +1489,7 @@ def validate_generalization_adaptive_beats_agent(
 def validate_generalization_oracle_gap(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
-    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
@@ -1567,7 +1568,7 @@ def validate_generalization_oracle_gap(
 def validate_generalization_classifier_quality(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
-    opponents: Iterable[str] = GENERALIZATION_OPPONENT_VARIANTS,
+    opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
@@ -1642,7 +1643,7 @@ def validate_generalization_aggressive_extreme_robustness(
     row = _find_row(
         best_rows,
         ADAPTIVE_MC_AGENT,
-        OPPONENT_VARIANT_AGGRESSIVE_EXTREME,
+        OPPONENT_AGGRESSIVE_EXTREME,
     )
 
     if row is None:
@@ -1651,7 +1652,7 @@ def validate_generalization_aggressive_extreme_robustness(
                 check_name,
                 "generalization_extreme_robustness",
                 ADAPTIVE_MC_AGENT,
-                OPPONENT_VARIANT_AGGRESSIVE_EXTREME,
+                OPPONENT_AGGRESSIVE_EXTREME,
             )
         ]
 
@@ -1670,7 +1671,7 @@ def validate_generalization_aggressive_extreme_robustness(
             status=STATUS_WARNING if robustness_warning else STATUS_PASS,
             category="generalization_extreme_robustness",
             agent_name=ADAPTIVE_MC_AGENT,
-            opponent_name=OPPONENT_VARIANT_AGGRESSIVE_EXTREME,
+            opponent_name=OPPONENT_AGGRESSIVE_EXTREME,
             checkpoint_episode=_checkpoint_episode(row),
             observed_value=mean_profit_bb,
             threshold=thresholds.generalization_extreme_aggressive_min_profit_bb,
@@ -1700,12 +1701,18 @@ def validate_generalization_matching_specialists(
     results: list[ValidationCheckResult] = []
     variant_to_specialist = {
         opponent_name: POLICY_CALLING_AGENT
-        for opponent_name in CALLING_OPPONENT_VARIANTS
+        for opponent_name in CALLING_GENERALIZATION_OPPONENTS
     }
     variant_to_specialist.update(
         {
             opponent_name: POLICY_AGGRESSIVE_AGENT
-            for opponent_name in AGGRESSIVE_OPPONENT_VARIANTS
+            for opponent_name in AGGRESSIVE_GENERALIZATION_OPPONENTS
+        }
+    )
+    variant_to_specialist.update(
+        {
+            opponent_name: POLICY_TIGHT_AGENT
+            for opponent_name in TIGHT_GENERALIZATION_OPPONENTS
         }
     )
 
