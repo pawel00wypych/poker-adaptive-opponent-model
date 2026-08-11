@@ -33,18 +33,12 @@ MODEL_DIRECTORIES = {
     CALLING_POLICY: "specialist_calling",
 }
 
-# Backward-compatible alias used by checkpoint_evaluator.py
-MODEL_DIRECTORY_BY_POLICY_TYPE = MODEL_DIRECTORIES
-
 CHECKPOINT_PREFIXES = {
     UNKNOWN_POLICY: "general_policy",
     TIGHT_POLICY: "specialist_tight",
     AGGRESSIVE_POLICY: "specialist_aggressive",
     CALLING_POLICY: "specialist_calling",
 }
-
-# Backward-compatible alias used by checkpoint_evaluator.py
-CHECKPOINT_PREFIX_BY_POLICY_TYPE = CHECKPOINT_PREFIXES
 
 POLICY_DISPLAY_NAMES = {
     UNKNOWN_POLICY: "General policy",

@@ -1,6 +1,5 @@
 from pypokerengine.players import BasePokerPlayer
 
-from src.cards.hand_estimator import HandEstimator
 from src.config import GameConfig
 
 
@@ -38,8 +37,6 @@ class PlayerTemplate(BasePokerPlayer):
             "big_blind_pos": None,
         }
         self.my_position = None
-
-        self.hand_estimator = HandEstimator()
 
     @property
     def big_blind_amount(self):
