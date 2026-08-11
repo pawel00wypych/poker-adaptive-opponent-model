@@ -2,7 +2,7 @@ from collections import Counter
 from src.players.player_template import PlayerTemplate
 from src.features.opponent_stats import OpponentStats
 from src.features.state_encoder import StateEncoder
-from src.opponent_model.rule_based_classifier import (
+from src.classifier.rule_based_classifier import (
     RuleBasedOpponentClassifier,
 )
 from src.poker.action_mapper import ActionMapper
