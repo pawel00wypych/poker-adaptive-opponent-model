@@ -195,7 +195,7 @@ def test_state_encoding_with_free_check():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["SK", "DQ"],
-        opponent_type="balanced",
+        opponent_type="other",
     )
 
     assert state == (
@@ -507,7 +507,7 @@ def test_state_encoder_rejects_invalid_community_card_count():
         ("unknown", 0),
         ("aggressive", 2),
         ("tight", 3),
-        ("balanced", 4),
+        ("other", 4),
         ("random", 5),
         ("calling", 6),
     ],

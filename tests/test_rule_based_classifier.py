@@ -39,11 +39,11 @@ def test_classifier_detects_tight_opponent():
     assert classifier.classify(stats) == "tight"
 
 
-def test_classifier_detects_balanced_opponent():
+def test_classifier_detects_other_opponent():
     classifier = RuleBasedOpponentClassifier(min_actions=6)
     stats = build_stats(["fold", "fold", "call", "call", "raise", "call", "raise"])
 
-    assert classifier.classify(stats) == "balanced"
+    assert classifier.classify(stats) == "other"
 
 def test_classifier_detects_calling_opponent():
     classifier = RuleBasedOpponentClassifier(min_actions=10)
