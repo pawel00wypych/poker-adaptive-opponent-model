@@ -23,11 +23,11 @@ from src.evaluation.constants import (
 )
 from src.evaluation.html_utils import write_text
 from src.players.constants import (
-    AGGRESSIVE_GENERALIZATION_OPPONENTS,
-    CALLING_GENERALIZATION_OPPONENTS,
     GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,
-    TIGHT_GENERALIZATION_OPPONENTS,
+)
+from src.players.generalization_opponents import (
+    GENERALIZATION_OPPONENT_TO_BASE_TYPE,
 )
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
@@ -1699,22 +1699,15 @@ def validate_generalization_matching_specialists(
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
-    variant_to_specialist = {
-        opponent_name: POLICY_CALLING_AGENT
-        for opponent_name in CALLING_GENERALIZATION_OPPONENTS
+    base_type_to_specialist = {
+        OPPONENT_TYPE_CALLING: POLICY_CALLING_AGENT,
+        OPPONENT_TYPE_AGGRESSIVE: POLICY_AGGRESSIVE_AGENT,
+        OPPONENT_TYPE_TIGHT: POLICY_TIGHT_AGENT,
     }
-    variant_to_specialist.update(
-        {
-            opponent_name: POLICY_AGGRESSIVE_AGENT
-            for opponent_name in AGGRESSIVE_GENERALIZATION_OPPONENTS
-        }
-    )
-    variant_to_specialist.update(
-        {
-            opponent_name: POLICY_TIGHT_AGENT
-            for opponent_name in TIGHT_GENERALIZATION_OPPONENTS
-        }
-    )
+    variant_to_specialist = {
+        opponent_name: base_type_to_specialist[base_type]
+        for opponent_name, base_type in GENERALIZATION_OPPONENT_TO_BASE_TYPE.items()
+    }
 
     for opponent_name, specialist_agent in variant_to_specialist.items():
         row = _find_row(

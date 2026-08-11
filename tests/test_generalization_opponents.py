@@ -4,12 +4,10 @@ import pytest
 
 from src.players.aggressive_variant_player import AggressiveExtremePlayer
 from src.players.constants import (
-    AGGRESSIVE_GENERALIZATION_OPPONENTS,
     GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,
     OPPONENT_CALLING_EXTREME,
     OPPONENT_TIGHT_EXTREME,
-    TIGHT_GENERALIZATION_OPPONENTS,
 )
 from src.players.generalization_opponents import (
     build_generalization_opponent_player,
@@ -104,13 +102,18 @@ def test_generalization_opponent_factory_supports_all_defaults():
 
 
 def test_generalization_opponent_to_base_type_mapping():
-    assert get_generalization_opponent_base_type(OPPONENT_CALLING_EXTREME) == OPPONENT_TYPE_CALLING
-
-    for opponent_name in AGGRESSIVE_GENERALIZATION_OPPONENTS:
-        assert get_generalization_opponent_base_type(opponent_name) == OPPONENT_TYPE_AGGRESSIVE
-
-    for opponent_name in TIGHT_GENERALIZATION_OPPONENTS:
-        assert get_generalization_opponent_base_type(opponent_name) == OPPONENT_TYPE_TIGHT
+    assert (
+        get_generalization_opponent_base_type(OPPONENT_CALLING_EXTREME)
+        == OPPONENT_TYPE_CALLING
+    )
+    assert (
+        get_generalization_opponent_base_type(OPPONENT_AGGRESSIVE_EXTREME)
+        == OPPONENT_TYPE_AGGRESSIVE
+    )
+    assert (
+        get_generalization_opponent_base_type(OPPONENT_TIGHT_EXTREME)
+        == OPPONENT_TYPE_TIGHT
+    )
 
 
 def test_generalization_opponents_are_held_out_from_training():

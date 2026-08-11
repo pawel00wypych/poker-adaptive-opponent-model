@@ -22,22 +22,17 @@ from src.evaluation.constants import (
     ADAPTIVE_SARSA_AGENT,
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
-    CHECKPOINT_PREFIX_BY_POLICY_TYPE,
+    CHECKPOINT_PREFIXES,
     CROSS_POLICY_AGENT_TO_POLICY_TYPE,
-    MODEL_DIRECTORY_BY_POLICY_TYPE,
+    MODEL_DIRECTORIES,
     ORACLE_MC_AGENT,
     ORACLE_Q_LEARNING_AGENT,
     ORACLE_SARSA_AGENT,
     ORACLE_DOUBLE_Q_LEARNING_AGENT,
-    POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
-    POLICY_GENERAL_Q_LEARNING_AGENT,
-    POLICY_GENERAL_SARSA_AGENT,
     Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
     SARSA_POLICY_AGENT_TO_POLICY_TYPE,
     DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
     RULE_BASED_AGENT,
-    POLICY_GENERAL_MC_AGENT,
-    SUPPORTED_TESTED_AGENTS,
 )
 from src.experiments.training_opponents import build_opponent
 from src.players.adaptive_player import AdaptivePlayer
@@ -208,7 +203,7 @@ def checkpoint_filename(
     checkpoint_episode: int,
     seed: int,
 ) -> str:
-    prefix = CHECKPOINT_PREFIX_BY_POLICY_TYPE[policy_type]
+    prefix = CHECKPOINT_PREFIXES[policy_type]
 
     return (
         f"{prefix}"
@@ -223,7 +218,7 @@ def final_model_path(
 ) -> Path:
     return (
         seed_directory
-        / MODEL_DIRECTORY_BY_POLICY_TYPE[policy_type]
+        / MODEL_DIRECTORIES[policy_type]
         / "final.pkl"
     )
 
@@ -236,7 +231,7 @@ def checkpoint_model_path(
 ) -> Path:
     return (
         seed_directory
-        / MODEL_DIRECTORY_BY_POLICY_TYPE[policy_type]
+        / MODEL_DIRECTORIES[policy_type]
         / "checkpoints"
         / checkpoint_filename(
             policy_type=policy_type,
@@ -297,7 +292,7 @@ def build_policy_paths(
                 seed_directory=seed_directory,
                 policy_type=policy_type,
             )
-            for policy_type in MODEL_DIRECTORY_BY_POLICY_TYPE
+            for policy_type in MODEL_DIRECTORIES
         }
 
     return {
@@ -307,7 +302,7 @@ def build_policy_paths(
             checkpoint_episode=checkpoint_episode,
             seed=seed,
         )
-        for policy_type in MODEL_DIRECTORY_BY_POLICY_TYPE
+        for policy_type in MODEL_DIRECTORIES
     }
 
 
