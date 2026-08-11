@@ -351,10 +351,12 @@ def test_build_result_row_calculates_profit_fields(
     assert row["checkpoint_episode"] == 5000
     assert row["final_predicted_type"] == "calling"
 
+from src.evaluation.constants import (
+    SUPPORTED_TESTED_AGENTS,
+    CROSS_POLICY_AGENT_TO_POLICY_TYPE,
+)
 
 from src.evaluation.checkpoint_evaluator import (
-    CROSS_POLICY_AGENT_TO_POLICY_TYPE,
-    SUPPORTED_TESTED_AGENTS,
     get_classifier_metrics,
 )
 from src.players.fixed_policy_player import FixedPolicyPlayer

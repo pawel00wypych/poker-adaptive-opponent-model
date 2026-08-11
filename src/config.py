@@ -51,10 +51,3 @@ class TrainingConfig:
     checkpoint_directory: str = (
         "results/models/checkpoints"
     )
-
-
-
-@dataclass(frozen=True)
-class EvaluationConfig:
-    games_per_matchup: int = 200
-    output_path: str = "results/raw/agent_comparison_results.csv"

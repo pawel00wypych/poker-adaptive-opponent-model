@@ -1,6 +1,6 @@
 import random
 from src.players.player_template import PlayerTemplate
-from src.cards.evaluator_Interface import EvaluatorInterface
+from src.cards.evaluator_interface import EvaluatorInterface
 
 
 class AggressivePlayer(PlayerTemplate):
