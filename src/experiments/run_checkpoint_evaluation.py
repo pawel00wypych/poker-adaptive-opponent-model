@@ -7,13 +7,13 @@ from concurrent.futures import (
 from pathlib import Path
 from time import perf_counter
 
-from src.experiments.constants import (
-    TESTED_AGENT_ADAPTIVE_MC,
-    TESTED_AGENT_RULE_BASED,
-    TESTED_AGENT_POLICY_GENERAL_MC,
+from src.evaluation.constants import (
+    ADAPTIVE_MC_AGENT,
+    POLICY_GENERAL_MC_AGENT,
+    RULE_BASED_AGENT,
+    SUPPORTED_TESTED_AGENTS,
 )
 from src.evaluation.checkpoint_evaluator import (
-    SUPPORTED_TESTED_AGENTS,
     CheckpointEvaluationConfig,
     discover_model_bundles,
     evaluate_bundle,
@@ -105,9 +105,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=sorted(SUPPORTED_TESTED_AGENTS),
         nargs="+",
         default=[
-            TESTED_AGENT_POLICY_GENERAL_MC,
-            TESTED_AGENT_ADAPTIVE_MC,
-            TESTED_AGENT_RULE_BASED,
+            POLICY_GENERAL_MC_AGENT,
+            ADAPTIVE_MC_AGENT,
+            RULE_BASED_AGENT,
         ],
     )
 
