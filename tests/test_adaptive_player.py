@@ -174,7 +174,7 @@ def test_adaptive_player_switches_to_aggressive_policy(
         iter(aggressive_agent.q_table)
     )
 
-    assert state[-1] == 2
+    assert state[-1] == 1
 
 
 def test_adaptive_player_switches_to_calling_policy(
@@ -219,7 +219,7 @@ def test_adaptive_player_switches_to_calling_policy(
         )
     )
 
-    assert state[-1] == 6
+    assert state[-1] == 4
 
 
 def test_adaptive_player_records_incorrect_classification(
@@ -665,7 +665,7 @@ def test_adaptive_player_updates_all_policies_that_acted_before_switch(
     aggressive_state, aggressive_action_id = agents["aggressive"].episode[0]
 
     assert unknown_state[-1] == 0
-    assert aggressive_state[-1] == 2
+    assert aggressive_state[-1] == 1
 
     player.receive_round_result_message(
         winners=[],

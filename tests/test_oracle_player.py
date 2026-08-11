@@ -86,9 +86,9 @@ def test_oracle_rejects_invalid_log_interval(
 @pytest.mark.parametrize(
     ("oracle_type", "expected_opponent_id"),
     [
-        ("tight", 3),
-        ("aggressive", 2),
-        ("calling", 6),
+        ("tight", 2),
+        ("aggressive", 1),
+        ("calling", 4),
     ],
 )
 def test_oracle_uses_known_policy_from_first_decision(

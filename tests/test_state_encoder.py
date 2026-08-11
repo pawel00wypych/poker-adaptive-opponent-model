@@ -106,7 +106,7 @@ def test_flop_state_encoding_with_aggressive_opponent():
         2,
         2,
         0,
-        2,
+        1,
     )
 
 
@@ -153,7 +153,7 @@ def test_state_encoding_with_weak_hand():
         0,
         3,
         3,
-        3,
+        2,
     )
 
 
@@ -205,7 +205,7 @@ def test_state_encoding_with_free_check():
         1,
         0,
         1,
-        4,
+        3,
     )
 
 
@@ -258,7 +258,7 @@ def test_state_encoding_on_river():
         3,
         2,
         0,
-        3,
+        2,
     )
 
 
@@ -291,7 +291,7 @@ def test_state_encoding_without_call_action():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "SK"],
-        opponent_type="random",
+        opponent_type="other",
     )
 
     assert state == (
@@ -301,7 +301,7 @@ def test_state_encoding_without_call_action():
         0,
         0,
         3,
-        5,
+        3,
     )
 
 
@@ -352,7 +352,7 @@ def test_state_encoding_with_top_pair():
         1,
         2,
         2,
-        6,
+        4,
     )
 
 
@@ -403,7 +403,7 @@ def test_state_encoding_with_overpair():
         1,
         2,
         2,
-        6,
+        4,
     )
 
 
@@ -454,7 +454,7 @@ def test_state_encoding_with_two_pair_or_better():
         1,
         2,
         2,
-        6,
+        4,
     )
 
 
@@ -505,11 +505,10 @@ def test_state_encoder_rejects_invalid_community_card_count():
     ("opponent_type", "expected_id"),
     [
         ("unknown", 0),
-        ("aggressive", 2),
-        ("tight", 3),
-        ("other", 4),
-        ("random", 5),
-        ("calling", 6),
+        ("aggressive", 1),
+        ("tight", 2),
+        ("other", 3),
+        ("calling", 4),
     ],
 )
 def test_state_encoder_maps_supported_opponent_types(

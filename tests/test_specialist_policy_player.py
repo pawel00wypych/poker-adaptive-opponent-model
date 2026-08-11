@@ -116,7 +116,7 @@ def test_specialist_player_encodes_fixed_opponent_type(
 
     state, _ = training_agent.episode[0]
 
-    assert state[-1] == 2
+    assert state[-1] == 1
 
 
 def test_specialist_player_uses_calling_type_id(
@@ -139,7 +139,7 @@ def test_specialist_player_uses_calling_type_id(
 
     state, _ = training_agent.episode[0]
 
-    assert state[-1] == 6
+    assert state[-1] == 4
 
 
 def test_specialist_player_returns_legal_action(
