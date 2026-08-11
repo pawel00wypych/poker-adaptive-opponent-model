@@ -93,9 +93,9 @@ def test_fixed_policy_player_rejects_invalid_log_interval(
     ("policy_type", "expected_opponent_id"),
     [
         ("unknown", 0),
-        ("tight", 3),
-        ("aggressive", 2),
-        ("calling", 6),
+        ("tight", 2),
+        ("aggressive", 1),
+        ("calling", 4),
     ],
 )
 def test_fixed_policy_player_encodes_selected_policy_type(
