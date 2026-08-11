@@ -59,7 +59,7 @@ def test_specialist_args_reject_invalid_opponent(
         [
             "program",
             "--opponent",
-            "balanced",
+            "other",
         ],
     )
 
