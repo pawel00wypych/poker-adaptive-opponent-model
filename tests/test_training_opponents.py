@@ -37,7 +37,7 @@ def test_build_opponent_rejects_unsupported_type():
         match="Unsupported opponent type",
     ):
         build_opponent(
-            "balanced"
+            "other"
         )
 
 

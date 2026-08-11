@@ -23,9 +23,6 @@ TIGHT_GENERALIZATION_OPPONENTS = (
     OPPONENT_TIGHT_EXTREME,
 )
 
-# Held-out generalization/stress-test opponents. The base CallingPlayer is no
-# longer included here because it is part of training and should not be treated
-# as an unseen generalization matchup.
 GENERALIZATION_OPPONENTS = (
     *CALLING_GENERALIZATION_OPPONENTS,
     *AGGRESSIVE_GENERALIZATION_OPPONENTS,

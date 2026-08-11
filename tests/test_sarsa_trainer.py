@@ -21,7 +21,7 @@ def test_model_run_name_supports_general_policy_and_specialists():
 
 def test_model_run_name_rejects_unknown_model_type():
     with pytest.raises(ValueError, match="Unsupported SARSA model type"):
-        model_run_name("balanced")
+        model_run_name("other")
 
 
 def test_default_sarsa_model_paths_are_separate_from_q_learning():

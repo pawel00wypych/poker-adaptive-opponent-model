@@ -1,7 +1,7 @@
 from src.features.opponent_stats import OpponentStats
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
-    OPPONENT_TYPE_BALANCED,
+    OPPONENT_TYPE_OTHER,
     OPPONENT_TYPE_CALLING,
     OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
@@ -42,4 +42,4 @@ class RuleBasedOpponentClassifier:
         ):
             return OPPONENT_TYPE_TIGHT
 
-        return OPPONENT_TYPE_BALANCED
+        return OPPONENT_TYPE_OTHER
