@@ -1,6 +1,6 @@
 import random
 
-from src.players.aggressive_variant_player import AggressiveExtremePlayer
+from src.players.aggressive_extreme_player import AggressiveExtremePlayer
 from src.players.constants import (
     GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,

@@ -30,7 +30,7 @@ from src.players.adaptive_player import AdaptivePlayer
 from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
-from src.players.aggressive_variant_player import AggressiveExtremePlayer
+from src.players.aggressive_extreme_player import AggressiveExtremePlayer
 from src.players.calling_extreme_player import CallingExtremePlayer
 from src.players.oracle_player import OraclePlayer
 from src.players.rule_based_player import RuleBasedPlayer
