@@ -1,6 +1,6 @@
-from src.experiments.create_checkpoint_report import parse_args as parse_checkpoint_args
-from src.experiments.create_q_table_report import parse_args as parse_q_table_args
-from src.experiments.compare_selected_q_tables import parse_args as parse_compare_args
+from src.experiments.reporting.create_checkpoint_report import parse_args as parse_checkpoint_args
+from src.experiments.reporting.create_q_table_report import parse_args as parse_q_table_args
+from src.experiments.diagnostics.compare_selected_q_tables import parse_args as parse_compare_args
 
 
 def test_create_checkpoint_report_parser_accepts_format():

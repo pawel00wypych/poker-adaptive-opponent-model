@@ -14,7 +14,7 @@ from src.experiments.constants import (
     MODEL_TYPE_GENERAL_POLICY,
     MODEL_TYPE_SPECIALIST,
 )
-from src.experiments.training_opponents import (
+from src.experiments.training.training_opponents import (
     build_opponent,
     build_training_opponent,
 )

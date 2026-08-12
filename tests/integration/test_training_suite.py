@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.experiments.run_training_suite import (
+from src.experiments.training.run_training_suite import (
     TrainingJob,
     build_command,
     build_jobs,
@@ -27,7 +27,7 @@ def test_general_policy_command_uses_correct_module(
     command = build_command(job)
 
     assert (
-        "src.experiments.run_general_policy_training"
+        "src.experiments.training.run_general_policy_training"
         in command
     )
 
@@ -55,7 +55,7 @@ def test_specialist_command_contains_opponent(
     command = build_command(job)
 
     assert (
-        "src.experiments.run_specialist_training"
+        "src.experiments.training.run_specialist_training"
         in command
     )
 

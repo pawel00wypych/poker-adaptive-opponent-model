@@ -267,14 +267,14 @@ def build_command(job: TrainingJob) -> list[str]:
         return [
             sys.executable,
             "-m",
-            "src.experiments.run_general_policy_training",
+            "src.experiments.training.run_general_policy_training",
             *common_arguments,
         ]
 
     return [
         sys.executable,
         "-m",
-        "src.experiments.run_specialist_training",
+        "src.experiments.training.run_specialist_training",
         "--opponent",
         job.model_type,
         *common_arguments,
