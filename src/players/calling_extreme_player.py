@@ -2,7 +2,6 @@ import random
 
 from src.features.hand_strength_encoder import HandStrengthEncoder
 from src.players.player_template import PlayerTemplate
-from src.players.tracking_player_mixin import TrackingPlayerMixin
 from src.poker.round_state_utils import get_player_stack
 
 
@@ -11,7 +10,7 @@ MEDIUM_HAND_STRENGTH_BIN = 2
 STRONG_HAND_STRENGTH_BIN = 3
 
 
-class CallingExtremePlayer(TrackingPlayerMixin, PlayerTemplate):
+class CallingExtremePlayer(PlayerTemplate):
     """
     More selective calling-family opponent for generalization tests.
 

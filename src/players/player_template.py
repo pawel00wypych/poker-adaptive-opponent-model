@@ -81,6 +81,42 @@ class PlayerTemplate(BasePokerPlayer):
         self.initial_stack = None
         self.hand_start_stack = None
 
+    def reset_tracking(self) -> None:
+        """Reset round/profit tracking shared by simple baseline players."""
+        self.reset_tracking_stats()
+
+    def update_tracking_after_round(
+        self,
+        current_stack: int,
+        big_blind: int | None = None,
+    ) -> float:
+        """Update hand-level tracking and return the reward in big blinds.
+
+        This method is intended for simple scripted players that do not need
+        custom round-result handling. Learned/adaptive players can still use
+        calculate_reward_bb() and update_round_tracking_after_result() when
+        they need finer control over logging or reward propagation.
+        """
+        blind_amount = self.big_blind_amount if big_blind is None else big_blind
+        if blind_amount <= 0:
+            raise ValueError("big_blind must be greater than zero")
+
+        if self.initial_stack is None:
+            self.initial_stack = current_stack
+
+        if self.hand_start_stack is None:
+            self.hand_start_stack = current_stack
+
+        reward = current_stack - self.hand_start_stack
+        reward_bb = reward / blind_amount
+
+        self.stack = current_stack
+        self.total_reward_bb += reward_bb
+        self.hand_start_stack = current_stack
+        self.hands_played += 1
+
+        return reward_bb
+
     def set_my_position(self):
         position = [
             name

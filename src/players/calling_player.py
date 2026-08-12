@@ -1,9 +1,8 @@
 from src.players.player_template import PlayerTemplate
-from src.players.tracking_player_mixin import TrackingPlayerMixin
 from src.poker.round_state_utils import get_player_stack
 
 
-class CallingPlayer(TrackingPlayerMixin, PlayerTemplate):
+class CallingPlayer(PlayerTemplate):
     """
     Simple passive baseline that calls or checks whenever possible.
 

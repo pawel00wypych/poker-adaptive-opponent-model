@@ -1,8 +1,9 @@
-from src.players.tracking_player_mixin import TrackingPlayerMixin
+from src.players.player_template import PlayerTemplate
 
 
-class DummyTrackedPlayer(TrackingPlayerMixin):
+class DummyTrackedPlayer(PlayerTemplate):
     def __init__(self):
+        super().__init__(player_name="dummy_tracked")
         self.reset_tracking()
 
 
