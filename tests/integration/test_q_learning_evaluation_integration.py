@@ -20,8 +20,8 @@ from src.evaluation.generalization_evaluator import (
     SUPPORTED_GENERALIZATION_AGENTS,
     build_generalization_tested_player,
 )
-from src.experiments.run_checkpoint_evaluation import parse_args as parse_checkpoint_args
-from src.experiments.run_generalization_evaluation import parse_args as parse_generalization_args
+from src.experiments.evaluation.run_checkpoint_evaluation import parse_args as parse_checkpoint_args
+from src.experiments.evaluation.run_generalization_evaluation import parse_args as parse_generalization_args
 from src.players.adaptive_player import AdaptivePlayer
 from src.players.fixed_policy_player import FixedPolicyPlayer
 from src.poker.constants import (

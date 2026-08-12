@@ -34,7 +34,7 @@ from src.evaluation.constants import (
     DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
     RULE_BASED_AGENT,
 )
-from src.experiments.training_opponents import build_opponent
+from src.experiments.training.training_opponents import build_opponent
 from src.players.adaptive_player import AdaptivePlayer
 from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer

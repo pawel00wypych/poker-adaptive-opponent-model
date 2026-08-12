@@ -14,7 +14,7 @@ from src.evaluation.experiment_validation import (
     write_validation_json_report,
     write_validation_markdown_report,
 )
-from src.experiments.validate_checkpoint_evaluation import (
+from src.experiments.validation.validate_checkpoint_evaluation import (
     build_thresholds,
     parse_args,
 )
