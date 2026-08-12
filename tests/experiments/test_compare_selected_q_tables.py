@@ -1,6 +1,6 @@
 import pytest
 
-from src.experiments.compare_selected_q_tables import (
+from src.experiments.diagnostics.compare_selected_q_tables import (
     parse_args,
     should_compare_pair,
 )

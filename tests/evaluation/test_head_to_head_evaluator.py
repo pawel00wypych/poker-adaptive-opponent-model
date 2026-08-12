@@ -19,7 +19,7 @@ from src.evaluation.head_to_head_evaluator import (
     validate_head_to_head_opponent,
     write_head_to_head_rows,
 )
-from src.experiments.run_head_to_head_evaluation import parse_args
+from src.experiments.evaluation.run_head_to_head_evaluation import parse_args
 from src.players.adaptive_player import AdaptivePlayer
 from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer

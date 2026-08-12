@@ -25,7 +25,7 @@ from src.evaluation.generalization_evaluator import (
     validate_generalization_opponent,
     write_generalization_rows,
 )
-from src.experiments.run_generalization_evaluation import parse_args
+from src.experiments.evaluation.run_generalization_evaluation import parse_args
 from src.players.adaptive_player import AdaptivePlayer
 from src.players.always_call_player import AlwaysCallPlayer
 from src.players.always_raise_player import AlwaysRaisePlayer

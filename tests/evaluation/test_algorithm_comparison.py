@@ -14,7 +14,7 @@ from src.evaluation.algorithm_comparison import (
     build_global_algorithm_ranking,
     write_algorithm_comparison_outputs,
 )
-from src.experiments.create_algorithm_comparison import parse_args
+from src.experiments.reporting.create_algorithm_comparison import parse_args
 
 
 REQUIRED_RESULT_COLUMNS = {

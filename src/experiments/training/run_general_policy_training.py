@@ -12,7 +12,7 @@ from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.config import GameConfig, TrainingConfig
 from src.experiments.constants import MODEL_TYPE_GENERAL_POLICY
 from src.experiments.cli_utils import parse_training_args
-from src.experiments.training_opponents import (
+from src.experiments.training.training_opponents import (
     build_training_opponent,
 )
 from src.players.general_policy_player import (
