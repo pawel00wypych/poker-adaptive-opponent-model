@@ -18,8 +18,8 @@ from src.experiments.training.training_opponents import (
     build_opponent,
     build_training_opponent,
 )
-from src.players.general_policy_player import GeneralPolicyPlayer
-from src.players.specialist_policy_player import SpecialistPolicyPlayer
+from src.players.learned.general_policy_player import GeneralPolicyPlayer
+from src.players.learned.specialist_policy_player import SpecialistPolicyPlayer
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 from src.training.checkpoint_utils import (
     build_checkpoint_episodes,

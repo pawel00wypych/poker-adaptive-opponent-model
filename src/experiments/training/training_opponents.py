@@ -1,6 +1,6 @@
-from src.players.aggressive_player import AggressivePlayer
-from src.players.calling_player import CallingPlayer
-from src.players.tight_player import TightPlayer
+from src.players.opponents.aggressive_player import AggressivePlayer
+from src.players.opponents.calling_player import CallingPlayer
+from src.players.opponents.tight_player import TightPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,

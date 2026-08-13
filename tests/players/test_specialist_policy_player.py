@@ -1,6 +1,6 @@
 import pytest
 
-from src.players.specialist_policy_player import (
+from src.players.learned.specialist_policy_player import (
     SpecialistPolicyPlayer,
 )
 

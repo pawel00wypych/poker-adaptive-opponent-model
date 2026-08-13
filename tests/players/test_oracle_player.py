@@ -1,6 +1,6 @@
 import pytest
 
-from src.players.oracle_player import OraclePlayer
+from src.players.learned.oracle_player import OraclePlayer
 
 
 def create_player(

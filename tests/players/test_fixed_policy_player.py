@@ -1,6 +1,6 @@
 import pytest
 
-from src.players.fixed_policy_player import FixedPolicyPlayer
+from src.players.learned.fixed_policy_player import FixedPolicyPlayer
 
 
 def create_player(

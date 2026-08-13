@@ -50,18 +50,18 @@ from src.evaluation.constants import (
     DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
     RULE_BASED_AGENT,
 )
-from src.players.adaptive_player import AdaptivePlayer
-from src.players.always_call_player import AlwaysCallPlayer
-from src.players.always_raise_player import AlwaysRaisePlayer
+from src.players.learned.adaptive_player import AdaptivePlayer
+from src.players.baselines.always_call_player import AlwaysCallPlayer
+from src.players.baselines.always_raise_player import AlwaysRaisePlayer
 from src.players.constants import GENERALIZATION_OPPONENTS
-from src.players.fixed_policy_player import FixedPolicyPlayer
-from src.players.generalization_opponents import (
+from src.players.learned.fixed_policy_player import FixedPolicyPlayer
+from src.players.generalization.generalization_opponents import (
     build_generalization_opponent_player,
     get_generalization_opponent_base_type,
     was_generalization_opponent_seen_during_training,
 )
-from src.players.oracle_player import OraclePlayer
-from src.players.rule_based_player import RuleBasedPlayer
+from src.players.learned.oracle_player import OraclePlayer
+from src.players.baselines.rule_based_player import RuleBasedPlayer
 
 
 GENERALIZATION_EVALUATION_TYPE = "generalization"

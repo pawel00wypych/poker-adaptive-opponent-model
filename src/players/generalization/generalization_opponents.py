@@ -1,14 +1,14 @@
 import random
 
-from src.players.aggressive_extreme_player import AggressiveExtremePlayer
+from src.players.generalization.aggressive_extreme_player import AggressiveExtremePlayer
 from src.players.constants import (
     GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,
     OPPONENT_CALLING_EXTREME,
     OPPONENT_TIGHT_EXTREME,
 )
-from src.players.calling_extreme_player import CallingExtremePlayer
-from src.players.tight_extreme_player import TightExtremePlayer
+from src.players.generalization.calling_extreme_player import CallingExtremePlayer
+from src.players.generalization.tight_extreme_player import TightExtremePlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
