@@ -1,5 +1,5 @@
 from collections import Counter
-from src.players.player_template import PlayerTemplate
+from src.players.base.player_template import PlayerTemplate
 from src.features.opponent_stats import OpponentStats
 from src.features.state_encoder import StateEncoder
 from src.classifier.rule_based_classifier import (

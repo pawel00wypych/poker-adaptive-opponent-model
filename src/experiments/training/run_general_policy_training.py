@@ -15,7 +15,7 @@ from src.experiments.cli_utils import parse_training_args
 from src.experiments.training.training_opponents import (
     build_training_opponent,
 )
-from src.players.general_policy_player import (
+from src.players.learned.general_policy_player import (
     GeneralPolicyPlayer,
 )
 from src.training.checkpoint_utils import (

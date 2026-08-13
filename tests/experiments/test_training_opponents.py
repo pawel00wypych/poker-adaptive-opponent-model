@@ -1,8 +1,8 @@
 import pytest
 
-from src.players.aggressive_player import AggressivePlayer
-from src.players.calling_player import CallingPlayer
-from src.players.tight_player import TightPlayer
+from src.players.opponents.aggressive_player import AggressivePlayer
+from src.players.opponents.calling_player import CallingPlayer
+from src.players.opponents.tight_player import TightPlayer
 from src.experiments.training.training_opponents import (
     build_opponent,
     build_training_opponent,

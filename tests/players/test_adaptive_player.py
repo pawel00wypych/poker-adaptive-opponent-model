@@ -1,7 +1,7 @@
 import pytest
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
-from src.players.adaptive_player import AdaptivePlayer
+from src.players.learned.adaptive_player import AdaptivePlayer
 
 def create_player(
     adaptive_agents,

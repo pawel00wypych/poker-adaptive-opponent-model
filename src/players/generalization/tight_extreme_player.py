@@ -1,6 +1,6 @@
 import random
 
-from src.players.tight_player import (
+from src.players.opponents.tight_player import (
     MEDIUM_HAND_STRENGTH_BIN,
     PREMIUM_HAND_STRENGTH_BIN,
     SPECULATIVE_HAND_STRENGTH_BIN,

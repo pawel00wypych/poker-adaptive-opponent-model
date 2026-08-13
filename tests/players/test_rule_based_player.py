@@ -1,4 +1,4 @@
-from src.players.rule_based_player import RuleBasedPlayer
+from src.players.baselines.rule_based_player import RuleBasedPlayer
 
 
 def test_rule_based_player_calls_when_call_is_free():

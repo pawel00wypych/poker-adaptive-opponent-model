@@ -1,44 +1,45 @@
-from src.players.player_template import PlayerTemplate
 from src.features.state_encoder import StateEncoder
+from src.players.base.player_template import PlayerTemplate
 from src.poker.action_mapper import ActionMapper
-from src.poker.constants import TRAINING_OPPONENT_TYPES
+from src.poker.constants import POLICY_TYPES
 from src.poker.round_state_utils import (
     get_player_stack,
     get_round_count,
 )
-from src.players.constants import PLAYER_NAME_SPECIALIST_MC
+from src.players.constants import PLAYER_NAME_FIXED_POLICY
 
 
-class SpecialistPolicyPlayer(PlayerTemplate):
+class FixedPolicyPlayer(PlayerTemplate):
     """
-    Player used to train one policy against one fixed opponent type.
+    Evaluation-only player that always uses one selected policy.
 
-    The opponent type is known during specialist training and is encoded
-    directly into every state.
+    It is used for cross-policy evaluation, for example:
+        unknown policy vs calling opponent
+        tight policy vs calling opponent
+        aggressive policy vs calling opponent
+        calling policy vs calling opponent
     """
 
-    SUPPORTED_OPPONENT_TYPES = set(TRAINING_OPPONENT_TYPES)
+    SUPPORTED_POLICY_TYPES = set(POLICY_TYPES)
 
     def __init__(
         self,
         agent,
-        opponent_type: str,
-        player_name: str = PLAYER_NAME_SPECIALIST_MC,
+        policy_type: str,
+        player_name: str = PLAYER_NAME_FIXED_POLICY,
         verbose: bool = False,
         log_interval: int = 1,
     ):
         super().__init__(player_name=player_name)
 
-        if opponent_type not in self.SUPPORTED_OPPONENT_TYPES:
-            raise ValueError(
-                f"Unsupported specialist opponent type: {opponent_type}"
-            )
+        if policy_type not in self.SUPPORTED_POLICY_TYPES:
+            raise ValueError(f"Unsupported policy type: {policy_type}")
 
         if log_interval <= 0:
             raise ValueError("log_interval must be greater than zero")
 
         self.agent = agent
-        self.opponent_type = opponent_type
+        self.policy_type = policy_type
         self.verbose = verbose
         self.log_interval = log_interval
 
@@ -61,7 +62,7 @@ class SpecialistPolicyPlayer(PlayerTemplate):
             valid_actions=valid_actions,
             round_state=round_state,
             hole_cards=hole_card,
-            opponent_type=self.opponent_type,
+            opponent_type=self.policy_type,
         )
 
         action_id = self.agent.act(
@@ -74,11 +75,12 @@ class SpecialistPolicyPlayer(PlayerTemplate):
             valid_actions,
         )
 
-        self.agent.remember(
-            state,
-            action_id,
-            valid_actions=valid_actions,
-        )
+        if self.agent.training:
+            self.agent.remember(
+                state,
+                action_id,
+                valid_actions=valid_actions,
+            )
 
         return action, amount
 
@@ -104,7 +106,8 @@ class SpecialistPolicyPlayer(PlayerTemplate):
         final_stack = self.get_my_stack_from_round_state(round_state)
         reward_bb = self.calculate_reward_bb(final_stack)
 
-        self.agent.learn_from_episode(reward_bb)
+        if self.agent.training:
+            self.agent.learn_from_episode(reward_bb)
 
         self.total_reward_bb += reward_bb
         self.update_round_tracking_after_result(final_stack)
@@ -114,8 +117,8 @@ class SpecialistPolicyPlayer(PlayerTemplate):
             and self.hands_played % self.log_interval == 0
         ):
             print(
-                "[SpecialistPolicyPlayer] "
-                f"type={self.opponent_type}, "
+                "[FixedPolicyPlayer] "
+                f"policy={self.policy_type}, "
                 f"round={get_round_count(round_state)}, "
                 f"stack={final_stack}, "
                 f"reward_bb={reward_bb:.2f}, "

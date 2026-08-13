@@ -31,11 +31,11 @@ from src.evaluation.constants import (
     POLICY_GENERAL_MC_AGENT,
     RULE_BASED_AGENT,
 )
-from src.players.adaptive_player import AdaptivePlayer
-from src.players.always_call_player import AlwaysCallPlayer
-from src.players.always_raise_player import AlwaysRaisePlayer
-from src.players.fixed_policy_player import FixedPolicyPlayer
-from src.players.rule_based_player import RuleBasedPlayer
+from src.players.learned.adaptive_player import AdaptivePlayer
+from src.players.baselines.always_call_player import AlwaysCallPlayer
+from src.players.baselines.always_raise_player import AlwaysRaisePlayer
+from src.players.learned.fixed_policy_player import FixedPolicyPlayer
+from src.players.baselines.rule_based_player import RuleBasedPlayer
 
 
 HEAD_TO_HEAD_RULE_BASED_OPPONENT = RULE_BASED_AGENT

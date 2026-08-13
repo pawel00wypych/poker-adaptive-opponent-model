@@ -5,7 +5,7 @@ from src.evaluation.checkpoint_evaluator import (
     build_tested_player,
 )
 from src.evaluation.constants import SUPPORTED_TESTED_AGENTS
-from src.players.always_raise_player import AlwaysRaisePlayer
+from src.players.baselines.always_raise_player import AlwaysRaisePlayer
 
 
 def start_always_raise_round(

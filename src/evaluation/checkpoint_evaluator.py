@@ -35,12 +35,12 @@ from src.evaluation.constants import (
     RULE_BASED_AGENT,
 )
 from src.experiments.training.training_opponents import build_opponent
-from src.players.adaptive_player import AdaptivePlayer
-from src.players.always_call_player import AlwaysCallPlayer
-from src.players.always_raise_player import AlwaysRaisePlayer
-from src.players.rule_based_player import RuleBasedPlayer
-from src.players.fixed_policy_player import FixedPolicyPlayer
-from src.players.oracle_player import OraclePlayer
+from src.players.learned.adaptive_player import AdaptivePlayer
+from src.players.baselines.always_call_player import AlwaysCallPlayer
+from src.players.baselines.always_raise_player import AlwaysRaisePlayer
+from src.players.baselines.rule_based_player import RuleBasedPlayer
+from src.players.learned.fixed_policy_player import FixedPolicyPlayer
+from src.players.learned.oracle_player import OraclePlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,

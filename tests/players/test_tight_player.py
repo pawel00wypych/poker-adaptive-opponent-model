@@ -1,6 +1,6 @@
 import random
 
-from src.players.tight_player import TightPlayer
+from src.players.opponents.tight_player import TightPlayer
 
 
 VALID_ACTIONS = [
