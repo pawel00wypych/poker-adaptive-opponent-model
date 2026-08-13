@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 
-from src.evaluation.experiment_charts import ExperimentChartConfig
-from src.evaluation.experiment_summary import (
+from src.evaluation.reporting.experiment_charts import ExperimentChartConfig
+from src.evaluation.reporting.experiment_summary import (
     SummaryThresholds,
     write_experiment_summary_outputs,
 )

@@ -16,7 +16,7 @@ from src.experiments.constants import MODEL_TYPE_SPECIALIST
 from src.experiments.cli_utils import (
     parse_specialist_training_args,
 )
-from src.experiments.training.training_opponents import (
+from src.players.opponents.factory import (
     build_opponent,
 )
 from src.training.checkpoint_utils import (

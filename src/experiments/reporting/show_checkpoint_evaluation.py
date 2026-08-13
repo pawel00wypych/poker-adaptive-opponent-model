@@ -1,6 +1,6 @@
 import argparse
 
-from src.evaluation.checkpoint_metrics import (
+from src.evaluation.metrics.checkpoint_metrics import (
     calculate_checkpoint_metrics,
 )
 from src.evaluation.constants import SUPPORTED_TESTED_AGENTS

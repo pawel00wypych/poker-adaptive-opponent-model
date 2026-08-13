@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.evaluation.checkpoint_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import (
     ModelBundle,
     build_tested_player,
 )
@@ -209,7 +209,7 @@ def test_always_raise_player_tracks_completed_rounds():
 
     assert player.hands_played == 1
     assert player.stack == 120
-    assert player.hand_start_stack is None
+    assert player.hand_start_stack is 120
 
 
 def test_always_raise_is_supported_checkpoint_baseline():

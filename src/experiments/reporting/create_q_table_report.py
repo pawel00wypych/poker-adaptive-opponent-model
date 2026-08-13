@@ -1,6 +1,6 @@
 import argparse
 
-from src.evaluation.q_table_report import (
+from src.evaluation.reporting.q_table_report import (
     write_q_table_html_report,
     write_q_table_markdown_report,
 )

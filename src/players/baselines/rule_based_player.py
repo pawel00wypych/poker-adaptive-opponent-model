@@ -1,7 +1,6 @@
 from src.players.base.player_template import PlayerTemplate
 from src.poker.round_state_utils import get_player_stack
 
-
 class RuleBasedPlayer(PlayerTemplate):
     """
     Simple rule-based baseline.
@@ -62,7 +61,7 @@ class RuleBasedPlayer(PlayerTemplate):
 
     def receive_round_result_message(self, winners, hand_info, round_state):
         current_stack = get_player_stack(round_state, self.uuid)
-        self.update_tracking_after_round(current_stack=current_stack, big_blind=10)
+        self.update_tracking_after_round(current_stack=current_stack)
 
     @staticmethod
     def _find_action(valid_actions, action_name):

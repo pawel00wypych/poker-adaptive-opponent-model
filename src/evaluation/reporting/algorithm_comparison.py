@@ -12,7 +12,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from src.evaluation.checkpoint_report import display_agent_name
+from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.constants import (
     ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
     ADAPTIVE_MC_AGENT,
@@ -21,13 +21,13 @@ from src.evaluation.constants import (
     ADAPTIVE_AGENT_TO_ORACLE_AGENT,
     RULE_BASED_AGENT,
 )
-from src.evaluation.experiment_summary import (
+from src.evaluation.reporting.experiment_summary import (
     load_experiment_summary_data,
     write_dataframe_csv,
     write_dataframe_latex,
 )
-from src.evaluation.html_utils import write_text
-from src.evaluation.plot_utils import ensure_output_dir, save_current_figure
+from src.evaluation.reporting.html_utils import write_text
+from src.evaluation.reporting.plot_utils import ensure_output_dir, save_current_figure
 
 ALGORITHM_MONTE_CARLO = "Monte Carlo"
 ALGORITHM_Q_LEARNING = "Q-learning"

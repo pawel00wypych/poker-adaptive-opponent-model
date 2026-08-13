@@ -19,7 +19,7 @@ def test_tracking_initial_state():
 def test_tracking_first_round_has_zero_reward():
     player = DummyTrackedPlayer()
 
-    reward_bb = player.update_tracking_after_round(current_stack=100, big_blind=10)
+    reward_bb = player.update_tracking_after_round(current_stack=100)
 
     assert reward_bb == 0.0
     assert player.total_reward_bb == 0.0
@@ -31,8 +31,8 @@ def test_tracking_first_round_has_zero_reward():
 def test_tracking_positive_reward():
     player = DummyTrackedPlayer()
 
-    player.update_tracking_after_round(current_stack=100, big_blind=10)
-    reward_bb = player.update_tracking_after_round(current_stack=130, big_blind=10)
+    player.update_tracking_after_round(current_stack=100)
+    reward_bb = player.update_tracking_after_round(current_stack=130)
 
     assert reward_bb == 3.0
     assert player.total_reward_bb == 3.0
@@ -43,8 +43,8 @@ def test_tracking_positive_reward():
 def test_tracking_negative_reward():
     player = DummyTrackedPlayer()
 
-    player.update_tracking_after_round(current_stack=100, big_blind=10)
-    reward_bb = player.update_tracking_after_round(current_stack=70, big_blind=10)
+    player.update_tracking_after_round(current_stack=100)
+    reward_bb = player.update_tracking_after_round(current_stack=70)
 
     assert reward_bb == -3.0
     assert player.total_reward_bb == -3.0

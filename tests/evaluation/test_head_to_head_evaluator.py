@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from src.evaluation.checkpoint_evaluator import ModelBundle
-from src.evaluation.head_to_head_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import ModelBundle
+from src.evaluation.runners.head_to_head_evaluator import (
     ADAPTIVE_MC_AGENT,
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
@@ -109,7 +109,7 @@ def test_build_head_to_head_adaptive_uses_no_expected_type(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        "src.evaluation.head_to_head_evaluator.load_adaptive_agents",
+        "src.evaluation.runners.head_to_head_evaluator.load_adaptive_agents",
         lambda bundle: dummy_agents(),
     )
 
@@ -127,7 +127,7 @@ def test_build_head_to_head_fixed_general_policy(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        "src.evaluation.head_to_head_evaluator.load_eval_agent",
+        "src.evaluation.runners.head_to_head_evaluator.load_eval_agent",
         lambda path: DummyAgent(),
     )
 
@@ -210,7 +210,7 @@ def test_evaluate_head_to_head_bundle_runs_all_matchups(
         }
 
     monkeypatch.setattr(
-        "src.evaluation.head_to_head_evaluator.evaluate_single_head_to_head_game",
+        "src.evaluation.runners.head_to_head_evaluator.evaluate_single_head_to_head_game",
         fake_evaluate_single_head_to_head_game,
     )
 

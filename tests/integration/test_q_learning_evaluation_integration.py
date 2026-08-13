@@ -3,20 +3,20 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.evaluation.checkpoint_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import (
     ModelBundle,
     build_model_bundle,
     build_tested_player,
 )
-from src.evaluation.checkpoint_report import display_agent_name
+from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.constants import (
     ADAPTIVE_Q_LEARNING_AGENT,
     POLICY_GENERAL_MC_AGENT,
     POLICY_GENERAL_Q_LEARNING_AGENT,
     SUPPORTED_TESTED_AGENTS,
 )
-from src.evaluation.experiment_summary import build_experiment_summary
-from src.evaluation.generalization_evaluator import (
+from src.evaluation.reporting.experiment_summary import build_experiment_summary
+from src.evaluation.runners.generalization_evaluator import (
     SUPPORTED_GENERALIZATION_AGENTS,
     build_generalization_tested_player,
 )
@@ -146,7 +146,7 @@ def test_build_q_learning_general_policy_player(tmp_path, monkeypatch):
         return DummyAgent()
 
     monkeypatch.setattr(
-        "src.evaluation.checkpoint_evaluator.load_q_learning_eval_agent",
+        "src.evaluation.runners.checkpoint_evaluator.load_q_learning_eval_agent",
         fake_load_q_learning_eval_agent,
     )
 
@@ -164,7 +164,7 @@ def test_build_q_learning_general_policy_player(tmp_path, monkeypatch):
 
 def test_build_q_learning_adaptive_player(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        "src.evaluation.checkpoint_evaluator.load_q_learning_adaptive_agents",
+        "src.evaluation.runners.checkpoint_evaluator.load_q_learning_adaptive_agents",
         lambda bundle: dummy_agents(),
     )
 
@@ -206,7 +206,7 @@ def test_build_generalization_q_learning_adaptive_uses_base_family(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        "src.evaluation.generalization_evaluator.load_q_learning_adaptive_agents",
+        "src.evaluation.runners.generalization_evaluator.load_q_learning_adaptive_agents",
         lambda bundle: dummy_agents(),
     )
 
@@ -228,7 +228,7 @@ def test_build_generalization_q_learning_general_policy(tmp_path, monkeypatch):
         return DummyAgent()
 
     monkeypatch.setattr(
-        "src.evaluation.generalization_evaluator.load_q_learning_eval_agent",
+        "src.evaluation.runners.generalization_evaluator.load_q_learning_eval_agent",
         fake_load_q_learning_eval_agent,
     )
 

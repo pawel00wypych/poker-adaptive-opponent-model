@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from src.evaluation.checkpoint_evaluator import ModelBundle
-from src.evaluation.generalization_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import ModelBundle
+from src.evaluation.runners.generalization_evaluator import (
     ADAPTIVE_MC_AGENT,
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
@@ -143,7 +143,7 @@ def test_build_generalization_adaptive_uses_base_variant_family(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        "src.evaluation.generalization_evaluator.load_adaptive_agents",
+        "src.evaluation.runners.generalization_evaluator.load_adaptive_agents",
         lambda bundle: dummy_agents(),
     )
 
@@ -174,7 +174,7 @@ def test_build_generalization_oracle_uses_base_variant_family(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        "src.evaluation.generalization_evaluator.load_adaptive_agents",
+        "src.evaluation.runners.generalization_evaluator.load_adaptive_agents",
         lambda bundle: dummy_agents(),
     )
 
@@ -199,7 +199,7 @@ def test_build_generalization_fixed_calling_specialist_does_not_use_variant_poli
         return DummyAgent()
 
     monkeypatch.setattr(
-        "src.evaluation.generalization_evaluator.load_eval_agent",
+        "src.evaluation.runners.generalization_evaluator.load_eval_agent",
         fake_load_eval_agent,
     )
 
@@ -295,7 +295,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
         )
 
     monkeypatch.setattr(
-        "src.evaluation.generalization_evaluator.evaluate_single_generalization_game",
+        "src.evaluation.runners.generalization_evaluator.evaluate_single_generalization_game",
         fake_evaluate_single_generalization_game,
     )
 

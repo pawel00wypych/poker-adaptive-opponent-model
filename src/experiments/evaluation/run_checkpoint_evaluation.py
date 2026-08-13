@@ -13,7 +13,7 @@ from src.evaluation.constants import (
     RULE_BASED_AGENT,
     SUPPORTED_TESTED_AGENTS,
 )
-from src.evaluation.checkpoint_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import (
     CheckpointEvaluationConfig,
     discover_model_bundles,
     evaluate_bundle,

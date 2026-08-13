@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.evaluation.checkpoint_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import (
     ModelBundle,
     build_game_seed,
     build_model_bundle,
@@ -356,7 +356,7 @@ from src.evaluation.constants import (
     CROSS_POLICY_AGENT_TO_POLICY_TYPE,
 )
 
-from src.evaluation.checkpoint_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import (
     get_classifier_metrics,
 )
 from src.players.learned.fixed_policy_player import FixedPolicyPlayer
