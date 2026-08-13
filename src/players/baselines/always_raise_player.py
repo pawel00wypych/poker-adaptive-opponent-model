@@ -79,9 +79,7 @@ class AlwaysRaisePlayer(PlayerTemplate):
             round_state,
         )
 
-        self.update_round_tracking_after_result(
-            final_stack,
-        )
+        self.update_tracking_after_round(current_stack=final_stack)
 
     @staticmethod
     def _find_action(
