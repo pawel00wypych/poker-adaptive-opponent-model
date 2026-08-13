@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.experiments.training.run_training_suite import (
+from src.experiments.training.run_monte_carlo_suite import (
     TrainingJob,
     build_command,
     build_jobs,
