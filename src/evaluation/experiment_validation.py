@@ -26,7 +26,7 @@ from src.players.constants import (
     GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,
 )
-from src.players.generalization_opponents import (
+from src.players.generalization.generalization_opponents import (
     GENERALIZATION_OPPONENT_TO_BASE_TYPE,
 )
 from src.poker.constants import (

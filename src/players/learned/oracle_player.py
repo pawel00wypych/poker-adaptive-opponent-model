@@ -1,7 +1,7 @@
 from collections import Counter
 
 from src.features.state_encoder import StateEncoder
-from src.players.player_template import PlayerTemplate
+from src.players.base.player_template import PlayerTemplate
 from src.poker.action_mapper import ActionMapper
 from src.poker.constants import (
     POLICY_TYPES,

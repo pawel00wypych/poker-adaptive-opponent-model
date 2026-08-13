@@ -1,7 +1,7 @@
 import random
 
 from src.features.hand_strength_encoder import HandStrengthEncoder
-from src.players.player_template import PlayerTemplate
+from src.players.base.player_template import PlayerTemplate
 
 
 WEAK_HAND_STRENGTH_BIN = 0

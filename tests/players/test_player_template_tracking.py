@@ -1,4 +1,4 @@
-from src.players.player_template import PlayerTemplate
+from src.players.base.player_template import PlayerTemplate
 
 
 class DummyTrackedPlayer(PlayerTemplate):

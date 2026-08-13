@@ -1,4 +1,4 @@
-from src.players.always_call_player import AlwaysCallPlayer
+from src.players.baselines.always_call_player import AlwaysCallPlayer
 
 
 def test_always_call_player_calls_when_call_available():

@@ -1,5 +1,5 @@
 from src.players.constants import PLAYER_NAME_ALWAYS_RAISE
-from src.players.player_template import PlayerTemplate
+from src.players.base.player_template import PlayerTemplate
 
 
 class AlwaysRaisePlayer(PlayerTemplate):

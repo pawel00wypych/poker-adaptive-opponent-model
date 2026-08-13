@@ -1,5 +1,5 @@
-from src.players.calling_player import CallingPlayer
-from src.players.calling_extreme_player import CallingExtremePlayer
+from src.players.opponents.calling_player import CallingPlayer
+from src.players.generalization.calling_extreme_player import CallingExtremePlayer
 
 
 VALID_ACTIONS = [

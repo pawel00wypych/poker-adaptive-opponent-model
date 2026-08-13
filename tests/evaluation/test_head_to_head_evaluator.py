@@ -20,11 +20,11 @@ from src.evaluation.head_to_head_evaluator import (
     write_head_to_head_rows,
 )
 from src.experiments.evaluation.run_head_to_head_evaluation import parse_args
-from src.players.adaptive_player import AdaptivePlayer
-from src.players.always_call_player import AlwaysCallPlayer
-from src.players.always_raise_player import AlwaysRaisePlayer
-from src.players.fixed_policy_player import FixedPolicyPlayer
-from src.players.rule_based_player import RuleBasedPlayer
+from src.players.learned.adaptive_player import AdaptivePlayer
+from src.players.baselines.always_call_player import AlwaysCallPlayer
+from src.players.baselines.always_raise_player import AlwaysRaisePlayer
+from src.players.learned.fixed_policy_player import FixedPolicyPlayer
+from src.players.baselines.rule_based_player import RuleBasedPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,

@@ -359,8 +359,8 @@ from src.evaluation.constants import (
 from src.evaluation.checkpoint_evaluator import (
     get_classifier_metrics,
 )
-from src.players.fixed_policy_player import FixedPolicyPlayer
-from src.players.oracle_player import OraclePlayer
+from src.players.learned.fixed_policy_player import FixedPolicyPlayer
+from src.players.learned.oracle_player import OraclePlayer
 
 
 def test_supported_agents_include_oracle_and_cross_policy_agents():

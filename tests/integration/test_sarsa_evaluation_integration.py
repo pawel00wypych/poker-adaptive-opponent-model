@@ -21,8 +21,8 @@ from src.evaluation.generalization_evaluator import (
 )
 from src.experiments.evaluation.run_checkpoint_evaluation import parse_args as parse_checkpoint_args
 from src.experiments.evaluation.run_generalization_evaluation import parse_args as parse_generalization_args
-from src.players.adaptive_player import AdaptivePlayer
-from src.players.fixed_policy_player import FixedPolicyPlayer
+from src.players.learned.adaptive_player import AdaptivePlayer
+from src.players.learned.fixed_policy_player import FixedPolicyPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,

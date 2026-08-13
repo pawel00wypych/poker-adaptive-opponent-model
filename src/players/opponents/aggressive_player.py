@@ -1,5 +1,5 @@
 import random
-from src.players.player_template import PlayerTemplate
+from src.players.base.player_template import PlayerTemplate
 from src.cards.evaluator_interface import EvaluatorInterface
 
 

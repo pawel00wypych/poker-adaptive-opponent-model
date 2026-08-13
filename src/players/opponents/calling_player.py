@@ -1,4 +1,4 @@
-from src.players.player_template import PlayerTemplate
+from src.players.base.player_template import PlayerTemplate
 from src.poker.round_state_utils import get_player_stack
 
 
