@@ -7,10 +7,10 @@ from concurrent.futures import (
 from pathlib import Path
 from time import perf_counter
 
-from src.evaluation.checkpoint_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import (
     discover_model_bundles,
 )
-from src.evaluation.head_to_head_evaluator import (
+from src.evaluation.runners.head_to_head_evaluator import (
     DEFAULT_HEAD_TO_HEAD_AGENTS,
     DEFAULT_HEAD_TO_HEAD_OPPONENTS,
     SUPPORTED_HEAD_TO_HEAD_AGENTS,

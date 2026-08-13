@@ -2,7 +2,7 @@ import pickle
 
 import pytest
 
-from src.evaluation.q_table_comparator import (
+from src.evaluation.diagnostics.q_table_comparator import (
     best_action,
     build_selected_targets,
     checkpoint_filename,

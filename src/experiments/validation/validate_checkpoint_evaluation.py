@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from src.evaluation.experiment_validation import (
+from src.evaluation.validation.experiment_validation import (
     VALIDATION_MODE_CHECKPOINT,
     VALIDATION_MODES,
     ValidationThresholds,

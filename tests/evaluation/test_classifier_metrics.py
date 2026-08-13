@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from src.evaluation.classifier_metrics import (
+from src.evaluation.metrics.classifier_metrics import (
     calculate_classifier_summary,
 )
 

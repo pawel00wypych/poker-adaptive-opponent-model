@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from src.evaluation.checkpoint_metrics import (
+from src.evaluation.metrics.checkpoint_metrics import (
     calculate_checkpoint_metrics,
 )
 

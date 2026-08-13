@@ -9,9 +9,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from src.evaluation.html_utils import definition_list, html_page, write_text
-from src.evaluation.plot_utils import ensure_output_dir, save_current_figure
-from src.evaluation.report_descriptions import (
+from src.evaluation.reporting.html_utils import definition_list, html_page, write_text
+from src.evaluation.reporting.plot_utils import ensure_output_dir, save_current_figure
+from src.evaluation.reporting.report_descriptions import (
     ACTION_LABELS,
     METRIC_DESCRIPTIONS,
     REPORT_INTRODUCTION,

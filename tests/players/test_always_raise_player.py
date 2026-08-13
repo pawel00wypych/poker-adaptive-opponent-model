@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.evaluation.checkpoint_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import (
     ModelBundle,
     build_tested_player,
 )

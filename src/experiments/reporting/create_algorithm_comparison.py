@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 
-from src.evaluation.algorithm_comparison import (
+from src.evaluation.reporting.algorithm_comparison import (
     AlgorithmComparisonConfig,
     write_algorithm_comparison_outputs,
 )

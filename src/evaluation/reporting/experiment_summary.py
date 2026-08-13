@@ -7,7 +7,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from src.evaluation.checkpoint_report import (
+from src.evaluation.reporting.checkpoint_report import (
     aggregate_across_seeds,
     display_agent_name,
     load_checkpoint_report_data,
@@ -17,14 +17,13 @@ from src.evaluation.constants import (
     AGENT_TO_ORACLE_AGENT,
     ALWAYS_RAISE_AGENT,
     ORACLE_AGENTS,
-    ORACLE_MC_AGENT,
     RULE_BASED_AGENT,
 )
-from src.evaluation.experiment_charts import (
+from src.evaluation.reporting.experiment_charts import (
     ExperimentChartConfig,
     create_experiment_summary_charts,
 )
-from src.evaluation.html_utils import write_text
+from src.evaluation.reporting.html_utils import write_text
 from src.poker.constants import OPPONENT_TYPE_TIGHT
 
 QUALITY_OK = "OK"

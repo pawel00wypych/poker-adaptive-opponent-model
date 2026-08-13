@@ -1,6 +1,6 @@
 import argparse
 
-from src.evaluation.checkpoint_report import (
+from src.evaluation.reporting.checkpoint_report import (
     write_checkpoint_html_report,
     write_checkpoint_markdown_report,
 )
