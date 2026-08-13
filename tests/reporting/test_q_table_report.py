@@ -1,6 +1,6 @@
 import json
 
-from src.evaluation.q_table_report import (
+from src.evaluation.reporting.q_table_report import (
     comparisons_to_dataframe,
     summaries_to_dataframe,
     write_q_table_html_report,

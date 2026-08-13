@@ -3,7 +3,7 @@ from itertools import combinations
 from pathlib import Path
 
 from src.evaluation.constants import SUPPORTED_POLICY_TYPES
-from src.evaluation.q_table_comparator import (
+from src.evaluation.diagnostics.q_table_comparator import (
     build_selected_targets,
     compare_q_tables,
     find_largest_disagreements,

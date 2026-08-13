@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from src.evaluation.experiment_validation import (
+from src.evaluation.validation.experiment_validation import (
     STATUS_FAIL,
     VALIDATION_MODE_HEAD_TO_HEAD,
     STATUS_PASS,

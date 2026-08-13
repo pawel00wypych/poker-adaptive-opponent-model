@@ -11,7 +11,7 @@ from pypokerengine.api.game import (
 )
 
 from src.config import GameConfig
-from src.evaluation.checkpoint_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import (
     CHECKPOINT_EVALUATION_FIELDNAMES,
     ModelBundle,
     build_result_row,

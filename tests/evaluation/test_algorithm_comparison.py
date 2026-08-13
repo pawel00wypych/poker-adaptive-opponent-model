@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from src.evaluation.algorithm_comparison import (
+from src.evaluation.reporting.algorithm_comparison import (
     ALGORITHM_DOUBLE_Q_LEARNING,
     ALGORITHM_MONTE_CARLO,
     ALGORITHM_Q_LEARNING,

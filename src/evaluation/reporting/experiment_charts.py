@@ -10,8 +10,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from src.evaluation.checkpoint_report import display_agent_name
-from src.evaluation.plot_utils import ensure_output_dir, save_current_figure
+from src.evaluation.reporting.checkpoint_report import display_agent_name
+from src.evaluation.reporting.plot_utils import ensure_output_dir, save_current_figure
 
 MEAN_CI_CHART_FILENAME = "mean_profit_ci_by_opponent.png"
 SEED_STABILITY_CHART_FILENAME = "seed_stability_by_opponent.png"

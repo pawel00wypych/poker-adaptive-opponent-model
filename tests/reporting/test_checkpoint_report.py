@@ -1,6 +1,6 @@
 import pandas as pd
 
-from src.evaluation.checkpoint_report import (
+from src.evaluation.reporting.checkpoint_report import (
     aggregate_across_seeds,
     best_rows_by_agent,
     load_checkpoint_report_data,

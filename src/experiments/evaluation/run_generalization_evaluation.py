@@ -7,10 +7,10 @@ from concurrent.futures import (
 from pathlib import Path
 from time import perf_counter
 
-from src.evaluation.checkpoint_evaluator import (
+from src.evaluation.runners.checkpoint_evaluator import (
     discover_model_bundles,
 )
-from src.evaluation.generalization_evaluator import (
+from src.evaluation.runners.generalization_evaluator import (
     DEFAULT_GENERALIZATION_AGENTS,
     DEFAULT_GENERALIZATION_OPPONENTS,
     SUPPORTED_GENERALIZATION_AGENTS,

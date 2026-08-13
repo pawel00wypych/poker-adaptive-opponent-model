@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from src.evaluation.experiment_summary import (
+from src.evaluation.reporting.experiment_summary import (
     QUALITY_FAIL,
     QUALITY_OK,
     QUALITY_WARNING,
@@ -11,7 +11,6 @@ from src.evaluation.experiment_summary import (
     add_quality_flags,
     build_agent_ranking,
     build_experiment_summary,
-    generate_main_findings,
     write_experiment_summary_outputs,
 )
 from src.experiments.reporting.create_experiment_summary import (

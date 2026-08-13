@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.evaluation.experiment_charts import (
+from src.evaluation.reporting.experiment_charts import (
     MEAN_CI_CHART_FILENAME,
     SEED_STABILITY_CHART_FILENAME,
     ExperimentChartConfig,
