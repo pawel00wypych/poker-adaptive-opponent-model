@@ -10,11 +10,11 @@ from pypokerengine.api.game import (
 
 from src.agents.sarsa_agent import SarsaAgent
 from src.config import GameConfig, TrainingConfig
-from src.experiments.constants import (
+from src.training.constants import (
     MODEL_TYPE_GENERAL_POLICY,
     MODEL_TYPE_SPECIALIST,
 )
-from src.experiments.training.training_opponents import (
+from src.players.opponents.factory import (
     build_opponent,
     build_training_opponent,
 )

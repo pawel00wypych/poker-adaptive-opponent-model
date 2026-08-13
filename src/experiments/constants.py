@@ -4,8 +4,10 @@ from src.poker.constants import (
     OPPONENT_TYPE_TIGHT,
 )
 
-MODEL_TYPE_GENERAL_POLICY = "general_policy"
-MODEL_TYPE_SPECIALIST = "specialist"
+from src.training.constants import (
+    MODEL_TYPE_GENERAL_POLICY,
+    MODEL_TYPE_SPECIALIST,
+)
 
 MODEL_TYPES = (
     MODEL_TYPE_GENERAL_POLICY,
