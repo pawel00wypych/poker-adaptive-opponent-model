@@ -24,18 +24,17 @@ from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
-    CROSS_POLICY_AGENT_TO_POLICY_TYPE,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_TIGHT_AGENT,
     POLICY_GENERAL_MC_AGENT,
     RULE_BASED_AGENT,
 )
-from src.players.learned.adaptive_player import AdaptivePlayer
-from src.players.baselines.always_call_player import AlwaysCallPlayer
-from src.players.baselines.always_raise_player import AlwaysRaisePlayer
-from src.players.learned.fixed_policy_player import FixedPolicyPlayer
-from src.players.baselines.rule_based_player import RuleBasedPlayer
+from src.evaluation.player_factory import (
+    EvaluationAgentLoaders,
+    build_evaluation_player,
+    build_scripted_evaluation_player,
+)
 
 
 HEAD_TO_HEAD_RULE_BASED_OPPONENT = RULE_BASED_AGENT
@@ -120,23 +119,16 @@ def build_head_to_head_opponent(
         opponent_name
     )
 
-    if opponent_name == RULE_BASED_AGENT:
-        return RuleBasedPlayer(
-            player_name=RULE_BASED_AGENT,
-        )
+    return build_scripted_evaluation_player(
+        opponent_name,
+        unsupported_context="head-to-head opponent",
+    )
 
-    if opponent_name == ALWAYS_RAISE_AGENT:
-        return AlwaysRaisePlayer(
-            player_name=ALWAYS_RAISE_AGENT,
-        )
 
-    if opponent_name == ALWAYS_CALL_AGENT:
-        return AlwaysCallPlayer(
-            player_name=ALWAYS_CALL_AGENT,
-        )
-
-    raise ValueError(
-        f"Unsupported head-to-head opponent: {opponent_name}"
+def build_head_to_head_player_loaders() -> EvaluationAgentLoaders:
+    return EvaluationAgentLoaders(
+        load_monte_carlo_agent=load_eval_agent,
+        load_monte_carlo_agents=load_adaptive_agents,
     )
 
 
@@ -156,44 +148,14 @@ def build_head_to_head_tested_player(
         tested_agent_name
     )
 
-    if tested_agent_name == ALWAYS_RAISE_AGENT:
-        return AlwaysRaisePlayer(
-            player_name=ALWAYS_RAISE_AGENT,
-        )
-
-    if tested_agent_name == ALWAYS_CALL_AGENT:
-        return AlwaysCallPlayer(
-            player_name=ALWAYS_CALL_AGENT,
-        )
-
-    if tested_agent_name == ADAPTIVE_MC_AGENT:
-        return AdaptivePlayer(
-            agents=load_adaptive_agents(bundle),
-            player_name=ADAPTIVE_MC_AGENT,
-            expected_opponent_type=None,
-            verbose=False,
-        )
-
-    if tested_agent_name in CROSS_POLICY_AGENT_TO_POLICY_TYPE:
-        policy_type = CROSS_POLICY_AGENT_TO_POLICY_TYPE[
-            tested_agent_name
-        ]
-
-        agent = load_eval_agent(
-            bundle.agent_paths()[policy_type]
-        )
-
-        return FixedPolicyPlayer(
-            agent=agent,
-            policy_type=policy_type,
-            player_name=tested_agent_name,
-            verbose=False,
-        )
-
-    raise ValueError(
-        f"Unsupported head-to-head agent: {tested_agent_name}"
+    return build_evaluation_player(
+        tested_agent_name=tested_agent_name,
+        bundle=bundle,
+        loaders=build_head_to_head_player_loaders(),
+        expected_opponent_type=None,
+        oracle_opponent_type=None,
+        unsupported_context="head-to-head agent",
     )
-
 
 def set_head_to_head_seed(seed: int) -> None:
     random.seed(seed)
