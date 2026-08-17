@@ -239,9 +239,9 @@ def test_validate_checkpoint_results_generates_expected_statuses(tmp_path):
         check.check_name
         for check in report.checks
     }
-    assert "Adaptive beats rule-based vs aggressive" in check_names
-    assert "Adaptive beats rule-based vs calling" in check_names
-    assert "Adaptive exploits TightPlayer" in check_names
+    assert "Monte Carlo: Adaptive beats rule-based vs aggressive" in check_names
+    assert "Monte Carlo: Adaptive beats rule-based vs calling" in check_names
+    assert "Monte Carlo: Adaptive exploits TightPlayer" in check_names
 
 
 def test_validate_checkpoint_results_fails_when_adaptive_loses_to_rule_based(
@@ -268,7 +268,7 @@ def test_validate_checkpoint_results_fails_when_adaptive_loses_to_rule_based(
 
     assert not report.passed
     assert any(
-        check.check_name == "Adaptive beats rule-based vs calling"
+        check.check_name == "Monte Carlo: Adaptive beats rule-based vs calling"
         for check in failing_checks
     )
 
@@ -306,7 +306,7 @@ def test_validation_markdown_and_json_reports_are_written(tmp_path):
     payload = json.loads(json_path.read_text(encoding="utf-8"))
 
     assert "Experiment validation report" in markdown
-    assert "Adaptive beats rule-based vs aggressive" in markdown
+    assert "Monte Carlo: Adaptive beats rule-based vs aggressive" in markdown
     assert payload["passed"] is True
     assert "checks" in payload
 
@@ -339,6 +339,10 @@ def test_validation_cli_parser_accepts_threshold_overrides():
             "json",
             "--validation-mode",
             "head-to-head",
+            "--algorithms",
+            "monte_carlo",
+            "q_learning",
+            "--require-all-algorithms",
             "--min-classifier-accuracy",
             "75",
             "--max-std-across-seeds-bb",
@@ -363,6 +367,8 @@ def test_validation_cli_parser_accepts_threshold_overrides():
 
     assert args.format == "json"
     assert args.validation_mode == "head-to-head"
+    assert args.algorithms == ["monte_carlo", "q_learning"]
+    assert args.require_all_algorithms is True
     assert thresholds.min_classifier_accuracy == 75.0
     assert thresholds.max_std_across_seeds_bb == 7.0
     assert thresholds.always_raise_adaptive_warning_gap_bb == 4.0
@@ -387,7 +393,7 @@ def test_validation_warns_when_always_raise_beats_adaptive_by_large_margin(
         check
         for check in report.checks
         if check.check_name
-        == "Always-raise dominance sanity check vs aggressive"
+        == "Monte Carlo: Always-raise dominance sanity check vs aggressive"
     ]
 
     assert len(checks) == 1
@@ -429,7 +435,7 @@ def test_validation_warns_when_tight_is_saturated_by_simple_baselines(
     checks = [
         check
         for check in report.checks
-        if check.check_name == "TightPlayer baseline saturation sanity check"
+        if check.check_name == "Monte Carlo: TightPlayer baseline saturation sanity check"
     ]
 
     assert len(checks) == 1
@@ -450,17 +456,17 @@ def test_head_to_head_validation_mode_uses_direct_matchup_checks(tmp_path):
     check_names = {check.check_name for check in report.checks}
 
     assert report.validation_mode == "head-to-head"
-    assert "Fixed general policy beats RuleBasedPlayer" in check_names
-    assert "Adaptive Monte Carlo beats RuleBasedPlayer" in check_names
-    assert "At least one specialist beats RuleBasedPlayer" in check_names
+    assert "Monte Carlo: Fixed general policy beats RuleBasedPlayer" in check_names
+    assert "Monte Carlo: Adaptive beats RuleBasedPlayer" in check_names
+    assert "Monte Carlo: At least one specialist beats RuleBasedPlayer" in check_names
     assert (
-        "Adaptive not significantly worse than fixed general "
+        "Monte Carlo: Adaptive not significantly worse than fixed general "
         "vs RuleBasedPlayer"
     ) in check_names
-    assert "OOD classifier coverage vs rule_based" in check_names
-    assert "OOD classifier coverage vs always_raise" in check_names
-    assert "AlwaysRaise stress test vs adaptive_mc" in check_names
-    assert "Adaptive exploits TightPlayer" not in check_names
+    assert "Monte Carlo: OOD classifier coverage vs rule_based" in check_names
+    assert "Monte Carlo: OOD classifier coverage vs always_raise" in check_names
+    assert "Monte Carlo: AlwaysRaise stress test vs adaptive_mc" in check_names
+    assert "Monte Carlo: Adaptive exploits TightPlayer" not in check_names
 
     assert not any(
         check.status == STATUS_SKIPPED
@@ -488,7 +494,7 @@ def test_head_to_head_validation_warns_for_always_raise_stress_test(
 
     assert stress_checks
     assert any(
-        check.check_name == "AlwaysRaise stress test vs adaptive_mc"
+        check.check_name == "Monte Carlo: AlwaysRaise stress test vs adaptive_mc"
         and check.status == STATUS_WARNING
         for check in stress_checks
     )
@@ -514,7 +520,7 @@ def test_head_to_head_validation_fails_when_adaptive_loses_to_rule_based(
     )
 
     assert any(
-        check.check_name == "Adaptive Monte Carlo beats RuleBasedPlayer"
+        check.check_name == "Monte Carlo: Adaptive beats RuleBasedPlayer"
         and check.status == STATUS_FAIL
         for check in report.checks
     )
@@ -669,22 +675,22 @@ def test_generalization_validation_mode_uses_variant_checks(tmp_path):
     check_names = {check.check_name for check in report.checks}
 
     assert report.validation_mode == "generalization"
-    assert "Adaptive positive on generalization variants" in check_names
+    assert "Monte Carlo: Adaptive positive on generalization variants" in check_names
     assert (
-        "Adaptive beats fixed general on generalization variants"
+        "Monte Carlo: Adaptive beats fixed general on generalization variants"
         in check_names
     )
     assert (
-        "Adaptive beats rule-based on generalization variants"
+        "Monte Carlo: Adaptive beats rule-based on generalization variants"
         in check_names
     )
-    assert "Generalization oracle gap vs tight_extreme" in check_names
+    assert "Monte Carlo: Generalization oracle gap vs tight_extreme" in check_names
     assert (
-        "Generalization classifier coverage vs aggressive_extreme"
+        "Monte Carlo: Generalization classifier coverage vs aggressive_extreme"
         in check_names
     )
-    assert "Aggressive extreme robustness check" in check_names
-    assert "Adaptive exploits TightPlayer" not in check_names
+    assert "Monte Carlo: Aggressive extreme robustness check" in check_names
+    assert "Monte Carlo: Adaptive exploits TightPlayer" not in check_names
 
 
 def test_generalization_validation_warns_for_oracle_gap_and_classifier(
@@ -704,17 +710,17 @@ def test_generalization_validation_warns_for_oracle_gap_and_classifier(
         if check.status == STATUS_WARNING
     }
 
-    assert "Generalization oracle gap vs tight_extreme" in warnings
-    assert "Generalization oracle gap vs aggressive_extreme" in warnings
+    assert "Monte Carlo: Generalization oracle gap vs tight_extreme" in warnings
+    assert "Monte Carlo: Generalization oracle gap vs aggressive_extreme" in warnings
     assert (
-        "Generalization classifier accuracy vs aggressive_extreme"
+        "Monte Carlo: Generalization classifier accuracy vs aggressive_extreme"
         in warnings
     )
     assert (
-        "Generalization classifier coverage vs aggressive_extreme"
+        "Monte Carlo: Generalization classifier coverage vs aggressive_extreme"
         in warnings
     )
-    assert "Aggressive extreme robustness check" in warnings
+    assert "Monte Carlo: Aggressive extreme robustness check" in warnings
 
 
 def test_generalization_validation_fails_when_adaptive_is_not_positive(
@@ -734,7 +740,7 @@ def test_generalization_validation_fails_when_adaptive_is_not_positive(
     )
 
     assert any(
-        check.check_name == "Adaptive positive on generalization variants"
+        check.check_name == "Monte Carlo: Adaptive positive on generalization variants"
         and check.status == STATUS_FAIL
         for check in report.checks
     )

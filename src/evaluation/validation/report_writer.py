@@ -30,6 +30,7 @@ def validation_checks_to_dataframe(
                 "check_name",
                 "status",
                 "category",
+                "algorithm_name",
                 "agent_name",
                 "opponent_name",
                 "checkpoint_episode",
@@ -46,6 +47,7 @@ def _format_report_table(df: pd.DataFrame) -> pd.DataFrame:
         [
             "status",
             "category",
+            "algorithm_name",
             "check_name",
             "agent_name",
             "opponent_name",

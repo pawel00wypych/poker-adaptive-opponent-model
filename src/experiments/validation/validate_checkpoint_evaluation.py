@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import argparse
 
+from src.evaluation.algorithm_metadata import (
+    SUPPORTED_ALGORITHM_KEYS,
+    algorithm_specs_from_keys,
+)
 from src.evaluation.validation import (
     VALIDATION_MODE_CHECKPOINT,
     VALIDATION_MODES,
@@ -36,6 +40,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "or 'generalization' for unseen opponent variants."
         ),
     )
+    parser.add_argument(
+        "--algorithms",
+        nargs="+",
+        choices=SUPPORTED_ALGORITHM_KEYS,
+        default=None,
+        help=(
+            "Optional subset of algorithms expected in the validation "
+            "input. Defaults to algorithms detected in the CSV unless "
+            "--require-all-algorithms is used."
+        ),
+    )
+    parser.add_argument(
+        "--require-all-algorithms",
+        action="store_true",
+        help=(
+            "Fail validation when an expected final RL algorithm is "
+            "missing from the result file."
+        ),
+    )
+
     parser.add_argument(
         "--min-adaptive-delta-vs-rule-based-bb",
         type=float,
@@ -212,6 +236,8 @@ def main() -> None:
         input_path=args.input_path,
         thresholds=thresholds,
         validation_mode=args.validation_mode,
+        algorithm_specs=algorithm_specs_from_keys(args.algorithms),
+        require_all_algorithms=args.require_all_algorithms,
     )
 
     created_paths = []

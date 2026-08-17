@@ -1,3 +1,17 @@
+from src.evaluation.algorithm_metadata import (
+    ADAPTIVE_AGENT_TO_ALGORITHM,
+    AGENT_TO_ALGORITHM,
+    ALGORITHM_DOUBLE_Q_LEARNING,
+    ALGORITHM_MONTE_CARLO,
+    ALGORITHM_Q_LEARNING,
+    ALGORITHM_SARSA,
+    ALGORITHM_VALIDATION_SPECS,
+    SUPPORTED_ALGORITHM_KEYS,
+    AlgorithmValidationSpec,
+    algorithm_specs_from_keys,
+    available_algorithm_specs,
+    complete_algorithm_specs,
+)
 from src.evaluation.validation.common import (
     STATUS_FAIL,
     STATUS_PASS,
@@ -19,6 +33,7 @@ from src.evaluation.validation.common import (
 from src.evaluation.validation.checkpoint_validation import (
     validate_adaptive_beats_rule_based,
     validate_checkpoint_results,
+    validate_expected_algorithms_present,
     validate_classifier_quality,
     validate_oracle_not_worse_than_adaptive,
     validate_tight_baseline_saturation,
