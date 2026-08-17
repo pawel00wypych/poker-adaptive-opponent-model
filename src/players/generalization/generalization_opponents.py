@@ -3,30 +3,14 @@ import random
 from src.players.generalization.aggressive_extreme_player import AggressiveExtremePlayer
 from src.players.constants import (
     GENERALIZATION_OPPONENTS,
+    GENERALIZATION_OPPONENT_SEEN_IN_TRAINING,
+    GENERALIZATION_OPPONENT_TO_BASE_TYPE,
     OPPONENT_AGGRESSIVE_EXTREME,
     OPPONENT_CALLING_EXTREME,
     OPPONENT_TIGHT_EXTREME,
 )
 from src.players.generalization.calling_extreme_player import CallingExtremePlayer
 from src.players.generalization.tight_extreme_player import TightExtremePlayer
-from src.poker.constants import (
-    OPPONENT_TYPE_AGGRESSIVE,
-    OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_TIGHT,
-)
-
-
-GENERALIZATION_OPPONENT_TO_BASE_TYPE = {
-    OPPONENT_CALLING_EXTREME: OPPONENT_TYPE_CALLING,
-    OPPONENT_AGGRESSIVE_EXTREME: OPPONENT_TYPE_AGGRESSIVE,
-    OPPONENT_TIGHT_EXTREME: OPPONENT_TYPE_TIGHT,
-}
-
-GENERALIZATION_OPPONENT_SEEN_IN_TRAINING = {
-    OPPONENT_CALLING_EXTREME: False,
-    OPPONENT_AGGRESSIVE_EXTREME: False,
-    OPPONENT_TIGHT_EXTREME: False,
-}
 
 
 def build_generalization_opponent_player(

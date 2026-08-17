@@ -5,15 +5,17 @@ from typing import Iterable
 
 import pandas as pd
 
+from src.evaluation.algorithm_metadata import (
+    ALGORITHM_VALIDATION_SPECS,
+    AlgorithmValidationSpec,
+    available_algorithm_specs,
+)
 from src.evaluation.validation.common import (
-    ADAPTIVE_MC_AGENT,
     ALWAYS_RAISE_AGENT,
     DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS,
     DEFAULT_CLASSIFIER_OPPONENTS,
     DEFAULT_ORACLE_OPPONENTS,
     OPPONENT_TYPE_TIGHT,
-    ORACLE_MC_AGENT,
-    POLICY_TIGHT_AGENT,
     RULE_BASED_AGENT,
     STATUS_FAIL,
     STATUS_PASS,
@@ -46,259 +48,81 @@ from src.evaluation.validation.head_to_head_validation import (
 )
 
 
+def _algorithm_specs(
+    best_rows: pd.DataFrame,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+) -> tuple[AlgorithmValidationSpec, ...]:
+    return tuple(algorithm_specs or available_algorithm_specs(best_rows))
+
+
+def validate_expected_algorithms_present(
+    best_rows: pd.DataFrame,
+    expected_specs: Iterable[AlgorithmValidationSpec],
+    *,
+    fail_when_missing: bool,
+) -> list[ValidationCheckResult]:
+    available_keys = {
+        spec.algorithm_key
+        for spec in available_algorithm_specs(best_rows)
+    }
+    results: list[ValidationCheckResult] = []
+
+    for spec in expected_specs:
+        present = spec.algorithm_key in available_keys
+        results.append(
+            ValidationCheckResult(
+                check_name=(
+                    f"{spec.algorithm_name}: Algorithm result coverage"
+                ),
+                status=(
+                    STATUS_PASS
+                    if present
+                    else STATUS_FAIL if fail_when_missing else STATUS_WARNING
+                ),
+                category="algorithm_coverage",
+                algorithm_name=spec.algorithm_name,
+                message=(
+                    "At least one adaptive/oracle/general-policy row is "
+                    "present for this algorithm."
+                    if present
+                    else "No adaptive, oracle or general-policy rows found "
+                    "for this algorithm."
+                ),
+                details={
+                    "algorithm_key": spec.algorithm_key,
+                    "adaptive_agent": spec.adaptive_agent,
+                    "oracle_agent": spec.oracle_agent,
+                    "general_policy_agent": spec.general_policy_agent,
+                    "present": present,
+                },
+            )
+        )
+
+    return results
+
+
 def validate_adaptive_beats_rule_based(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for opponent_name in opponents:
-        adaptive_row = _find_row(
-            best_rows,
-            ADAPTIVE_MC_AGENT,
-            opponent_name,
-        )
-        rule_based_row = _find_row(
-            best_rows,
-            RULE_BASED_AGENT,
-            opponent_name,
-        )
-        check_name = (
-            "Adaptive beats rule-based "
-            f"vs {opponent_name}"
-        )
-
-        if adaptive_row is None:
-            results.append(
-                _missing_row_result(
-                    check_name,
-                    "baseline_delta",
-                    ADAPTIVE_MC_AGENT,
-                    opponent_name,
-                )
+    for spec in _algorithm_specs(best_rows, algorithm_specs):
+        for opponent_name in opponents:
+            adaptive_row = _find_row(
+                best_rows,
+                spec.adaptive_agent,
+                opponent_name,
             )
-            continue
-
-        if rule_based_row is None:
-            results.append(
-                _missing_row_result(
-                    check_name,
-                    "baseline_delta",
-                    RULE_BASED_AGENT,
-                    opponent_name,
-                )
+            rule_based_row = _find_row(
+                best_rows,
+                RULE_BASED_AGENT,
+                opponent_name,
             )
-            continue
-
-        delta = float(
-            adaptive_row["mean_profit_bb"]
-            - rule_based_row["mean_profit_bb"]
-        )
-        status = (
-            STATUS_PASS
-            if delta >= thresholds.min_adaptive_delta_vs_rule_based_bb
-            else STATUS_FAIL
-        )
-
-        results.append(
-            ValidationCheckResult(
-                check_name=check_name,
-                status=status,
-                category="baseline_delta",
-                agent_name=ADAPTIVE_MC_AGENT,
-                opponent_name=opponent_name,
-                checkpoint_episode=_checkpoint_episode(adaptive_row),
-                observed_value=delta,
-                threshold=(
-                    thresholds.min_adaptive_delta_vs_rule_based_bb
-                ),
-                message=(
-                    "Adaptive mean profit delta vs rule-based is "
-                    f"{_format_float(delta)} BB/game."
-                ),
-                details={
-                    "adaptive_mean_profit_bb": float(
-                        adaptive_row["mean_profit_bb"]
-                    ),
-                    "rule_based_mean_profit_bb": float(
-                        rule_based_row["mean_profit_bb"]
-                    ),
-                    "rule_based_checkpoint_episode": _checkpoint_episode(
-                        rule_based_row
-                    ),
-                },
-            )
-        )
-
-    return results
-
-def validate_oracle_not_worse_than_adaptive(
-    best_rows: pd.DataFrame,
-    thresholds: ValidationThresholds,
-    opponents: Iterable[str] = DEFAULT_ORACLE_OPPONENTS,
-) -> list[ValidationCheckResult]:
-    results: list[ValidationCheckResult] = []
-
-    for opponent_name in opponents:
-        oracle_row = _find_row(
-            best_rows,
-            ORACLE_MC_AGENT,
-            opponent_name,
-        )
-        adaptive_row = _find_row(
-            best_rows,
-            ADAPTIVE_MC_AGENT,
-            opponent_name,
-        )
-        check_name = (
-            "Oracle not significantly worse than adaptive "
-            f"vs {opponent_name}"
-        )
-
-        if oracle_row is None:
-            results.append(
-                _missing_row_result(
-                    check_name,
-                    "oracle_gap",
-                    ORACLE_MC_AGENT,
-                    opponent_name,
-                )
-            )
-            continue
-
-        if adaptive_row is None:
-            results.append(
-                _missing_row_result(
-                    check_name,
-                    "oracle_gap",
-                    ADAPTIVE_MC_AGENT,
-                    opponent_name,
-                )
-            )
-            continue
-
-        oracle_gap = float(
-            oracle_row["mean_profit_bb"]
-            - adaptive_row["mean_profit_bb"]
-        )
-        status = (
-            STATUS_PASS
-            if oracle_gap >= -thresholds.max_oracle_underperformance_bb
-            else STATUS_WARNING
-        )
-
-        results.append(
-            ValidationCheckResult(
-                check_name=check_name,
-                status=status,
-                category="oracle_gap",
-                agent_name=ORACLE_MC_AGENT,
-                opponent_name=opponent_name,
-                checkpoint_episode=_checkpoint_episode(oracle_row),
-                observed_value=oracle_gap,
-                threshold=-thresholds.max_oracle_underperformance_bb,
-                message=(
-                    "Oracle minus adaptive mean profit is "
-                    f"{_format_float(oracle_gap)} BB/game."
-                ),
-                details={
-                    "oracle_mean_profit_bb": float(
-                        oracle_row["mean_profit_bb"]
-                    ),
-                    "adaptive_mean_profit_bb": float(
-                        adaptive_row["mean_profit_bb"]
-                    ),
-                    "adaptive_checkpoint_episode": _checkpoint_episode(
-                        adaptive_row
-                    ),
-                },
-            )
-        )
-
-    return results
-
-def validate_tight_exploitation(
-    best_rows: pd.DataFrame,
-    thresholds: ValidationThresholds,
-) -> list[ValidationCheckResult]:
-    adaptive_row = _find_row(
-        best_rows,
-        ADAPTIVE_MC_AGENT,
-        OPPONENT_TYPE_TIGHT,
-    )
-    check_name = "Adaptive exploits TightPlayer"
-
-    if adaptive_row is None:
-        return [
-            _missing_row_result(
-                check_name,
-                "tight_exploitation",
-                ADAPTIVE_MC_AGENT,
-                OPPONENT_TYPE_TIGHT,
-            )
-        ]
-
-    mean_profit_bb = float(adaptive_row["mean_profit_bb"])
-    win_rate = float(adaptive_row["win_rate"])
-    passed = (
-        mean_profit_bb >= thresholds.min_tight_mean_profit_bb
-        and win_rate >= thresholds.min_tight_win_rate
-    )
-
-    return [
-        ValidationCheckResult(
-            check_name=check_name,
-            status=STATUS_PASS if passed else STATUS_FAIL,
-            category="tight_exploitation",
-            agent_name=ADAPTIVE_MC_AGENT,
-            opponent_name=OPPONENT_TYPE_TIGHT,
-            checkpoint_episode=_checkpoint_episode(adaptive_row),
-            observed_value=mean_profit_bb,
-            threshold=thresholds.min_tight_mean_profit_bb,
-            message=(
-                "Adaptive vs tight: "
-                f"mean_profit_bb={_format_float(mean_profit_bb)}, "
-                f"win_rate={_format_float(win_rate)}%."
-            ),
-            details={
-                "mean_profit_bb": mean_profit_bb,
-                "min_mean_profit_bb": (
-                    thresholds.min_tight_mean_profit_bb
-                ),
-                "win_rate": win_rate,
-                "min_win_rate": thresholds.min_tight_win_rate,
-            },
-        )
-    ]
-
-def validate_classifier_quality(
-    best_rows: pd.DataFrame,
-    thresholds: ValidationThresholds,
-    opponents: Iterable[str] = DEFAULT_CLASSIFIER_OPPONENTS,
-) -> list[ValidationCheckResult]:
-    results: list[ValidationCheckResult] = []
-
-    for opponent_name in opponents:
-        adaptive_row = _find_row(
-            best_rows,
-            ADAPTIVE_MC_AGENT,
-            opponent_name,
-        )
-
-        for metric_name, threshold in [
-            (
-                "global_classifier_accuracy",
-                thresholds.min_classifier_accuracy,
-            ),
-            (
-                "global_classifier_coverage",
-                thresholds.min_classifier_coverage,
-            ),
-        ]:
-            pretty_metric = metric_name.replace("global_classifier_", "")
             check_name = (
-                f"Adaptive classifier {pretty_metric} "
+                f"{spec.algorithm_name}: Adaptive beats rule-based "
                 f"vs {opponent_name}"
             )
 
@@ -306,17 +130,128 @@ def validate_classifier_quality(
                 results.append(
                     _missing_row_result(
                         check_name,
-                        "classifier_quality",
-                        ADAPTIVE_MC_AGENT,
+                        "baseline_delta",
+                        spec.adaptive_agent,
                         opponent_name,
+                        spec.algorithm_name,
                     )
                 )
                 continue
 
-            value = float(adaptive_row[metric_name])
+            if rule_based_row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "baseline_delta",
+                        RULE_BASED_AGENT,
+                        opponent_name,
+                        spec.algorithm_name,
+                    )
+                )
+                continue
+
+            delta = float(
+                adaptive_row["mean_profit_bb"]
+                - rule_based_row["mean_profit_bb"]
+            )
             status = (
                 STATUS_PASS
-                if value >= threshold
+                if delta >= thresholds.min_adaptive_delta_vs_rule_based_bb
+                else STATUS_FAIL
+            )
+
+            results.append(
+                ValidationCheckResult(
+                    check_name=check_name,
+                    status=status,
+                    category="baseline_delta",
+                    algorithm_name=spec.algorithm_name,
+                    agent_name=spec.adaptive_agent,
+                    opponent_name=opponent_name,
+                    checkpoint_episode=_checkpoint_episode(adaptive_row),
+                    observed_value=delta,
+                    threshold=(
+                        thresholds.min_adaptive_delta_vs_rule_based_bb
+                    ),
+                    message=(
+                        "Adaptive mean profit delta vs rule-based is "
+                        f"{_format_float(delta)} BB/game."
+                    ),
+                    details={
+                        "algorithm": spec.algorithm_name,
+                        "adaptive_agent": spec.adaptive_agent,
+                        "adaptive_mean_profit_bb": float(
+                            adaptive_row["mean_profit_bb"]
+                        ),
+                        "rule_based_mean_profit_bb": float(
+                            rule_based_row["mean_profit_bb"]
+                        ),
+                        "rule_based_checkpoint_episode": _checkpoint_episode(
+                            rule_based_row
+                        ),
+                    },
+                )
+            )
+
+    return results
+
+
+def validate_oracle_not_worse_than_adaptive(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    opponents: Iterable[str] = DEFAULT_ORACLE_OPPONENTS,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+) -> list[ValidationCheckResult]:
+    results: list[ValidationCheckResult] = []
+
+    for spec in _algorithm_specs(best_rows, algorithm_specs):
+        for opponent_name in opponents:
+            oracle_row = _find_row(
+                best_rows,
+                spec.oracle_agent,
+                opponent_name,
+            )
+            adaptive_row = _find_row(
+                best_rows,
+                spec.adaptive_agent,
+                opponent_name,
+            )
+            check_name = (
+                f"{spec.algorithm_name}: Oracle not significantly worse "
+                f"than adaptive vs {opponent_name}"
+            )
+
+            if oracle_row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "oracle_gap",
+                        spec.oracle_agent,
+                        opponent_name,
+                        spec.algorithm_name,
+                    )
+                )
+                continue
+
+            if adaptive_row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "oracle_gap",
+                        spec.adaptive_agent,
+                        opponent_name,
+                        spec.algorithm_name,
+                    )
+                )
+                continue
+
+            oracle_gap = float(
+                oracle_row["mean_profit_bb"]
+                - adaptive_row["mean_profit_bb"]
+            )
+            status = (
+                STATUS_PASS
+                if oracle_gap >= -thresholds.max_oracle_underperformance_bb
                 else STATUS_WARNING
             )
 
@@ -324,114 +259,282 @@ def validate_classifier_quality(
                 ValidationCheckResult(
                     check_name=check_name,
                     status=status,
-                    category="classifier_quality",
-                    agent_name=ADAPTIVE_MC_AGENT,
+                    category="oracle_gap",
+                    algorithm_name=spec.algorithm_name,
+                    agent_name=spec.oracle_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=_checkpoint_episode(adaptive_row),
-                    observed_value=value,
-                    threshold=threshold,
+                    checkpoint_episode=_checkpoint_episode(oracle_row),
+                    observed_value=oracle_gap,
+                    threshold=-thresholds.max_oracle_underperformance_bb,
                     message=(
-                        f"Adaptive classifier {pretty_metric} is "
-                        f"{_format_float(value)}%."
+                        "Oracle minus adaptive mean profit is "
+                        f"{_format_float(oracle_gap)} BB/game."
                     ),
                     details={
-                        "metric": metric_name,
-                        "value": value,
-                        "minimum": threshold,
+                        "algorithm": spec.algorithm_name,
+                        "oracle_agent": spec.oracle_agent,
+                        "adaptive_agent": spec.adaptive_agent,
+                        "oracle_mean_profit_bb": float(
+                            oracle_row["mean_profit_bb"]
+                        ),
+                        "adaptive_mean_profit_bb": float(
+                            adaptive_row["mean_profit_bb"]
+                        ),
+                        "adaptive_checkpoint_episode": _checkpoint_episode(
+                            adaptive_row
+                        ),
                     },
                 )
             )
 
     return results
 
+
+def validate_tight_exploitation(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+) -> list[ValidationCheckResult]:
+    results: list[ValidationCheckResult] = []
+
+    for spec in _algorithm_specs(best_rows, algorithm_specs):
+        adaptive_row = _find_row(
+            best_rows,
+            spec.adaptive_agent,
+            OPPONENT_TYPE_TIGHT,
+        )
+        check_name = f"{spec.algorithm_name}: Adaptive exploits TightPlayer"
+
+        if adaptive_row is None:
+            results.append(
+                _missing_row_result(
+                    check_name,
+                    "tight_exploitation",
+                    spec.adaptive_agent,
+                    OPPONENT_TYPE_TIGHT,
+                    spec.algorithm_name,
+                )
+            )
+            continue
+
+        mean_profit_bb = float(adaptive_row["mean_profit_bb"])
+        win_rate = float(adaptive_row["win_rate"])
+        passed = (
+            mean_profit_bb >= thresholds.min_tight_mean_profit_bb
+            and win_rate >= thresholds.min_tight_win_rate
+        )
+
+        results.append(
+            ValidationCheckResult(
+                check_name=check_name,
+                status=STATUS_PASS if passed else STATUS_FAIL,
+                category="tight_exploitation",
+                algorithm_name=spec.algorithm_name,
+                agent_name=spec.adaptive_agent,
+                opponent_name=OPPONENT_TYPE_TIGHT,
+                checkpoint_episode=_checkpoint_episode(adaptive_row),
+                observed_value=mean_profit_bb,
+                threshold=thresholds.min_tight_mean_profit_bb,
+                message=(
+                    "Adaptive vs tight: "
+                    f"mean_profit_bb={_format_float(mean_profit_bb)}, "
+                    f"win_rate={_format_float(win_rate)}%."
+                ),
+                details={
+                    "algorithm": spec.algorithm_name,
+                    "adaptive_agent": spec.adaptive_agent,
+                    "mean_profit_bb": mean_profit_bb,
+                    "min_mean_profit_bb": thresholds.min_tight_mean_profit_bb,
+                    "win_rate": win_rate,
+                    "min_win_rate": thresholds.min_tight_win_rate,
+                },
+            )
+        )
+
+    return results
+
+
+def validate_classifier_quality(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    opponents: Iterable[str] = DEFAULT_CLASSIFIER_OPPONENTS,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+) -> list[ValidationCheckResult]:
+    results: list[ValidationCheckResult] = []
+
+    for spec in _algorithm_specs(best_rows, algorithm_specs):
+        for opponent_name in opponents:
+            adaptive_row = _find_row(
+                best_rows,
+                spec.adaptive_agent,
+                opponent_name,
+            )
+
+            for metric_name, threshold in [
+                (
+                    "global_classifier_accuracy",
+                    thresholds.min_classifier_accuracy,
+                ),
+                (
+                    "global_classifier_coverage",
+                    thresholds.min_classifier_coverage,
+                ),
+            ]:
+                pretty_metric = metric_name.replace("global_classifier_", "")
+                check_name = (
+                    f"{spec.algorithm_name}: Adaptive classifier "
+                    f"{pretty_metric} vs {opponent_name}"
+                )
+
+                if adaptive_row is None:
+                    results.append(
+                        _missing_row_result(
+                            check_name,
+                            "classifier_quality",
+                            spec.adaptive_agent,
+                            opponent_name,
+                            spec.algorithm_name,
+                        )
+                    )
+                    continue
+
+                value = float(adaptive_row[metric_name])
+                status = STATUS_PASS if value >= threshold else STATUS_WARNING
+
+                results.append(
+                    ValidationCheckResult(
+                        check_name=check_name,
+                        status=status,
+                        category="classifier_quality",
+                        algorithm_name=spec.algorithm_name,
+                        agent_name=spec.adaptive_agent,
+                        opponent_name=opponent_name,
+                        checkpoint_episode=_checkpoint_episode(adaptive_row),
+                        observed_value=value,
+                        threshold=threshold,
+                        message=(
+                            f"Adaptive classifier {pretty_metric} is "
+                            f"{_format_float(value)}%."
+                        ),
+                        details={
+                            "algorithm": spec.algorithm_name,
+                            "adaptive_agent": spec.adaptive_agent,
+                            "metric": metric_name,
+                            "value": value,
+                            "minimum": threshold,
+                        },
+                    )
+                )
+
+    return results
+
+
 def validate_tight_baseline_saturation(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
-    required_agents = (
-        ADAPTIVE_MC_AGENT,
-        RULE_BASED_AGENT,
-        ALWAYS_RAISE_AGENT,
-    )
-    rows_by_agent = {
-        agent_name: _find_row(
-            best_rows,
-            agent_name,
-            OPPONENT_TYPE_TIGHT,
-        )
-        for agent_name in required_agents
-    }
-    check_name = "TightPlayer baseline saturation sanity check"
+    results: list[ValidationCheckResult] = []
 
-    for agent_name, row in rows_by_agent.items():
-        if row is None:
-            return [
-                _missing_row_result(
-                    check_name,
-                    "always_raise_sanity",
-                    agent_name,
-                    OPPONENT_TYPE_TIGHT,
+    for spec in _algorithm_specs(best_rows, algorithm_specs):
+        required_agents = (
+            spec.adaptive_agent,
+            RULE_BASED_AGENT,
+            ALWAYS_RAISE_AGENT,
+        )
+        rows_by_agent = {
+            agent_name: _find_row(
+                best_rows,
+                agent_name,
+                OPPONENT_TYPE_TIGHT,
+            )
+            for agent_name in required_agents
+        }
+        check_name = (
+            f"{spec.algorithm_name}: TightPlayer baseline "
+            "saturation sanity check"
+        )
+
+        missing = False
+        for agent_name, row in rows_by_agent.items():
+            if row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "always_raise_sanity",
+                        agent_name,
+                        OPPONENT_TYPE_TIGHT,
+                        spec.algorithm_name,
+                    )
                 )
-            ]
+                missing = True
+                break
+        if missing:
+            continue
 
-    assert all(row is not None for row in rows_by_agent.values())
+        assert all(row is not None for row in rows_by_agent.values())
 
-    saturated_agents: list[str] = []
-    details: dict[str, object] = {}
+        saturated_agents: list[str] = []
+        details: dict[str, object] = {
+            "algorithm": spec.algorithm_name,
+            "adaptive_agent": spec.adaptive_agent,
+        }
 
-    for agent_name, row in rows_by_agent.items():
-        assert row is not None
-        mean_profit_bb = float(row["mean_profit_bb"])
-        win_rate = float(row["win_rate"])
-        details[f"{agent_name}_mean_profit_bb"] = mean_profit_bb
-        details[f"{agent_name}_win_rate"] = win_rate
+        for agent_name, row in rows_by_agent.items():
+            assert row is not None
+            mean_profit_bb = float(row["mean_profit_bb"])
+            win_rate = float(row["win_rate"])
+            details[f"{agent_name}_mean_profit_bb"] = mean_profit_bb
+            details[f"{agent_name}_win_rate"] = win_rate
 
-        if (
-            mean_profit_bb >= thresholds.min_tight_mean_profit_bb
-            and win_rate >= thresholds.min_tight_win_rate
-        ):
-            saturated_agents.append(agent_name)
+            if (
+                mean_profit_bb >= thresholds.min_tight_mean_profit_bb
+                and win_rate >= thresholds.min_tight_win_rate
+            ):
+                saturated_agents.append(agent_name)
 
-    is_saturated = len(saturated_agents) == len(required_agents)
+        is_saturated = len(saturated_agents) == len(required_agents)
+        always_raise_row = rows_by_agent[ALWAYS_RAISE_AGENT]
+        assert always_raise_row is not None
 
-    return [
-        ValidationCheckResult(
-            check_name=check_name,
-            status=STATUS_WARNING if is_saturated else STATUS_PASS,
-            category="always_raise_sanity",
-            agent_name=ALWAYS_RAISE_AGENT,
-            opponent_name=OPPONENT_TYPE_TIGHT,
-            checkpoint_episode=_checkpoint_episode(
-                rows_by_agent[ALWAYS_RAISE_AGENT]
-            ),
-            observed_value=float(
-                rows_by_agent[ALWAYS_RAISE_AGENT]["mean_profit_bb"]
-            ),
-            threshold=thresholds.min_tight_mean_profit_bb,
-            message=(
-                "TightPlayer may be too weak to distinguish agent "
-                "quality when adaptive, rule-based, and always-raise "
-                "all reach the tight exploitation thresholds."
-                if is_saturated
-                else "TightPlayer still differentiates at least one "
-                "baseline below the exploitation thresholds."
-            ),
-            details={
-                **details,
-                "saturated_agents": saturated_agents,
-                "required_agents": list(required_agents),
-                "min_tight_mean_profit_bb": (
-                    thresholds.min_tight_mean_profit_bb
+        results.append(
+            ValidationCheckResult(
+                check_name=check_name,
+                status=STATUS_WARNING if is_saturated else STATUS_PASS,
+                category="always_raise_sanity",
+                algorithm_name=spec.algorithm_name,
+                agent_name=ALWAYS_RAISE_AGENT,
+                opponent_name=OPPONENT_TYPE_TIGHT,
+                checkpoint_episode=_checkpoint_episode(always_raise_row),
+                observed_value=float(always_raise_row["mean_profit_bb"]),
+                threshold=thresholds.min_tight_mean_profit_bb,
+                message=(
+                    "TightPlayer may be too weak to distinguish agent "
+                    "quality when adaptive, rule-based, and always-raise "
+                    "all reach the tight exploitation thresholds."
+                    if is_saturated
+                    else "TightPlayer still differentiates at least one "
+                    "baseline below the exploitation thresholds."
                 ),
-                "min_tight_win_rate": thresholds.min_tight_win_rate,
-            },
+                details={
+                    **details,
+                    "saturated_agents": saturated_agents,
+                    "required_agents": list(required_agents),
+                    "min_tight_mean_profit_bb": thresholds.min_tight_mean_profit_bb,
+                    "min_tight_win_rate": thresholds.min_tight_win_rate,
+                },
+            )
         )
-    ]
+
+    return results
+
 
 def validate_checkpoint_results(
     input_path: str | Path,
     thresholds: ValidationThresholds | None = None,
     validation_mode: str = VALIDATION_MODE_CHECKPOINT,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+    require_all_algorithms: bool = False,
 ) -> ValidationReport:
     if validation_mode not in VALIDATION_MODES:
         raise ValueError(
@@ -444,41 +547,87 @@ def validate_checkpoint_results(
     aggregated = aggregate_across_seeds(metrics)
     aggregated = _add_mean_hands_played(aggregated, metrics)
     best_rows = _best_rows_by_agent_and_opponent(aggregated)
+    expected_specs = tuple(
+        algorithm_specs
+        if algorithm_specs is not None
+        else (
+            ALGORITHM_VALIDATION_SPECS
+            if require_all_algorithms
+            else available_algorithm_specs(best_rows)
+        )
+    )
 
     if validation_mode == VALIDATION_MODE_HEAD_TO_HEAD:
-        checks = validate_head_to_head_results_from_best_rows(
-            best_rows,
-            thresholds,
+        checks = []
+        if require_all_algorithms or algorithm_specs is not None:
+            checks.extend(
+                validate_expected_algorithms_present(
+                    best_rows,
+                    expected_specs,
+                    fail_when_missing=require_all_algorithms,
+                )
+            )
+        checks.extend(
+            validate_head_to_head_results_from_best_rows(
+                best_rows,
+                thresholds,
+                algorithm_specs=expected_specs,
+            )
         )
     elif validation_mode == VALIDATION_MODE_GENERALIZATION:
-        checks = validate_generalization_results_from_best_rows(
-            best_rows,
-            thresholds,
+        checks = []
+        if require_all_algorithms or algorithm_specs is not None:
+            checks.extend(
+                validate_expected_algorithms_present(
+                    best_rows,
+                    expected_specs,
+                    fail_when_missing=require_all_algorithms,
+                )
+            )
+        checks.extend(
+            validate_generalization_results_from_best_rows(
+                best_rows,
+                thresholds,
+                algorithm_specs=expected_specs,
+            )
         )
     else:
+        specs = expected_specs
         checks: list[ValidationCheckResult] = []
+        if require_all_algorithms or algorithm_specs is not None:
+            checks.extend(
+                validate_expected_algorithms_present(
+                    best_rows,
+                    specs,
+                    fail_when_missing=require_all_algorithms,
+                )
+            )
         checks.extend(
             validate_adaptive_beats_rule_based(
                 best_rows,
                 thresholds,
+                algorithm_specs=specs,
             )
         )
         checks.extend(
             validate_oracle_not_worse_than_adaptive(
                 best_rows,
                 thresholds,
+                algorithm_specs=specs,
             )
         )
         checks.extend(
             validate_tight_exploitation(
                 best_rows,
                 thresholds,
+                algorithm_specs=specs,
             )
         )
         checks.extend(
             validate_classifier_quality(
                 best_rows,
                 thresholds,
+                algorithm_specs=specs,
             )
         )
         checks.extend(
@@ -497,6 +646,7 @@ def validate_checkpoint_results(
             validate_always_raise_outperforms_adaptive(
                 best_rows,
                 thresholds,
+                algorithm_specs=specs,
             )
         )
         checks.extend(
@@ -509,6 +659,7 @@ def validate_checkpoint_results(
             validate_tight_baseline_saturation(
                 best_rows,
                 thresholds,
+                algorithm_specs=specs,
             )
         )
 
