@@ -9,11 +9,16 @@ from src.evaluation.algorithm_metadata import (
     available_algorithm_specs,
 )
 from src.evaluation.validation import (
+    STATUS_FAIL,
     STATUS_PASS,
+    STATUS_WARNING,
+    VALIDATION_MODE_GENERALIZATION,
+    VALIDATION_MODE_HEAD_TO_HEAD,
     ValidationThresholds,
 )
 from src.evaluation.validation.checkpoint_validation import (
     validate_classifier_quality,
+    validate_expected_algorithms_present,
     validate_oracle_not_worse_than_adaptive,
 )
 from src.evaluation.validation.generalization_validation import (
@@ -103,6 +108,164 @@ def test_available_algorithm_specs_detects_present_algorithms_only():
         ALGORITHM_MONTE_CARLO,
         ALGORITHM_Q_LEARNING,
     ]
+
+
+def test_checkpoint_coverage_requires_all_three_algorithm_roles():
+    spec = ALGORITHM_VALIDATION_SPECS[0]
+    rows = pd.DataFrame(
+        [
+            make_best_row(
+                agent_name=spec.adaptive_agent,
+                opponent_name="calling",
+            )
+        ]
+    )
+
+    check = validate_expected_algorithms_present(
+        rows,
+        (spec,),
+        fail_when_missing=True,
+    )[0]
+
+    assert check.status == STATUS_FAIL
+    assert check.details["required_roles"] == [
+        "adaptive",
+        "oracle",
+        "policy_general",
+    ]
+    assert check.details["present_roles"] == ["adaptive"]
+    assert check.details["missing_roles"] == ["oracle", "policy_general"]
+    assert check.details["missing_agents"] == [
+        spec.oracle_agent,
+        spec.general_policy_agent,
+    ]
+    assert not check.details["present"]
+
+
+def test_checkpoint_coverage_passes_for_complete_algorithm_triplet():
+    spec = ALGORITHM_VALIDATION_SPECS[2]
+    rows = pd.DataFrame(
+        [
+            make_best_row(agent_name=agent_name, opponent_name="calling")
+            for agent_name in (
+                spec.adaptive_agent,
+                spec.oracle_agent,
+                spec.general_policy_agent,
+            )
+        ]
+    )
+
+    check = validate_expected_algorithms_present(
+        rows,
+        (spec,),
+        fail_when_missing=True,
+    )[0]
+
+    assert check.status == STATUS_PASS
+    assert check.details["present_agents"] == [
+        spec.adaptive_agent,
+        spec.oracle_agent,
+        spec.general_policy_agent,
+    ]
+    assert check.details["missing_agents"] == []
+    assert check.details["present"]
+
+
+def test_generalization_coverage_warns_when_oracle_role_is_missing():
+    spec = ALGORITHM_VALIDATION_SPECS[1]
+    rows = pd.DataFrame(
+        [
+            make_best_row(agent_name=spec.adaptive_agent, opponent_name="calling"),
+            make_best_row(
+                agent_name=spec.general_policy_agent,
+                opponent_name="calling",
+            ),
+        ]
+    )
+
+    check = validate_expected_algorithms_present(
+        rows,
+        (spec,),
+        fail_when_missing=False,
+        validation_mode=VALIDATION_MODE_GENERALIZATION,
+    )[0]
+
+    assert check.status == STATUS_WARNING
+    assert check.details["missing_roles"] == ["oracle"]
+    assert check.details["missing_agents"] == [spec.oracle_agent]
+
+
+def test_head_to_head_coverage_does_not_require_oracle_role():
+    spec = ALGORITHM_VALIDATION_SPECS[3]
+    rows = pd.DataFrame(
+        [
+            make_best_row(
+                agent_name=spec.adaptive_agent,
+                opponent_name="rule_based",
+            ),
+            make_best_row(
+                agent_name=spec.general_policy_agent,
+                opponent_name="rule_based",
+            ),
+        ]
+    )
+
+    check = validate_expected_algorithms_present(
+        rows,
+        (spec,),
+        fail_when_missing=True,
+        validation_mode=VALIDATION_MODE_HEAD_TO_HEAD,
+    )[0]
+
+    assert check.status == STATUS_PASS
+    assert check.details["required_roles"] == ["adaptive", "policy_general"]
+    assert check.details["required_agents"] == [
+        spec.adaptive_agent,
+        spec.general_policy_agent,
+    ]
+    assert check.details["missing_agents"] == []
+
+
+def test_head_to_head_results_use_mode_specific_coverage_roles(tmp_path):
+    from src.evaluation.validation import validate_checkpoint_results
+    from tests.evaluation.test_experiment_validation import (
+        write_sample_head_to_head_csv,
+    )
+
+    csv_path = tmp_path / "head_to_head_results.csv"
+    write_sample_head_to_head_csv(csv_path)
+
+    report = validate_checkpoint_results(
+        csv_path,
+        validation_mode=VALIDATION_MODE_HEAD_TO_HEAD,
+        algorithm_specs=(ALGORITHM_VALIDATION_SPECS[0],),
+    )
+
+    coverage_check = next(
+        check
+        for check in report.checks
+        if check.category == "algorithm_coverage"
+    )
+    assert coverage_check.status == STATUS_PASS
+    assert coverage_check.details["required_roles"] == [
+        "adaptive",
+        "policy_general",
+    ]
+    assert coverage_check.details["missing_agents"] == []
+
+
+def test_algorithm_coverage_passes_for_all_complete_algorithms():
+    rows = make_multi_algorithm_rows(opponents=("calling",))
+
+    checks = validate_expected_algorithms_present(
+        rows,
+        ALGORITHM_VALIDATION_SPECS,
+        fail_when_missing=True,
+    )
+
+    assert len(checks) == 4
+    assert all(check.status == STATUS_PASS for check in checks)
+    assert all(check.details["missing_agents"] == [] for check in checks)
 
 
 def test_oracle_gap_validation_runs_for_all_present_algorithms():
@@ -288,3 +451,11 @@ def test_validate_checkpoint_results_selected_algorithms_adds_coverage_warnings(
         and check.status == STATUS_WARNING
         for check in coverage_checks
     )
+    monte_carlo_check = next(
+        check
+        for check in coverage_checks
+        if check.algorithm_name == ALGORITHM_MONTE_CARLO
+    )
+    assert monte_carlo_check.status == STATUS_WARNING
+    assert monte_carlo_check.details["missing_roles"] == ["policy_general"]
+    assert monte_carlo_check.details["missing_agents"] == ["policy_general_mc"]
