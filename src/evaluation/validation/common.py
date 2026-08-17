@@ -1,39 +1,28 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from typing import Iterable
 
 import pandas as pd
 
-from src.evaluation.reporting.checkpoint_report import (
-    aggregate_across_seeds,
-    display_agent_name,
-    load_checkpoint_report_data,
-)
 from src.evaluation.algorithm_metadata import (
     ADAPTIVE_AGENTS,
     GENERAL_POLICY_AGENTS,
     ORACLE_ALGORITHM_AGENTS,
-    AGENT_TO_ALGORITHM,
     AlgorithmValidationSpec,
     algorithm_name_for_agent,
     available_algorithm_specs,
 )
 from src.evaluation.constants import (
-    ADAPTIVE_MC_AGENT,
     ALWAYS_RAISE_AGENT,
-    ORACLE_MC_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_TIGHT_AGENT,
-    POLICY_GENERAL_MC_AGENT,
     RULE_BASED_AGENT,
 )
-from src.evaluation.reporting.html_utils import write_text
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_TIGHT,
     TRAINING_OPPONENT_TYPES,
 )
 
@@ -393,9 +382,6 @@ def validate_always_raise_outperforms_adaptive(
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
     specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
-
-    if not specs:
-        specs = tuple()
 
     for spec in specs:
         for opponent_name in opponents:

@@ -1,18 +1,18 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import asdict
 from pathlib import Path
-from typing import Iterable
 
 import pandas as pd
 
+from src.evaluation.reporting.checkpoint_report import display_agent_name
+from src.evaluation.reporting.html_utils import write_text
 from src.evaluation.validation.common import (
     VALIDATION_STATUSES,
     ValidationCheckResult,
     ValidationReport,
     _format_float,
-    display_agent_name,
-    write_text,
 )
 
 
@@ -85,8 +85,7 @@ def render_validation_markdown(report: ValidationReport) -> str:
     lines = [
         "# Experiment validation report",
         "",
-        "This report runs automated sanity checks on evaluation "
-        "results.",
+        "This report runs automated sanity checks on evaluation results.",
         "",
         "## Input",
         "",

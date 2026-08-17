@@ -4,10 +4,10 @@ import pandas as pd
 
 from src.evaluation.validation import (
     STATUS_FAIL,
-    VALIDATION_MODE_HEAD_TO_HEAD,
     STATUS_PASS,
     STATUS_SKIPPED,
     STATUS_WARNING,
+    VALIDATION_MODE_HEAD_TO_HEAD,
     ValidationThresholds,
     render_validation_markdown,
     validate_checkpoint_results,
@@ -18,7 +18,6 @@ from src.experiments.validation.validate_checkpoint_evaluation import (
     build_thresholds,
     parse_args,
 )
-
 
 REQUIRED_RESULT_COLUMNS = {
     "training_run": "sample_run",
@@ -537,58 +536,42 @@ def write_sample_generalization_csv(path):
 
     adaptive_profits = {
         "calling_extreme": (18.0, 18.5),
-        "tight_extreme": (14.0, 14.5),
-        "legacy_calling_variant": (8.0, 8.5),
         "tight_extreme": (6.0, 6.5),
         "aggressive_extreme": (-8.0, -7.5),
     }
     oracle_profits = {
         "calling_extreme": (19.0, 19.5),
-        "tight_extreme": (15.0, 15.5),
-        "legacy_calling_variant": (9.0, 9.5),
         "tight_extreme": (10.5, 11.0),
         "aggressive_extreme": (-4.0, -3.5),
     }
     general_profits = {
         "calling_extreme": (10.0, 10.5),
-        "tight_extreme": (9.0, 9.5),
-        "legacy_calling_variant": (7.0, 7.5),
         "tight_extreme": (5.0, 5.5),
         "aggressive_extreme": (-10.0, -9.5),
     }
     rule_based_profits = {
         "calling_extreme": (12.0, 12.5),
-        "tight_extreme": (10.0, 10.5),
-        "legacy_calling_variant": (9.0, 9.5),
         "tight_extreme": (8.0, 8.5),
         "aggressive_extreme": (-6.0, -5.5),
     }
     always_raise_profits = {
         "calling_extreme": (4.0, 4.5),
-        "tight_extreme": (2.0, 2.5),
-        "legacy_calling_variant": (-2.0, -1.5),
         "tight_extreme": (18.5, 19.0),
         "aggressive_extreme": (17.0, 17.5),
     }
     specialist_profits = {
         "policy_calling": {
             "calling_extreme": (17.0, 17.5),
-            "tight_extreme": (13.0, 13.5),
-            "legacy_calling_variant": (9.0, 9.5),
             "tight_extreme": (-5.0, -4.5),
             "aggressive_extreme": (-12.0, -11.5),
         },
         "policy_aggressive": {
             "calling_extreme": (-3.0, -2.5),
-            "tight_extreme": (-2.0, -1.5),
-            "legacy_calling_variant": (-1.0, -0.5),
             "tight_extreme": (7.0, 7.5),
             "aggressive_extreme": (-6.0, -5.5),
         },
         "policy_tight": {
             "calling_extreme": (-1.0, -0.5),
-            "tight_extreme": (-1.0, -0.5),
-            "legacy_calling_variant": (-2.0, -1.5),
             "tight_extreme": (-7.0, -6.5),
             "aggressive_extreme": (-15.0, -14.5),
         },

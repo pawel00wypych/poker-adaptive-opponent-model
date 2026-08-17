@@ -2,11 +2,13 @@ import json
 
 import pandas as pd
 
-from src.evaluation.reporting.algorithm_comparison import (
+from src.evaluation.algorithm_metadata import (
     ALGORITHM_DOUBLE_Q_LEARNING,
     ALGORITHM_MONTE_CARLO,
     ALGORITHM_Q_LEARNING,
     ALGORITHM_SARSA,
+)
+from src.evaluation.reporting.algorithm_comparison import (
     add_algorithm_deltas,
     add_algorithm_ranking,
     build_algorithm_comparison,
@@ -15,7 +17,6 @@ from src.evaluation.reporting.algorithm_comparison import (
     write_algorithm_comparison_outputs,
 )
 from src.experiments.reporting.create_algorithm_comparison import parse_args
-
 
 REQUIRED_RESULT_COLUMNS = {
     "training_run": "sample_run",
@@ -227,7 +228,7 @@ def test_global_ranking_uses_average_profit_and_average_rank():
 
     global_ranking = build_global_algorithm_ranking(rows)
 
-    assert list(global_ranking["algorithm"])[0] == ALGORITHM_DOUBLE_Q_LEARNING
+    assert global_ranking.iloc[0]["algorithm"] == ALGORITHM_DOUBLE_Q_LEARNING
     assert global_ranking.iloc[0]["best_matchup_count"] == 2
     assert global_ranking.iloc[0]["positive_matchup_count"] == 2
 
