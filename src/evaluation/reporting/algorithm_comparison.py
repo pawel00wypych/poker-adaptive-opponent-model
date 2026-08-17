@@ -13,14 +13,16 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from src.evaluation.reporting.checkpoint_report import display_agent_name
-from src.evaluation.constants import (
-    ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
-    ADAPTIVE_MC_AGENT,
-    ADAPTIVE_Q_LEARNING_AGENT,
-    ADAPTIVE_SARSA_AGENT,
-    ADAPTIVE_AGENT_TO_ORACLE_AGENT,
-    RULE_BASED_AGENT,
+from src.evaluation.algorithm_metadata import (
+    ADAPTIVE_AGENT_TO_ALGORITHM,
+    ALGORITHM_DOUBLE_Q_LEARNING,
+    ALGORITHM_MONTE_CARLO,
+    ALGORITHM_ORDER,
+    ALGORITHM_Q_LEARNING,
+    ALGORITHM_SARSA,
+    ORACLE_AGENT_TO_ALGORITHM,
 )
+from src.evaluation.constants import RULE_BASED_AGENT
 from src.evaluation.reporting.experiment_summary import (
     load_experiment_summary_data,
     write_dataframe_csv,
@@ -28,30 +30,6 @@ from src.evaluation.reporting.experiment_summary import (
 )
 from src.evaluation.reporting.html_utils import write_text
 from src.evaluation.reporting.plot_utils import ensure_output_dir, save_current_figure
-
-ALGORITHM_MONTE_CARLO = "Monte Carlo"
-ALGORITHM_Q_LEARNING = "Q-learning"
-ALGORITHM_SARSA = "SARSA"
-ALGORITHM_DOUBLE_Q_LEARNING = "Double Q-learning"
-
-ADAPTIVE_AGENT_TO_ALGORITHM = {
-    ADAPTIVE_MC_AGENT: ALGORITHM_MONTE_CARLO,
-    ADAPTIVE_Q_LEARNING_AGENT: ALGORITHM_Q_LEARNING,
-    ADAPTIVE_SARSA_AGENT: ALGORITHM_SARSA,
-    ADAPTIVE_DOUBLE_Q_LEARNING_AGENT: ALGORITHM_DOUBLE_Q_LEARNING,
-}
-
-ORACLE_AGENT_TO_ALGORITHM = {
-    oracle_agent: ADAPTIVE_AGENT_TO_ALGORITHM[adaptive_agent]
-    for adaptive_agent, oracle_agent in ADAPTIVE_AGENT_TO_ORACLE_AGENT.items()
-}
-
-ALGORITHM_ORDER = {
-    ALGORITHM_MONTE_CARLO: 0,
-    ALGORITHM_Q_LEARNING: 1,
-    ALGORITHM_SARSA: 2,
-    ALGORITHM_DOUBLE_Q_LEARNING: 3,
-}
 
 GROUP_COLUMNS = [
     "training_run",

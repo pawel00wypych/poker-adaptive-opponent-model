@@ -34,6 +34,7 @@ def make_validation_check(
         status=status,
         message=message,
         category=category,
+        algorithm_name="Monte Carlo",
         agent_name="adaptive_mc",
         opponent_name="calling",
         checkpoint_episode=1000,
@@ -60,10 +61,14 @@ def test_validation_package_exports_public_api():
         "ValidationCheckResult",
         "ValidationReport",
         "validate_checkpoint_results",
+        "validate_expected_algorithms_present",
         "validation_checks_to_dataframe",
         "render_validation_markdown",
         "write_validation_json_report",
         "write_validation_markdown_report",
+        "AlgorithmValidationSpec",
+        "ALGORITHM_VALIDATION_SPECS",
+        "available_algorithm_specs",
     ]
 
     for exported_name in expected_exports:
@@ -125,6 +130,7 @@ def test_validation_checks_to_dataframe_preserves_public_columns():
     assert list(df["check_name"]) == ["sample_check"]
     assert list(df["status"]) == [STATUS_PASS]
     assert list(df["category"]) == ["sample_category"]
+    assert list(df["algorithm_name"]) == ["Monte Carlo"]
     assert "details" in df.columns
 
 
@@ -177,11 +183,11 @@ def test_validate_checkpoint_results_dispatches_head_to_head_mode(
     monkeypatch.setattr(
         checkpoint_validation,
         "_best_rows_by_agent_and_opponent",
-        lambda aggregated: "best_rows",
+        lambda aggregated: pd.DataFrame({"agent_name": ["adaptive_mc"]}),
     )
 
-    def fake_head_to_head_validation(best_rows, thresholds):
-        calls.append(("head_to_head", best_rows, thresholds))
+    def fake_head_to_head_validation(best_rows, thresholds, algorithm_specs=None):
+        calls.append(("head_to_head", best_rows, thresholds, algorithm_specs))
         return [
             make_validation_check(
                 check_name="head_to_head_delegate",
@@ -205,8 +211,9 @@ def test_validate_checkpoint_results_dispatches_head_to_head_mode(
         "head_to_head_delegate"
     ]
     assert calls[0][0] == "head_to_head"
-    assert calls[0][1] == "best_rows"
+    assert list(calls[0][1]["agent_name"]) == ["adaptive_mc"]
     assert isinstance(calls[0][2], ValidationThresholds)
+    assert calls[0][3][0].algorithm_name == "Monte Carlo"
 
 
 def test_validate_checkpoint_results_dispatches_generalization_mode(
@@ -233,11 +240,11 @@ def test_validate_checkpoint_results_dispatches_generalization_mode(
     monkeypatch.setattr(
         checkpoint_validation,
         "_best_rows_by_agent_and_opponent",
-        lambda aggregated: "best_rows",
+        lambda aggregated: pd.DataFrame({"agent_name": ["adaptive_mc"]}),
     )
 
-    def fake_generalization_validation(best_rows, thresholds):
-        calls.append(("generalization", best_rows, thresholds))
+    def fake_generalization_validation(best_rows, thresholds, algorithm_specs=None):
+        calls.append(("generalization", best_rows, thresholds, algorithm_specs))
         return [
             make_validation_check(
                 check_name="generalization_delegate",
@@ -261,5 +268,6 @@ def test_validate_checkpoint_results_dispatches_generalization_mode(
         "generalization_delegate"
     ]
     assert calls[0][0] == "generalization"
-    assert calls[0][1] == "best_rows"
+    assert list(calls[0][1]["agent_name"]) == ["adaptive_mc"]
     assert isinstance(calls[0][2], ValidationThresholds)
+    assert calls[0][3][0].algorithm_name == "Monte Carlo"

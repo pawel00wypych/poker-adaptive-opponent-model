@@ -10,6 +10,15 @@ from src.evaluation.reporting.checkpoint_report import (
     display_agent_name,
     load_checkpoint_report_data,
 )
+from src.evaluation.algorithm_metadata import (
+    ADAPTIVE_AGENTS,
+    GENERAL_POLICY_AGENTS,
+    ORACLE_ALGORITHM_AGENTS,
+    AGENT_TO_ALGORITHM,
+    AlgorithmValidationSpec,
+    algorithm_name_for_agent,
+    available_algorithm_specs,
+)
 from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
     ALWAYS_RAISE_AGENT,
@@ -75,17 +84,17 @@ HEAD_TO_HEAD_SPECIALIST_AGENTS = (
 )
 
 HEAD_TO_HEAD_LEARNED_AGENTS = (
-    POLICY_GENERAL_MC_AGENT,
-    ADAPTIVE_MC_AGENT,
+    *GENERAL_POLICY_AGENTS,
+    *ADAPTIVE_AGENTS,
     POLICY_TIGHT_AGENT,
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
 )
 
 GENERALIZATION_CORE_AGENTS = (
-    ADAPTIVE_MC_AGENT,
-    ORACLE_MC_AGENT,
-    POLICY_GENERAL_MC_AGENT,
+    *ADAPTIVE_AGENTS,
+    *ORACLE_ALGORITHM_AGENTS,
+    *GENERAL_POLICY_AGENTS,
     RULE_BASED_AGENT,
     ALWAYS_RAISE_AGENT,
 )
@@ -128,6 +137,7 @@ class ValidationCheckResult:
     status: str
     message: str
     category: str
+    algorithm_name: str | None = None
     agent_name: str | None = None
     opponent_name: str | None = None
     checkpoint_episode: int | None = None
@@ -269,11 +279,13 @@ def _missing_row_result(
     category: str,
     agent_name: str,
     opponent_name: str,
+    algorithm_name: str | None = None,
 ) -> ValidationCheckResult:
     return ValidationCheckResult(
         check_name=check_name,
         status=STATUS_SKIPPED,
         category=category,
+        algorithm_name=algorithm_name or algorithm_name_for_agent(agent_name),
         agent_name=agent_name,
         opponent_name=opponent_name,
         message=(
@@ -305,6 +317,7 @@ def validate_seed_stability(
                 ),
                 status=status,
                 category="seed_stability",
+                algorithm_name=algorithm_name_for_agent(agent_name),
                 agent_name=agent_name,
                 opponent_name=opponent_name,
                 checkpoint_episode=_checkpoint_episode(row),
@@ -345,6 +358,7 @@ def validate_extreme_bb_per_100(
                 ),
                 status=STATUS_WARNING if is_extreme else STATUS_PASS,
                 category="bb_per_100_sanity",
+                algorithm_name=algorithm_name_for_agent(agent_name),
                 agent_name=agent_name,
                 opponent_name=opponent_name,
                 checkpoint_episode=_checkpoint_episode(row),
@@ -375,84 +389,95 @@ def validate_always_raise_outperforms_adaptive(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = TRAINING_OPPONENT_TYPES,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
+    specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
 
-    for opponent_name in opponents:
-        always_raise_row = _find_row(
-            best_rows,
-            ALWAYS_RAISE_AGENT,
-            opponent_name,
-        )
-        adaptive_row = _find_row(
-            best_rows,
-            ADAPTIVE_MC_AGENT,
-            opponent_name,
-        )
-        check_name = (
-            "Always-raise dominance sanity check "
-            f"vs {opponent_name}"
-        )
+    if not specs:
+        specs = tuple()
 
-        if always_raise_row is None:
+    for spec in specs:
+        for opponent_name in opponents:
+            always_raise_row = _find_row(
+                best_rows,
+                ALWAYS_RAISE_AGENT,
+                opponent_name,
+            )
+            adaptive_row = _find_row(
+                best_rows,
+                spec.adaptive_agent,
+                opponent_name,
+            )
+            check_name = (
+                f"{spec.algorithm_name}: Always-raise dominance "
+                f"sanity check vs {opponent_name}"
+            )
+
+            if always_raise_row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "always_raise_sanity",
+                        ALWAYS_RAISE_AGENT,
+                        opponent_name,
+                        spec.algorithm_name,
+                    )
+                )
+                continue
+
+            if adaptive_row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "always_raise_sanity",
+                        spec.adaptive_agent,
+                        opponent_name,
+                        spec.algorithm_name,
+                    )
+                )
+                continue
+
+            delta = float(
+                always_raise_row["mean_profit_bb"]
+                - adaptive_row["mean_profit_bb"]
+            )
+            is_large_gap = (
+                delta >= thresholds.always_raise_adaptive_warning_gap_bb
+            )
+
             results.append(
-                _missing_row_result(
-                    check_name,
-                    "always_raise_sanity",
-                    ALWAYS_RAISE_AGENT,
-                    opponent_name,
+                ValidationCheckResult(
+                    check_name=check_name,
+                    status=STATUS_WARNING if is_large_gap else STATUS_PASS,
+                    category="always_raise_sanity",
+                    algorithm_name=spec.algorithm_name,
+                    agent_name=ALWAYS_RAISE_AGENT,
+                    opponent_name=opponent_name,
+                    checkpoint_episode=_checkpoint_episode(always_raise_row),
+                    observed_value=delta,
+                    threshold=(
+                        thresholds.always_raise_adaptive_warning_gap_bb
+                    ),
+                    message=(
+                        "Always-raise minus adaptive mean profit is "
+                        f"{_format_float(delta)} BB/game."
+                    ),
+                    details={
+                        "algorithm": spec.algorithm_name,
+                        "adaptive_agent": spec.adaptive_agent,
+                        "always_raise_mean_profit_bb": float(
+                            always_raise_row["mean_profit_bb"]
+                        ),
+                        "adaptive_mean_profit_bb": float(
+                            adaptive_row["mean_profit_bb"]
+                        ),
+                        "adaptive_checkpoint_episode": _checkpoint_episode(
+                            adaptive_row
+                        ),
+                    },
                 )
             )
-            continue
-
-        if adaptive_row is None:
-            results.append(
-                _missing_row_result(
-                    check_name,
-                    "always_raise_sanity",
-                    ADAPTIVE_MC_AGENT,
-                    opponent_name,
-                )
-            )
-            continue
-
-        delta = float(
-            always_raise_row["mean_profit_bb"]
-            - adaptive_row["mean_profit_bb"]
-        )
-        is_large_gap = (
-            delta >= thresholds.always_raise_adaptive_warning_gap_bb
-        )
-
-        results.append(
-            ValidationCheckResult(
-                check_name=check_name,
-                status=STATUS_WARNING if is_large_gap else STATUS_PASS,
-                category="always_raise_sanity",
-                agent_name=ALWAYS_RAISE_AGENT,
-                opponent_name=opponent_name,
-                checkpoint_episode=_checkpoint_episode(always_raise_row),
-                observed_value=delta,
-                threshold=(
-                    thresholds.always_raise_adaptive_warning_gap_bb
-                ),
-                message=(
-                    "Always-raise minus adaptive mean profit is "
-                    f"{_format_float(delta)} BB/game."
-                ),
-                details={
-                    "always_raise_mean_profit_bb": float(
-                        always_raise_row["mean_profit_bb"]
-                    ),
-                    "adaptive_mean_profit_bb": float(
-                        adaptive_row["mean_profit_bb"]
-                    ),
-                    "adaptive_checkpoint_episode": _checkpoint_episode(
-                        adaptive_row
-                    ),
-                },
-            )
-        )
 
     return results
 
