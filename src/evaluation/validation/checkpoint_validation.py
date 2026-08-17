@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import pandas as pd
 
@@ -10,13 +10,15 @@ from src.evaluation.algorithm_metadata import (
     AlgorithmValidationSpec,
     available_algorithm_specs,
 )
+from src.evaluation.constants import ALWAYS_RAISE_AGENT, RULE_BASED_AGENT
+from src.evaluation.reporting.checkpoint_report import (
+    aggregate_across_seeds,
+    load_checkpoint_report_data,
+)
 from src.evaluation.validation.common import (
-    ALWAYS_RAISE_AGENT,
     DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS,
     DEFAULT_CLASSIFIER_OPPONENTS,
     DEFAULT_ORACLE_OPPONENTS,
-    OPPONENT_TYPE_TIGHT,
-    RULE_BASED_AGENT,
     STATUS_FAIL,
     STATUS_PASS,
     STATUS_WARNING,
@@ -33,8 +35,6 @@ from src.evaluation.validation.common import (
     _find_row,
     _format_float,
     _missing_row_result,
-    aggregate_across_seeds,
-    load_checkpoint_report_data,
     validate_always_raise_outperforms_adaptive,
     validate_always_raise_trivial_exploit,
     validate_extreme_bb_per_100,
@@ -46,6 +46,7 @@ from src.evaluation.validation.generalization_validation import (
 from src.evaluation.validation.head_to_head_validation import (
     validate_head_to_head_results_from_best_rows,
 )
+from src.poker.constants import OPPONENT_TYPE_TIGHT
 
 
 def _algorithm_specs(
@@ -55,45 +56,107 @@ def _algorithm_specs(
     return tuple(algorithm_specs or available_algorithm_specs(best_rows))
 
 
+_REQUIRED_ALGORITHM_ROLES_BY_MODE = {
+    VALIDATION_MODE_CHECKPOINT: ("adaptive", "oracle", "policy_general"),
+    VALIDATION_MODE_GENERALIZATION: ("adaptive", "oracle", "policy_general"),
+    VALIDATION_MODE_HEAD_TO_HEAD: ("adaptive", "policy_general"),
+}
+
+
+def _required_algorithm_agents(
+    spec: AlgorithmValidationSpec,
+    validation_mode: str,
+) -> dict[str, str]:
+    agents_by_role = {
+        "adaptive": spec.adaptive_agent,
+        "oracle": spec.oracle_agent,
+        "policy_general": spec.general_policy_agent,
+    }
+    return {
+        role: agents_by_role[role]
+        for role in _REQUIRED_ALGORITHM_ROLES_BY_MODE[validation_mode]
+    }
+
+
 def validate_expected_algorithms_present(
     best_rows: pd.DataFrame,
     expected_specs: Iterable[AlgorithmValidationSpec],
     *,
     fail_when_missing: bool,
+    validation_mode: str = VALIDATION_MODE_CHECKPOINT,
 ) -> list[ValidationCheckResult]:
-    available_keys = {
-        spec.algorithm_key
-        for spec in available_algorithm_specs(best_rows)
-    }
+    if validation_mode not in _REQUIRED_ALGORITHM_ROLES_BY_MODE:
+        raise ValueError(
+            "Unsupported validation_mode "
+            f"{validation_mode!r}. Expected one of {VALIDATION_MODES}."
+        )
+
+    available_agents = (
+        set(best_rows["agent_name"].dropna())
+        if "agent_name" in best_rows.columns
+        else set()
+    )
     results: list[ValidationCheckResult] = []
 
     for spec in expected_specs:
-        present = spec.algorithm_key in available_keys
+        required_agents_by_role = _required_algorithm_agents(
+            spec,
+            validation_mode,
+        )
+        present_roles = [
+            role
+            for role, agent_name in required_agents_by_role.items()
+            if agent_name in available_agents
+        ]
+        missing_roles = [
+            role
+            for role, agent_name in required_agents_by_role.items()
+            if agent_name not in available_agents
+        ]
+        present_agents = [
+            required_agents_by_role[role] for role in present_roles
+        ]
+        missing_agents = [
+            required_agents_by_role[role] for role in missing_roles
+        ]
+        complete = not missing_agents
+        if complete:
+            status = STATUS_PASS
+        elif fail_when_missing:
+            status = STATUS_FAIL
+        else:
+            status = STATUS_WARNING
+
+        missing_description = ", ".join(
+            f"{role} ({required_agents_by_role[role]})"
+            for role in missing_roles
+        )
         results.append(
             ValidationCheckResult(
                 check_name=(
                     f"{spec.algorithm_name}: Algorithm result coverage"
                 ),
-                status=(
-                    STATUS_PASS
-                    if present
-                    else STATUS_FAIL if fail_when_missing else STATUS_WARNING
-                ),
+                status=status,
                 category="algorithm_coverage",
                 algorithm_name=spec.algorithm_name,
                 message=(
-                    "At least one adaptive/oracle/general-policy row is "
-                    "present for this algorithm."
-                    if present
-                    else "No adaptive, oracle or general-policy rows found "
-                    "for this algorithm."
+                    "All required agent roles are present for this algorithm."
+                    if complete
+                    else f"Missing required agent roles: {missing_description}."
                 ),
                 details={
                     "algorithm_key": spec.algorithm_key,
+                    "validation_mode": validation_mode,
+                    "required_roles": list(required_agents_by_role),
+                    "present_roles": present_roles,
+                    "missing_roles": missing_roles,
+                    "required_agents": list(required_agents_by_role.values()),
+                    "present_agents": present_agents,
+                    "missing_agents": missing_agents,
                     "adaptive_agent": spec.adaptive_agent,
                     "oracle_agent": spec.oracle_agent,
                     "general_policy_agent": spec.general_policy_agent,
-                    "present": present,
+                    "present": complete,
                 },
             )
         )
@@ -565,6 +628,7 @@ def validate_checkpoint_results(
                     best_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
+                    validation_mode=validation_mode,
                 )
             )
         checks.extend(
@@ -582,6 +646,7 @@ def validate_checkpoint_results(
                     best_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
+                    validation_mode=validation_mode,
                 )
             )
         checks.extend(
@@ -600,6 +665,7 @@ def validate_checkpoint_results(
                     best_rows,
                     specs,
                     fail_when_missing=require_all_algorithms,
+                    validation_mode=validation_mode,
                 )
             )
         checks.extend(

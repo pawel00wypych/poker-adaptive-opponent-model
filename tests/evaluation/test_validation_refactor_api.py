@@ -6,7 +6,6 @@ import pytest
 
 from src.evaluation import experiment_validation as legacy_validation
 from src.evaluation import validation
-from src.evaluation.validation import checkpoint_validation
 from src.evaluation.validation import (
     STATUS_PASS,
     VALIDATION_MODE_GENERALIZATION,
@@ -14,7 +13,7 @@ from src.evaluation.validation import (
     ValidationCheckResult,
     ValidationReport,
     ValidationThresholds,
-    render_validation_markdown,
+    checkpoint_validation,
     validate_checkpoint_results,
     validation_checks_to_dataframe,
     write_validation_json_report,
@@ -74,8 +73,11 @@ def test_validation_package_exports_public_api():
     for exported_name in expected_exports:
         assert hasattr(validation, exported_name)
 
+    assert set(expected_exports).issubset(validation.__all__)
+
 
 def test_legacy_experiment_validation_wrapper_reexports_public_api():
+    assert legacy_validation.__all__ == validation.__all__
     assert (
         legacy_validation.ValidationThresholds
         is validation.ValidationThresholds

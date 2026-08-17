@@ -1,14 +1,14 @@
 import random
 
-from src.players.generalization.aggressive_extreme_player import AggressiveExtremePlayer
 from src.players.constants import (
-    GENERALIZATION_OPPONENTS,
     GENERALIZATION_OPPONENT_SEEN_IN_TRAINING,
     GENERALIZATION_OPPONENT_TO_BASE_TYPE,
+    GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,
     OPPONENT_CALLING_EXTREME,
     OPPONENT_TIGHT_EXTREME,
 )
+from src.players.generalization.aggressive_extreme_player import AggressiveExtremePlayer
 from src.players.generalization.calling_extreme_player import CallingExtremePlayer
 from src.players.generalization.tight_extreme_player import TightExtremePlayer
 

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable
 
 import matplotlib
 
@@ -12,17 +12,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.algorithm_metadata import (
     ADAPTIVE_AGENT_TO_ALGORITHM,
-    ALGORITHM_DOUBLE_Q_LEARNING,
     ALGORITHM_MONTE_CARLO,
     ALGORITHM_ORDER,
-    ALGORITHM_Q_LEARNING,
-    ALGORITHM_SARSA,
     ORACLE_AGENT_TO_ALGORITHM,
 )
 from src.evaluation.constants import RULE_BASED_AGENT
+from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.reporting.experiment_summary import (
     load_experiment_summary_data,
     write_dataframe_csv,
@@ -337,7 +334,7 @@ def build_algorithm_overview(
         "source_raw_games": int(metrics["games"].sum())
         if "games" in metrics.columns
         else 0,
-        "algorithm_summary_rows": int(len(algorithm_by_opponent)),
+        "algorithm_summary_rows": len(algorithm_by_opponent),
     }
 
 
@@ -504,8 +501,10 @@ def render_algorithm_comparison_markdown(
         [
             "# RL algorithm comparison",
             "",
-            "This report compares adaptive tabular reinforcement-learning "
-            "algorithms evaluated in the same poker environment.",
+            (
+                "This report compares adaptive tabular reinforcement-learning "
+                "algorithms evaluated in the same poker environment."
+            ),
             "",
             "Compared algorithms:",
             "",

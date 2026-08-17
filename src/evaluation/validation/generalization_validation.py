@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 import pandas as pd
 
@@ -9,15 +9,13 @@ from src.evaluation.algorithm_metadata import (
     AlgorithmValidationSpec,
     available_algorithm_specs,
 )
-from src.evaluation.validation.common import (
-    ALWAYS_RAISE_AGENT,
-    OPPONENT_TYPE_AGGRESSIVE,
-    OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_TIGHT,
+from src.evaluation.constants import (
     POLICY_AGGRESSIVE_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_TIGHT_AGENT,
     RULE_BASED_AGENT,
+)
+from src.evaluation.validation.common import (
     STATUS_FAIL,
     STATUS_PASS,
     STATUS_SKIPPED,
@@ -34,9 +32,14 @@ from src.evaluation.validation.common import (
     validate_seed_stability,
 )
 from src.players.constants import (
-    GENERALIZATION_OPPONENTS,
     GENERALIZATION_OPPONENT_TO_BASE_TYPE,
+    GENERALIZATION_OPPONENTS,
     OPPONENT_AGGRESSIVE_EXTREME,
+)
+from src.poker.constants import (
+    OPPONENT_TYPE_AGGRESSIVE,
+    OPPONENT_TYPE_CALLING,
+    OPPONENT_TYPE_TIGHT,
 )
 
 

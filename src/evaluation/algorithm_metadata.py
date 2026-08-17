@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 import pandas as pd
 
@@ -126,7 +126,7 @@ def available_algorithm_specs(
     specs: Iterable[AlgorithmValidationSpec] = ALGORITHM_VALIDATION_SPECS,
 ) -> tuple[AlgorithmValidationSpec, ...]:
     if data.empty or "agent_name" not in data.columns:
-        return tuple()
+        return ()
 
     available_agents = set(data["agent_name"].dropna())
     return tuple(
@@ -145,7 +145,7 @@ def complete_algorithm_specs(
     specs: Iterable[AlgorithmValidationSpec] = ALGORITHM_VALIDATION_SPECS,
 ) -> tuple[AlgorithmValidationSpec, ...]:
     if data.empty or "agent_name" not in data.columns:
-        return tuple()
+        return ()
 
     available_agents = set(data["agent_name"].dropna())
     return tuple(
