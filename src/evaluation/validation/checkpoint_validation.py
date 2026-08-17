@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import pandas as pd
 
@@ -10,13 +10,15 @@ from src.evaluation.algorithm_metadata import (
     AlgorithmValidationSpec,
     available_algorithm_specs,
 )
+from src.evaluation.constants import ALWAYS_RAISE_AGENT, RULE_BASED_AGENT
+from src.evaluation.reporting.checkpoint_report import (
+    aggregate_across_seeds,
+    load_checkpoint_report_data,
+)
 from src.evaluation.validation.common import (
-    ALWAYS_RAISE_AGENT,
     DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS,
     DEFAULT_CLASSIFIER_OPPONENTS,
     DEFAULT_ORACLE_OPPONENTS,
-    OPPONENT_TYPE_TIGHT,
-    RULE_BASED_AGENT,
     STATUS_FAIL,
     STATUS_PASS,
     STATUS_WARNING,
@@ -33,8 +35,6 @@ from src.evaluation.validation.common import (
     _find_row,
     _format_float,
     _missing_row_result,
-    aggregate_across_seeds,
-    load_checkpoint_report_data,
     validate_always_raise_outperforms_adaptive,
     validate_always_raise_trivial_exploit,
     validate_extreme_bb_per_100,
@@ -46,6 +46,7 @@ from src.evaluation.validation.generalization_validation import (
 from src.evaluation.validation.head_to_head_validation import (
     validate_head_to_head_results_from_best_rows,
 )
+from src.poker.constants import OPPONENT_TYPE_TIGHT
 
 
 def _algorithm_specs(

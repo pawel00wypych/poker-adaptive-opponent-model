@@ -222,12 +222,12 @@ def test_missing_algorithm_rows_do_not_create_unrelated_checks():
 
 
 def test_validate_checkpoint_results_require_all_algorithms_fails_when_missing(tmp_path):
-    from tests.evaluation.test_experiment_validation import (
-        write_sample_checkpoint_csv,
-    )
     from src.evaluation.validation import (
         STATUS_FAIL,
         validate_checkpoint_results,
+    )
+    from tests.evaluation.test_experiment_validation import (
+        write_sample_checkpoint_csv,
     )
 
     csv_path = tmp_path / "checkpoint_results.csv"
@@ -254,15 +254,15 @@ def test_validate_checkpoint_results_require_all_algorithms_fails_when_missing(t
 
 
 def test_validate_checkpoint_results_selected_algorithms_adds_coverage_warnings(tmp_path):
-    from tests.evaluation.test_experiment_validation import (
-        write_sample_checkpoint_csv,
-    )
     from src.evaluation.algorithm_metadata import (
         ALGORITHM_VALIDATION_SPEC_BY_KEY,
     )
     from src.evaluation.validation import (
         STATUS_WARNING,
         validate_checkpoint_results,
+    )
+    from tests.evaluation.test_experiment_validation import (
+        write_sample_checkpoint_csv,
     )
 
     csv_path = tmp_path / "checkpoint_results.csv"
