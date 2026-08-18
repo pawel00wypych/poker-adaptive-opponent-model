@@ -61,6 +61,7 @@ def test_validation_package_exports_public_api():
         "ValidationReport",
         "validate_checkpoint_results",
         "validate_expected_algorithms_present",
+        "validate_minimum_seed_coverage",
         "validate_required_matchups_present",
         "validation_checks_to_dataframe",
         "render_validation_markdown",
@@ -94,6 +95,7 @@ def test_validation_dataclasses_are_configurable_and_serializable():
     thresholds = ValidationThresholds(
         min_classifier_accuracy=82.5,
         min_classifier_coverage=77.5,
+        min_seeds_per_matchup=4,
     )
     check = make_validation_check()
     report = ValidationReport(
@@ -107,8 +109,10 @@ def test_validation_dataclasses_are_configurable_and_serializable():
 
     assert thresholds.min_classifier_accuracy == 82.5
     assert thresholds.min_classifier_coverage == 77.5
+    assert thresholds.min_seeds_per_matchup == 4
     assert payload["validation_mode"] == VALIDATION_MODE_HEAD_TO_HEAD
     assert payload["thresholds"]["min_classifier_accuracy"] == 82.5
+    assert payload["thresholds"]["min_seeds_per_matchup"] == 4
     assert payload["checks"][0]["check_name"] == "sample_check"
     assert payload["status_counts"][STATUS_PASS] == 1
 
