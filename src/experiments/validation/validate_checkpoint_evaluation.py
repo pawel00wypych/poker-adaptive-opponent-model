@@ -44,7 +44,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=(
             "Use 'checkpoint' for standard benchmark results, "
             "'head-to-head' for direct matchups against baselines, "
-            "or 'generalization' for unseen opponent variants."
+            "'generalization' for unseen opponent variants, "
+            "'stress-test' for learned agents against scripted extremes, "
+            "or 'baseline-sanity' for the 3x3 scripted baseline matrix."
         ),
     )
     parser.add_argument(
@@ -137,6 +139,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=95.0,
     )
     parser.add_argument(
+        "--max-baseline-mirror-abs-profit-bb",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--max-baseline-pair-sum-abs-profit-bb",
+        type=float,
+        default=2.0,
+    )
+    parser.add_argument(
         "--min-head-to-head-mean-profit-bb",
         type=float,
         default=0.0,
@@ -217,6 +229,12 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
             args.high_always_raise_mean_profit_bb
         ),
         high_always_raise_win_rate=args.high_always_raise_win_rate,
+        max_baseline_mirror_abs_profit_bb=(
+            args.max_baseline_mirror_abs_profit_bb
+        ),
+        max_baseline_pair_sum_abs_profit_bb=(
+            args.max_baseline_pair_sum_abs_profit_bb
+        ),
         min_head_to_head_mean_profit_bb=(
             args.min_head_to_head_mean_profit_bb
         ),
