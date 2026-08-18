@@ -119,6 +119,7 @@ class ValidationThresholds:
     max_generalization_oracle_gap_bb: float = 3.0
     generalization_extreme_aggressive_min_profit_bb: float = -5.0
     generalization_extreme_aggressive_max_bust_rate: float = 85.0
+    min_seeds_per_matchup: int = 2
 
 @dataclass(frozen=True)
 class ValidationCheckResult:
@@ -281,6 +282,53 @@ def _missing_row_result(
             f"Missing row for {agent_name} vs {opponent_name}."
         ),
     )
+
+
+def validate_minimum_seed_coverage(
+    best_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    minimum_seeds = thresholds.min_seeds_per_matchup
+    if minimum_seeds < 1:
+        raise ValueError("min_seeds_per_matchup must be at least 1")
+
+    results: list[ValidationCheckResult] = []
+
+    for _, row in best_rows.iterrows():
+        raw_seed_count = row.get("seeds", 0)
+        seed_count = 0 if pd.isna(raw_seed_count) else int(raw_seed_count)
+        agent_name = str(row["agent_name"])
+        opponent_name = str(row["opponent_name"])
+        sufficient = seed_count >= minimum_seeds
+
+        results.append(
+            ValidationCheckResult(
+                check_name=(
+                    "Minimum seed coverage "
+                    f"for {agent_name} vs {opponent_name}"
+                ),
+                status=STATUS_PASS if sufficient else STATUS_FAIL,
+                category="seed_coverage",
+                algorithm_name=algorithm_name_for_agent(agent_name),
+                agent_name=agent_name,
+                opponent_name=opponent_name,
+                checkpoint_episode=_checkpoint_episode(row),
+                observed_value=float(seed_count),
+                threshold=float(minimum_seeds),
+                message=(
+                    f"Evaluation includes {seed_count} distinct model "
+                    f"seed(s); minimum required is {minimum_seeds}."
+                ),
+                details={
+                    "seed_count": seed_count,
+                    "min_seeds_per_matchup": minimum_seeds,
+                    "missing_seed_count": max(minimum_seeds - seed_count, 0),
+                },
+            )
+        )
+
+    return results
+
 
 def validate_seed_stability(
     best_rows: pd.DataFrame,

@@ -24,6 +24,7 @@ from src.evaluation.validation.common import (
     _format_float,
     _missing_row_result,
     validate_extreme_bb_per_100,
+    validate_minimum_seed_coverage,
     validate_seed_stability,
 )
 
@@ -498,6 +499,12 @@ def validate_head_to_head_results_from_best_rows(
             best_rows,
             thresholds,
             algorithm_specs=specs,
+        )
+    )
+    checks.extend(
+        validate_minimum_seed_coverage(
+            best_rows,
+            thresholds,
         )
     )
     checks.extend(

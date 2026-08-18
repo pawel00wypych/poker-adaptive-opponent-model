@@ -29,6 +29,7 @@ from src.evaluation.validation.common import (
     validate_always_raise_outperforms_adaptive,
     validate_always_raise_trivial_exploit,
     validate_extreme_bb_per_100,
+    validate_minimum_seed_coverage,
     validate_seed_stability,
 )
 from src.players.constants import (
@@ -696,6 +697,12 @@ def validate_generalization_results_from_best_rows(
             best_rows,
             thresholds,
             algorithm_specs=specs,
+        )
+    )
+    checks.extend(
+        validate_minimum_seed_coverage(
+            best_rows,
+            thresholds,
         )
     )
     checks.extend(

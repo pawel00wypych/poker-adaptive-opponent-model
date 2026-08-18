@@ -38,6 +38,7 @@ from src.evaluation.validation.common import (
     validate_always_raise_outperforms_adaptive,
     validate_always_raise_trivial_exploit,
     validate_extreme_bb_per_100,
+    validate_minimum_seed_coverage,
     validate_seed_stability,
 )
 from src.evaluation.validation.generalization_validation import (
@@ -110,6 +111,7 @@ __all__ = [
     "validate_head_to_head_results_from_best_rows",
     "validate_head_to_head_rule_based_performance",
     "validate_head_to_head_specialist_rule_based_performance",
+    "validate_minimum_seed_coverage",
     "validate_oracle_not_worse_than_adaptive",
     "validate_required_matchups_present",
     "validate_seed_stability",
