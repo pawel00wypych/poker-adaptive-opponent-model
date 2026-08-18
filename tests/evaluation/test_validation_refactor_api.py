@@ -181,8 +181,21 @@ def test_validate_checkpoint_results_dispatches_head_to_head_mode(
         lambda aggregated: pd.DataFrame({"agent_name": ["adaptive_mc"]}),
     )
 
-    def fake_head_to_head_validation(best_rows, thresholds, algorithm_specs=None):
-        calls.append(("head_to_head", best_rows, thresholds, algorithm_specs))
+    def fake_head_to_head_validation(
+        best_rows,
+        thresholds,
+        algorithm_specs=None,
+        comparison_rows=None,
+    ):
+        calls.append(
+            (
+                "head_to_head",
+                best_rows,
+                thresholds,
+                algorithm_specs,
+                comparison_rows,
+            )
+        )
         return [
             make_validation_check(
                 check_name="head_to_head_delegate",
@@ -209,6 +222,7 @@ def test_validate_checkpoint_results_dispatches_head_to_head_mode(
     assert list(calls[0][1]["agent_name"]) == ["adaptive_mc"]
     assert isinstance(calls[0][2], ValidationThresholds)
     assert calls[0][3][0].algorithm_name == "Monte Carlo"
+    assert list(calls[0][4]["aggregated"]) == [1]
 
 
 def test_validate_checkpoint_results_dispatches_generalization_mode(
@@ -238,8 +252,21 @@ def test_validate_checkpoint_results_dispatches_generalization_mode(
         lambda aggregated: pd.DataFrame({"agent_name": ["adaptive_mc"]}),
     )
 
-    def fake_generalization_validation(best_rows, thresholds, algorithm_specs=None):
-        calls.append(("generalization", best_rows, thresholds, algorithm_specs))
+    def fake_generalization_validation(
+        best_rows,
+        thresholds,
+        algorithm_specs=None,
+        comparison_rows=None,
+    ):
+        calls.append(
+            (
+                "generalization",
+                best_rows,
+                thresholds,
+                algorithm_specs,
+                comparison_rows,
+            )
+        )
         return [
             make_validation_check(
                 check_name="generalization_delegate",
@@ -266,3 +293,4 @@ def test_validate_checkpoint_results_dispatches_generalization_mode(
     assert list(calls[0][1]["agent_name"]) == ["adaptive_mc"]
     assert isinstance(calls[0][2], ValidationThresholds)
     assert calls[0][3][0].algorithm_name == "Monte Carlo"
+    assert list(calls[0][4]["aggregated"]) == [1]
