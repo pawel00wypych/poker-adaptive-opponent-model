@@ -46,7 +46,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "'head-to-head' for direct matchups against baselines, "
             "'generalization' for unseen opponent variants, "
             "'stress-test' for learned agents against scripted extremes, "
-            "or 'baseline-sanity' for the 3x3 scripted baseline matrix."
+            "'baseline-sanity' for the 3x3 scripted baseline matrix, "
+            "or 'cross-play' for learned-agent matchups."
         ),
     )
     parser.add_argument(
@@ -149,6 +150,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=2.0,
     )
     parser.add_argument(
+        "--max-cross-play-pair-sum-abs-profit-bb",
+        type=float,
+        default=2.0,
+        help=(
+            "Maximum absolute sum of opposite-direction mean profits "
+            "before a learned-agent pair produces a warning."
+        ),
+    )
+    parser.add_argument(
         "--min-head-to-head-mean-profit-bb",
         type=float,
         default=0.0,
@@ -234,6 +244,9 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         ),
         max_baseline_pair_sum_abs_profit_bb=(
             args.max_baseline_pair_sum_abs_profit_bb
+        ),
+        max_cross_play_pair_sum_abs_profit_bb=(
+            args.max_cross_play_pair_sum_abs_profit_bb
         ),
         min_head_to_head_mean_profit_bb=(
             args.min_head_to_head_mean_profit_bb
