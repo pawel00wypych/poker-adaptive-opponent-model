@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
+from typing import cast
 
 import pandas as pd
 
@@ -95,6 +96,21 @@ GENERALIZATION_SPECIALIST_AGENTS = (
 )
 
 
+def _missing_values_as_none(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: _missing_values_as_none(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_missing_values_as_none(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_missing_values_as_none(item) for item in value)
+    if pd.api.types.is_scalar(value) and bool(pd.isna(value)):
+        return None
+    return value
+
+
 @dataclass(frozen=True)
 class ValidationThresholds:
     min_adaptive_delta_vs_rule_based_bb: float = 0.0
@@ -136,7 +152,10 @@ class ValidationCheckResult:
     details: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
-        return asdict(self)
+        return cast(
+            dict[str, object],
+            _missing_values_as_none(asdict(self)),
+        )
 
 @dataclass(frozen=True)
 class ValidationReport:
@@ -162,17 +181,22 @@ class ValidationReport:
         }
 
     def to_dict(self) -> dict[str, object]:
-        return {
-            "input_path": self.input_path,
-            "validation_mode": self.validation_mode,
-            "passed": self.passed,
-            "status_counts": self.status_counts(),
-            "thresholds": asdict(self.thresholds),
-            "checks": [
-                check.to_dict()
-                for check in self.checks
-            ],
-        }
+        return cast(
+            dict[str, object],
+            _missing_values_as_none(
+                {
+                    "input_path": self.input_path,
+                    "validation_mode": self.validation_mode,
+                    "passed": self.passed,
+                    "status_counts": self.status_counts(),
+                    "thresholds": asdict(self.thresholds),
+                    "checks": [
+                        check.to_dict()
+                        for check in self.checks
+                    ],
+                }
+            ),
+        )
 
 def _format_float(value: float | None) -> str:
     if value is None or pd.isna(value):

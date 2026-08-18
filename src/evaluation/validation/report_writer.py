@@ -149,6 +149,6 @@ def write_validation_json_report(
     output_path = output_dir / filename
     write_text(
         output_path,
-        json.dumps(report.to_dict(), indent=2),
+        json.dumps(report.to_dict(), indent=2, allow_nan=False),
     )
     return output_path
