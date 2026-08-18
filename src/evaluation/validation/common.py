@@ -248,16 +248,72 @@ def _find_row(
     df: pd.DataFrame,
     agent_name: str,
     opponent_name: str,
+    checkpoint_episode: int | None = None,
 ) -> pd.Series | None:
     matching = df[
         (df["agent_name"] == agent_name)
         & (df["opponent_name"] == opponent_name)
     ]
 
+    if checkpoint_episode is not None:
+        matching = matching[
+            matching["checkpoint_episode"] == checkpoint_episode
+        ]
+
     if matching.empty:
         return None
 
+    if "mean_profit_bb" in matching.columns:
+        return matching.loc[matching["mean_profit_bb"].idxmax()]
+
     return matching.iloc[0]
+
+
+def _find_rows_at_latest_common_checkpoint(
+    df: pd.DataFrame,
+    matchups: Iterable[tuple[str, str]],
+) -> tuple[int | None, tuple[pd.Series | None, ...]]:
+    matchup_list = tuple(matchups)
+    available_rows: list[pd.Series | None] = []
+    checkpoint_sets: list[set[int]] = []
+
+    for agent_name, opponent_name in matchup_list:
+        matching = df[
+            (df["agent_name"] == agent_name)
+            & (df["opponent_name"] == opponent_name)
+        ]
+        if matching.empty:
+            available_rows.append(None)
+            continue
+
+        available_rows.append(matching.iloc[0])
+        checkpoints = {
+            int(checkpoint)
+            for checkpoint in matching["checkpoint_episode"].dropna()
+        }
+        checkpoint_sets.append(checkpoints)
+
+    if any(row is None for row in available_rows):
+        return None, tuple(available_rows)
+
+    if not checkpoint_sets or any(not checkpoints for checkpoints in checkpoint_sets):
+        return None, tuple(available_rows)
+
+    common_checkpoints = set.intersection(*checkpoint_sets)
+    if not common_checkpoints:
+        return None, tuple(available_rows)
+
+    checkpoint_episode = max(common_checkpoints)
+    aligned_rows = tuple(
+        _find_row(
+            df,
+            agent_name,
+            opponent_name,
+            checkpoint_episode=checkpoint_episode,
+        )
+        for agent_name, opponent_name in matchup_list
+    )
+    return checkpoint_episode, aligned_rows
 
 def _checkpoint_episode(row: pd.Series | None) -> int | None:
     if row is None or "checkpoint_episode" not in row:
@@ -281,6 +337,54 @@ def _missing_row_result(
         message=(
             f"Missing row for {agent_name} vs {opponent_name}."
         ),
+    )
+
+
+def _missing_common_checkpoint_result(
+    check_name: str,
+    category: str,
+    df: pd.DataFrame,
+    matchups: Iterable[tuple[str, str]],
+    *,
+    algorithm_name: str | None = None,
+    agent_name: str | None = None,
+    opponent_name: str | None = None,
+) -> ValidationCheckResult:
+    matchup_list = tuple(matchups)
+    checkpoints_by_matchup = {
+        f"{matchup_agent} vs {matchup_opponent}": sorted(
+            {
+                int(checkpoint)
+                for checkpoint in df.loc[
+                    (df["agent_name"] == matchup_agent)
+                    & (df["opponent_name"] == matchup_opponent),
+                    "checkpoint_episode",
+                ].dropna()
+            }
+        )
+        for matchup_agent, matchup_opponent in matchup_list
+    }
+    return ValidationCheckResult(
+        check_name=check_name,
+        status=STATUS_SKIPPED,
+        category=category,
+        algorithm_name=algorithm_name,
+        agent_name=agent_name,
+        opponent_name=opponent_name,
+        message=(
+            "No common checkpoint_episode is available for all rows in "
+            "this comparison."
+        ),
+        details={
+            "required_matchups": [
+                {
+                    "agent_name": matchup_agent,
+                    "opponent_name": matchup_opponent,
+                }
+                for matchup_agent, matchup_opponent in matchup_list
+            ],
+            "checkpoints_by_matchup": checkpoints_by_matchup,
+        },
     )
 
 
@@ -433,16 +537,14 @@ def validate_always_raise_outperforms_adaptive(
 
     for spec in specs:
         for opponent_name in opponents:
-            always_raise_row = _find_row(
-                best_rows,
-                ALWAYS_RAISE_AGENT,
-                opponent_name,
+            matchups = (
+                (ALWAYS_RAISE_AGENT, opponent_name),
+                (spec.adaptive_agent, opponent_name),
             )
-            adaptive_row = _find_row(
-                best_rows,
-                spec.adaptive_agent,
-                opponent_name,
+            checkpoint_episode, rows = (
+                _find_rows_at_latest_common_checkpoint(best_rows, matchups)
             )
+            always_raise_row, adaptive_row = rows
             check_name = (
                 f"{spec.algorithm_name}: Always-raise dominance "
                 f"sanity check vs {opponent_name}"
@@ -472,6 +574,20 @@ def validate_always_raise_outperforms_adaptive(
                 )
                 continue
 
+            if checkpoint_episode is None:
+                results.append(
+                    _missing_common_checkpoint_result(
+                        check_name,
+                        "always_raise_sanity",
+                        best_rows,
+                        matchups,
+                        algorithm_name=spec.algorithm_name,
+                        agent_name=spec.adaptive_agent,
+                        opponent_name=opponent_name,
+                    )
+                )
+                continue
+
             delta = float(
                 always_raise_row["mean_profit_bb"]
                 - adaptive_row["mean_profit_bb"]
@@ -488,7 +604,7 @@ def validate_always_raise_outperforms_adaptive(
                     algorithm_name=spec.algorithm_name,
                     agent_name=ALWAYS_RAISE_AGENT,
                     opponent_name=opponent_name,
-                    checkpoint_episode=_checkpoint_episode(always_raise_row),
+                    checkpoint_episode=checkpoint_episode,
                     observed_value=delta,
                     threshold=(
                         thresholds.always_raise_adaptive_warning_gap_bb
