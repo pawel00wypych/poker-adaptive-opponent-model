@@ -18,6 +18,7 @@ from src.evaluation.validation.checkpoint_validation import (
     validate_classifier_quality,
     validate_expected_algorithms_present,
     validate_oracle_not_worse_than_adaptive,
+    validate_required_matchups_present,
     validate_tight_baseline_saturation,
     validate_tight_exploitation,
 )
@@ -110,6 +111,7 @@ __all__ = [
     "validate_head_to_head_rule_based_performance",
     "validate_head_to_head_specialist_rule_based_performance",
     "validate_oracle_not_worse_than_adaptive",
+    "validate_required_matchups_present",
     "validate_seed_stability",
     "validate_tight_baseline_saturation",
     "validate_tight_exploitation",

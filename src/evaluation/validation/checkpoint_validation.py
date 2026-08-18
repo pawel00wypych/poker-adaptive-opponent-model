@@ -19,6 +19,8 @@ from src.evaluation.validation.common import (
     DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS,
     DEFAULT_CLASSIFIER_OPPONENTS,
     DEFAULT_ORACLE_OPPONENTS,
+    HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT,
+    HEAD_TO_HEAD_RULE_BASED_OPPONENT,
     STATUS_FAIL,
     STATUS_PASS,
     STATUS_WARNING,
@@ -46,7 +48,8 @@ from src.evaluation.validation.generalization_validation import (
 from src.evaluation.validation.head_to_head_validation import (
     validate_head_to_head_results_from_best_rows,
 )
-from src.poker.constants import OPPONENT_TYPE_TIGHT
+from src.players.constants import GENERALIZATION_OPPONENTS
+from src.poker.constants import OPPONENT_TYPE_TIGHT, TRAINING_OPPONENT_TYPES
 
 
 def _algorithm_specs(
@@ -60,6 +63,15 @@ _REQUIRED_ALGORITHM_ROLES_BY_MODE = {
     VALIDATION_MODE_CHECKPOINT: ("adaptive", "oracle", "policy_general"),
     VALIDATION_MODE_GENERALIZATION: ("adaptive", "oracle", "policy_general"),
     VALIDATION_MODE_HEAD_TO_HEAD: ("adaptive", "policy_general"),
+}
+
+_REQUIRED_MATCHUP_OPPONENTS_BY_MODE = {
+    VALIDATION_MODE_CHECKPOINT: TRAINING_OPPONENT_TYPES,
+    VALIDATION_MODE_GENERALIZATION: GENERALIZATION_OPPONENTS,
+    VALIDATION_MODE_HEAD_TO_HEAD: (
+        HEAD_TO_HEAD_RULE_BASED_OPPONENT,
+        HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT,
+    ),
 }
 
 
@@ -156,6 +168,113 @@ def validate_expected_algorithms_present(
                     "adaptive_agent": spec.adaptive_agent,
                     "oracle_agent": spec.oracle_agent,
                     "general_policy_agent": spec.general_policy_agent,
+                    "present": complete,
+                },
+            )
+        )
+
+    return results
+
+
+def validate_required_matchups_present(
+    best_rows: pd.DataFrame,
+    expected_specs: Iterable[AlgorithmValidationSpec],
+    *,
+    fail_when_missing: bool,
+    validation_mode: str = VALIDATION_MODE_CHECKPOINT,
+) -> list[ValidationCheckResult]:
+    if validation_mode not in _REQUIRED_MATCHUP_OPPONENTS_BY_MODE:
+        raise ValueError(
+            "Unsupported validation_mode "
+            f"{validation_mode!r}. Expected one of {VALIDATION_MODES}."
+        )
+
+    available_matchups = (
+        set(
+            best_rows[["agent_name", "opponent_name"]]
+            .dropna()
+            .itertuples(index=False, name=None)
+        )
+        if {"agent_name", "opponent_name"}.issubset(best_rows.columns)
+        else set()
+    )
+    required_opponents = _REQUIRED_MATCHUP_OPPONENTS_BY_MODE[validation_mode]
+    results: list[ValidationCheckResult] = []
+
+    for spec in expected_specs:
+        required_agents_by_role = _required_algorithm_agents(
+            spec,
+            validation_mode,
+        )
+        required_matchups = [
+            {
+                "role": role,
+                "agent_name": agent_name,
+                "opponent_name": opponent_name,
+            }
+            for role, agent_name in required_agents_by_role.items()
+            for opponent_name in required_opponents
+        ]
+        present_matchups = [
+            matchup
+            for matchup in required_matchups
+            if (
+                matchup["agent_name"],
+                matchup["opponent_name"],
+            )
+            in available_matchups
+        ]
+        missing_matchups = [
+            matchup
+            for matchup in required_matchups
+            if (
+                matchup["agent_name"],
+                matchup["opponent_name"],
+            )
+            not in available_matchups
+        ]
+        complete = not missing_matchups
+        if complete:
+            status = STATUS_PASS
+        elif fail_when_missing:
+            status = STATUS_FAIL
+        else:
+            status = STATUS_WARNING
+
+        missing_description = ", ".join(
+            f"{matchup['agent_name']} vs {matchup['opponent_name']}"
+            for matchup in missing_matchups
+        )
+        results.append(
+            ValidationCheckResult(
+                check_name=(
+                    f"{spec.algorithm_name}: Required matchup coverage"
+                ),
+                status=status,
+                category="matchup_coverage",
+                algorithm_name=spec.algorithm_name,
+                message=(
+                    "All required evaluation matchups are present for this "
+                    "algorithm."
+                    if complete
+                    else (
+                        f"Missing {len(missing_matchups)} of "
+                        f"{len(required_matchups)} required evaluation "
+                        f"matchups: {missing_description}."
+                    )
+                ),
+                details={
+                    "algorithm_key": spec.algorithm_key,
+                    "validation_mode": validation_mode,
+                    "required_roles": list(required_agents_by_role),
+                    "required_agents": list(required_agents_by_role.values()),
+                    "required_opponents": list(required_opponents),
+                    "required_matchup_count": len(required_matchups),
+                    "present_matchup_count": len(present_matchups),
+                    "missing_matchup_count": len(missing_matchups),
+                    "required_matchups": required_matchups,
+                    "present_matchups": present_matchups,
+                    "missing_matchups": missing_matchups,
                     "present": complete,
                 },
             )
@@ -631,6 +750,14 @@ def validate_checkpoint_results(
                     validation_mode=validation_mode,
                 )
             )
+            checks.extend(
+                validate_required_matchups_present(
+                    best_rows,
+                    expected_specs,
+                    fail_when_missing=require_all_algorithms,
+                    validation_mode=validation_mode,
+                )
+            )
         checks.extend(
             validate_head_to_head_results_from_best_rows(
                 best_rows,
@@ -643,6 +770,14 @@ def validate_checkpoint_results(
         if require_all_algorithms or algorithm_specs is not None:
             checks.extend(
                 validate_expected_algorithms_present(
+                    best_rows,
+                    expected_specs,
+                    fail_when_missing=require_all_algorithms,
+                    validation_mode=validation_mode,
+                )
+            )
+            checks.extend(
+                validate_required_matchups_present(
                     best_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
@@ -662,6 +797,14 @@ def validate_checkpoint_results(
         if require_all_algorithms or algorithm_specs is not None:
             checks.extend(
                 validate_expected_algorithms_present(
+                    best_rows,
+                    specs,
+                    fail_when_missing=require_all_algorithms,
+                    validation_mode=validation_mode,
+                )
+            )
+            checks.extend(
+                validate_required_matchups_present(
                     best_rows,
                     specs,
                     fail_when_missing=require_all_algorithms,
