@@ -15,6 +15,10 @@ from src.evaluation.reporting.checkpoint_report import (
     aggregate_across_seeds,
     load_checkpoint_report_data,
 )
+from src.evaluation.validation.baseline_sanity_validation import (
+    BASELINE_SANITY_AGENTS,
+    validate_baseline_sanity_results_from_best_rows,
+)
 from src.evaluation.validation.common import (
     DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS,
     DEFAULT_CLASSIFIER_OPPONENTS,
@@ -24,9 +28,11 @@ from src.evaluation.validation.common import (
     STATUS_FAIL,
     STATUS_PASS,
     STATUS_WARNING,
+    VALIDATION_MODE_BASELINE_SANITY,
     VALIDATION_MODE_CHECKPOINT,
     VALIDATION_MODE_GENERALIZATION,
     VALIDATION_MODE_HEAD_TO_HEAD,
+    VALIDATION_MODE_STRESS_TEST,
     VALIDATION_MODES,
     ValidationCheckResult,
     ValidationReport,
@@ -51,6 +57,10 @@ from src.evaluation.validation.generalization_validation import (
 from src.evaluation.validation.head_to_head_validation import (
     validate_head_to_head_results_from_best_rows,
 )
+from src.evaluation.validation.stress_test_validation import (
+    STRESS_TEST_OPPONENTS,
+    validate_stress_test_results_from_best_rows,
+)
 from src.players.constants import GENERALIZATION_OPPONENTS
 from src.poker.constants import OPPONENT_TYPE_TIGHT, TRAINING_OPPONENT_TYPES
 
@@ -66,6 +76,8 @@ _REQUIRED_ALGORITHM_ROLES_BY_MODE = {
     VALIDATION_MODE_CHECKPOINT: ("adaptive", "oracle", "policy_general"),
     VALIDATION_MODE_GENERALIZATION: ("adaptive", "oracle", "policy_general"),
     VALIDATION_MODE_HEAD_TO_HEAD: ("adaptive", "policy_general"),
+    VALIDATION_MODE_STRESS_TEST: ("adaptive", "policy_general"),
+    VALIDATION_MODE_BASELINE_SANITY: (),
 }
 
 _REQUIRED_MATCHUP_OPPONENTS_BY_MODE = {
@@ -75,6 +87,8 @@ _REQUIRED_MATCHUP_OPPONENTS_BY_MODE = {
         HEAD_TO_HEAD_RULE_BASED_OPPONENT,
         HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT,
     ),
+    VALIDATION_MODE_STRESS_TEST: STRESS_TEST_OPPONENTS,
+    VALIDATION_MODE_BASELINE_SANITY: BASELINE_SANITY_AGENTS,
 }
 
 
@@ -781,7 +795,40 @@ def validate_checkpoint_results(
         )
     )
 
-    if validation_mode == VALIDATION_MODE_HEAD_TO_HEAD:
+    if validation_mode == VALIDATION_MODE_BASELINE_SANITY:
+        checks = validate_baseline_sanity_results_from_best_rows(
+            best_rows,
+            thresholds,
+            comparison_rows=aggregated,
+        )
+    elif validation_mode == VALIDATION_MODE_STRESS_TEST:
+        checks = []
+        if require_all_algorithms or algorithm_specs is not None:
+            checks.extend(
+                validate_expected_algorithms_present(
+                    best_rows,
+                    expected_specs,
+                    fail_when_missing=require_all_algorithms,
+                    validation_mode=validation_mode,
+                )
+            )
+            checks.extend(
+                validate_required_matchups_present(
+                    best_rows,
+                    expected_specs,
+                    fail_when_missing=require_all_algorithms,
+                    validation_mode=validation_mode,
+                )
+            )
+        checks.extend(
+            validate_stress_test_results_from_best_rows(
+                best_rows,
+                thresholds,
+                algorithm_specs=expected_specs,
+                comparison_rows=aggregated,
+            )
+        )
+    elif validation_mode == VALIDATION_MODE_HEAD_TO_HEAD:
         checks = []
         if require_all_algorithms or algorithm_specs is not None:
             checks.extend(
