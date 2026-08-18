@@ -9,8 +9,18 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from src.evaluation.metrics.checkpoint_metrics import calculate_checkpoint_metrics
 from src.evaluation.constants import ORACLE_AGENTS
+from src.evaluation.metrics.checkpoint_metrics import calculate_checkpoint_metrics
+from src.evaluation.metrics.seed_statistics import (
+    SEED_CI_LOWER_COLUMN,
+    SEED_CI_MARGIN_COLUMN,
+    SEED_CI_UPPER_COLUMN,
+    SEED_MAX_COLUMN,
+    SEED_MIN_COLUMN,
+    SEED_SPREAD_COLUMN,
+    SEED_STANDARD_ERROR_COLUMN,
+    add_seed_level_statistical_summary,
+)
 from src.evaluation.reporting.html_utils import definition_list, html_page, write_text
 from src.evaluation.reporting.plot_utils import ensure_output_dir, save_current_figure
 from src.evaluation.reporting.report_descriptions import (
@@ -90,6 +100,8 @@ def aggregate_across_seeds(df: pd.DataFrame) -> pd.DataFrame:
             games=("games", "sum"),
             mean_profit_bb=("mean_profit_bb", "mean"),
             mean_profit_bb_std_across_seeds=("mean_profit_bb", "std"),
+            mean_profit_bb_min_across_seeds=("mean_profit_bb", "min"),
+            mean_profit_bb_max_across_seeds=("mean_profit_bb", "max"),
             bb_per_100=("bb_per_100", "mean"),
             win_rate=("win_rate", "mean"),
             bust_rate=("bust_rate", "mean"),
@@ -100,9 +112,7 @@ def aggregate_across_seeds(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-    aggregated["mean_profit_bb_std_across_seeds"] = aggregated[
-        "mean_profit_bb_std_across_seeds"
-    ].fillna(0.0)
+    aggregated = add_seed_level_statistical_summary(aggregated)
 
     return aggregated.sort_values(
         [
@@ -225,6 +235,14 @@ def metric_glossary_html() -> str:
         "standard_error",
         "ci_95_lower",
         "ci_95_upper",
+        "mean_profit_bb_std_across_seeds",
+        SEED_STANDARD_ERROR_COLUMN,
+        SEED_CI_LOWER_COLUMN,
+        SEED_CI_UPPER_COLUMN,
+        SEED_CI_MARGIN_COLUMN,
+        SEED_MIN_COLUMN,
+        SEED_MAX_COLUMN,
+        SEED_SPREAD_COLUMN,
         "global_classifier_accuracy",
         "global_classifier_coverage",
         "mean_policy_switches",
@@ -244,6 +262,14 @@ def metric_glossary_markdown() -> str:
         "standard_error",
         "ci_95_lower",
         "ci_95_upper",
+        "mean_profit_bb_std_across_seeds",
+        SEED_STANDARD_ERROR_COLUMN,
+        SEED_CI_LOWER_COLUMN,
+        SEED_CI_UPPER_COLUMN,
+        SEED_CI_MARGIN_COLUMN,
+        SEED_MIN_COLUMN,
+        SEED_MAX_COLUMN,
+        SEED_SPREAD_COLUMN,
         "global_classifier_accuracy",
         "global_classifier_coverage",
         "mean_policy_switches",
