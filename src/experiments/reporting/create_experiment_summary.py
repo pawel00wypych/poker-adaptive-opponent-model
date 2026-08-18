@@ -73,8 +73,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--chart-ci-multiplier",
         type=float,
-        default=1.96,
-        help="Multiplier used for approximate cross-seed confidence intervals.",
+        default=None,
+        help=(
+            "Optional legacy multiplier overriding the default 95% "
+            "Student-t confidence interval in charts."
+        ),
     )
 
     return parser.parse_args(argv)

@@ -1,23 +1,31 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable
 
 import pandas as pd
 
-from src.evaluation.reporting.checkpoint_report import (
-    aggregate_across_seeds,
-    display_agent_name,
-    load_checkpoint_report_data,
-)
 from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
     AGENT_TO_ORACLE_AGENT,
     ALWAYS_RAISE_AGENT,
     ORACLE_AGENTS,
     RULE_BASED_AGENT,
+)
+from src.evaluation.metrics.seed_statistics import (
+    SEED_CI_LOWER_COLUMN,
+    SEED_CI_UPPER_COLUMN,
+    SEED_MAX_COLUMN,
+    SEED_MIN_COLUMN,
+    SEED_SPREAD_COLUMN,
+    SEED_STANDARD_ERROR_COLUMN,
+)
+from src.evaluation.reporting.checkpoint_report import (
+    aggregate_across_seeds,
+    display_agent_name,
+    load_checkpoint_report_data,
 )
 from src.evaluation.reporting.experiment_charts import (
     ExperimentChartConfig,
@@ -58,8 +66,15 @@ SUMMARY_TABLE_COLUMNS = [
     "opponent_name",
     "rank",
     "agent_name",
+    "seeds",
     "mean_profit_bb",
     "mean_profit_bb_std_across_seeds",
+    SEED_STANDARD_ERROR_COLUMN,
+    SEED_CI_LOWER_COLUMN,
+    SEED_CI_UPPER_COLUMN,
+    SEED_MIN_COLUMN,
+    SEED_MAX_COLUMN,
+    SEED_SPREAD_COLUMN,
     "bb_per_100",
     "win_rate",
     "bust_rate",
@@ -135,6 +150,13 @@ def _round_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
         result[column] = result[column].round(3)
 
     return result
+
+
+def dataframe_records_with_missing_as_none(
+    df: pd.DataFrame,
+) -> list[dict[str, object]]:
+    records = df.astype(object).where(pd.notna(df), None)
+    return records.to_dict(orient="records")
 
 
 def _display_table(df: pd.DataFrame) -> pd.DataFrame:
@@ -372,7 +394,7 @@ def build_overview(
         "raw_games": int(metrics["games"].sum())
         if "games" in metrics.columns
         else 0,
-        "summary_rows": int(len(summary_table)),
+        "summary_rows": len(summary_table),
     }
 
 
@@ -420,7 +442,7 @@ def _adaptive_rule_based_findings(summary_table: pd.DataFrame) -> str | None:
         - merged["mean_profit_bb_rule_based"]
     )
     wins = int((merged["delta"] > 0).sum())
-    total = int(len(merged))
+    total = len(merged)
     avg_delta = float(merged["delta"].mean())
 
     return (
@@ -596,9 +618,9 @@ def build_experiment_summary(
         thresholds=thresholds,
         overview=overview,
         main_findings=main_findings,
-        ranking=summary_table.to_dict(orient="records"),
-        deltas=deltas.to_dict(orient="records"),
-        quality_flags=quality_flags.to_dict(orient="records"),
+        ranking=dataframe_records_with_missing_as_none(summary_table),
+        deltas=dataframe_records_with_missing_as_none(deltas),
+        quality_flags=dataframe_records_with_missing_as_none(quality_flags),
     )
 
     return report, summary_table, deltas, quality_flags
@@ -648,8 +670,10 @@ def render_experiment_summary_markdown(
         [
             "# Experiment summary",
             "",
-            "This report summarizes checkpoint evaluation results "
-            "across agents, opponents, checkpoints, and seeds.",
+            (
+                "This report summarizes checkpoint evaluation results "
+                "across agents, opponents, checkpoints, and seeds."
+            ),
             "",
             "## Overview",
             "",
@@ -754,7 +778,10 @@ def write_experiment_summary_outputs(
 
     if report_format in {"json", "both", "all"}:
         json_path = output_dir / "experiment_summary.json"
-        write_text(json_path, json.dumps(report.to_dict(), indent=2))
+        write_text(
+            json_path,
+            json.dumps(report.to_dict(), indent=2, allow_nan=False),
+        )
         created_paths.append(json_path)
 
     csv_exports = [

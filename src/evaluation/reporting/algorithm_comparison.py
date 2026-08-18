@@ -19,8 +19,18 @@ from src.evaluation.algorithm_metadata import (
     ORACLE_AGENT_TO_ALGORITHM,
 )
 from src.evaluation.constants import RULE_BASED_AGENT
+from src.evaluation.metrics.seed_statistics import (
+    SEED_CI_LOWER_COLUMN,
+    SEED_CI_MARGIN_COLUMN,
+    SEED_CI_UPPER_COLUMN,
+    SEED_MAX_COLUMN,
+    SEED_MIN_COLUMN,
+    SEED_SPREAD_COLUMN,
+    SEED_STANDARD_ERROR_COLUMN,
+)
 from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.reporting.experiment_summary import (
+    dataframe_records_with_missing_as_none,
     load_experiment_summary_data,
     write_dataframe_csv,
     write_dataframe_latex,
@@ -41,11 +51,18 @@ ALGORITHM_METRIC_COLUMNS = [
     "rank",
     "algorithm",
     "agent_name",
+    "seeds",
     "mean_profit_bb",
+    "mean_profit_bb_std_across_seeds",
+    SEED_STANDARD_ERROR_COLUMN,
+    SEED_CI_LOWER_COLUMN,
+    SEED_CI_UPPER_COLUMN,
+    SEED_MIN_COLUMN,
+    SEED_MAX_COLUMN,
+    SEED_SPREAD_COLUMN,
     "bb_per_100",
     "win_rate",
     "bust_rate",
-    "mean_profit_bb_std_across_seeds",
     "delta_vs_monte_carlo",
     "delta_vs_rule_based",
     "delta_vs_oracle",
@@ -454,9 +471,11 @@ def build_algorithm_comparison(
         config=config,
         overview=overview,
         main_findings=main_findings,
-        global_ranking=global_ranking.to_dict(orient="records"),
-        algorithm_by_opponent=algorithm_by_opponent.to_dict(orient="records"),
-        deltas=deltas.to_dict(orient="records"),
+        global_ranking=dataframe_records_with_missing_as_none(global_ranking),
+        algorithm_by_opponent=dataframe_records_with_missing_as_none(
+            algorithm_by_opponent
+        ),
+        deltas=dataframe_records_with_missing_as_none(deltas),
     )
 
     return report, global_ranking, algorithm_by_opponent, deltas
@@ -579,10 +598,19 @@ def plot_algorithm_mean_profit_by_opponent(
     plt.figure(figsize=(fig_width, 6.0))
     x_positions = list(range(len(data)))
     plt.bar(x_positions, data["mean_profit_bb"])
+    if SEED_CI_MARGIN_COLUMN in data.columns:
+        plt.errorbar(
+            x_positions,
+            data["mean_profit_bb"],
+            yerr=data[SEED_CI_MARGIN_COLUMN],
+            fmt="none",
+            capsize=4,
+            linewidth=1,
+        )
     plt.axhline(0, linewidth=1)
     plt.xticks(x_positions, data["plot_label"], rotation=45, ha="right")
     plt.ylabel("Mean profit per game [BB]")
-    plt.title("Adaptive RL algorithm mean profit by opponent")
+    plt.title("Adaptive RL algorithm mean profit with 95% seed CI")
     plt.grid(axis="y", alpha=0.25)
 
     output_path = Path(output_path)
@@ -750,7 +778,10 @@ def write_algorithm_comparison_outputs(
 
     if report_format in {"json", "both", "all"}:
         json_path = output_dir / "algorithm_comparison.json"
-        write_text(json_path, json.dumps(report.to_dict(), indent=2))
+        write_text(
+            json_path,
+            json.dumps(report.to_dict(), indent=2, allow_nan=False),
+        )
         created_paths.append(json_path)
 
     csv_exports = [
