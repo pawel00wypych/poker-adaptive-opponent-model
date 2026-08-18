@@ -61,6 +61,7 @@ def test_validation_package_exports_public_api():
         "ValidationReport",
         "validate_checkpoint_results",
         "validate_expected_algorithms_present",
+        "validate_required_matchups_present",
         "validation_checks_to_dataframe",
         "render_validation_markdown",
         "write_validation_json_report",
@@ -78,23 +79,11 @@ def test_validation_package_exports_public_api():
 
 def test_legacy_experiment_validation_wrapper_reexports_public_api():
     assert legacy_validation.__all__ == validation.__all__
-    assert (
-        legacy_validation.ValidationThresholds
-        is validation.ValidationThresholds
-    )
-    assert (
-        legacy_validation.ValidationCheckResult
-        is validation.ValidationCheckResult
-    )
-    assert legacy_validation.ValidationReport is validation.ValidationReport
-    assert (
-        legacy_validation.validate_checkpoint_results
-        is validation.validate_checkpoint_results
-    )
-    assert (
-        legacy_validation.render_validation_markdown
-        is validation.render_validation_markdown
-    )
+    for exported_name in validation.__all__:
+        assert getattr(legacy_validation, exported_name) is getattr(
+            validation,
+            exported_name,
+        )
 
 
 def test_validation_dataclasses_are_configurable_and_serializable():

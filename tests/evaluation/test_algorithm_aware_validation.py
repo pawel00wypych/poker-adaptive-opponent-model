@@ -20,6 +20,7 @@ from src.evaluation.validation.checkpoint_validation import (
     validate_classifier_quality,
     validate_expected_algorithms_present,
     validate_oracle_not_worse_than_adaptive,
+    validate_required_matchups_present,
 )
 from src.evaluation.validation.generalization_validation import (
     validate_generalization_adaptive_beats_agent,
@@ -86,6 +87,28 @@ def make_multi_algorithm_rows(opponents=("aggressive", "calling")):
             )
 
     return pd.DataFrame(rows)
+
+
+def make_algorithm_matchup_rows(
+    spec,
+    opponents,
+    roles=("adaptive", "oracle", "policy_general"),
+):
+    agents_by_role = {
+        "adaptive": spec.adaptive_agent,
+        "oracle": spec.oracle_agent,
+        "policy_general": spec.general_policy_agent,
+    }
+    return pd.DataFrame(
+        [
+            make_best_row(
+                agent_name=agents_by_role[role],
+                opponent_name=opponent_name,
+            )
+            for role in roles
+            for opponent_name in opponents
+        ]
+    )
 
 
 def test_available_algorithm_specs_detects_present_algorithms_only():
@@ -253,6 +276,15 @@ def test_head_to_head_results_use_mode_specific_coverage_roles(tmp_path):
     ]
     assert coverage_check.details["missing_agents"] == []
 
+    matchup_coverage_check = next(
+        check
+        for check in report.checks
+        if check.category == "matchup_coverage"
+    )
+    assert matchup_coverage_check.status == STATUS_PASS
+    assert matchup_coverage_check.details["required_matchup_count"] == 4
+    assert matchup_coverage_check.details["missing_matchups"] == []
+
 
 def test_algorithm_coverage_passes_for_all_complete_algorithms():
     rows = make_multi_algorithm_rows(opponents=("calling",))
@@ -266,6 +298,141 @@ def test_algorithm_coverage_passes_for_all_complete_algorithms():
     assert len(checks) == 4
     assert all(check.status == STATUS_PASS for check in checks)
     assert all(check.details["missing_agents"] == [] for check in checks)
+
+
+def test_checkpoint_matchup_coverage_reports_exact_missing_pair():
+    spec = ALGORITHM_VALIDATION_SPECS[0]
+    rows = make_algorithm_matchup_rows(
+        spec,
+        ("tight", "aggressive", "calling"),
+    )
+    rows = rows[
+        ~(
+            (rows["agent_name"] == spec.oracle_agent)
+            & (rows["opponent_name"] == "calling")
+        )
+    ]
+
+    check = validate_required_matchups_present(
+        rows,
+        (spec,),
+        fail_when_missing=True,
+    )[0]
+
+    assert check.status == STATUS_FAIL
+    assert check.category == "matchup_coverage"
+    assert check.details["required_matchup_count"] == 9
+    assert check.details["present_matchup_count"] == 8
+    assert check.details["missing_matchup_count"] == 1
+    assert check.details["missing_matchups"] == [
+        {
+            "role": "oracle",
+            "agent_name": spec.oracle_agent,
+            "opponent_name": "calling",
+        }
+    ]
+    assert "oracle_mc vs calling" in check.message
+
+
+def test_generalization_matchup_coverage_uses_all_extreme_opponents():
+    spec = ALGORITHM_VALIDATION_SPECS[1]
+    opponents = (
+        "calling_extreme",
+        "aggressive_extreme",
+        "tight_extreme",
+    )
+    rows = make_algorithm_matchup_rows(spec, opponents)
+
+    check = validate_required_matchups_present(
+        rows,
+        (spec,),
+        fail_when_missing=True,
+        validation_mode=VALIDATION_MODE_GENERALIZATION,
+    )[0]
+
+    assert check.status == STATUS_PASS
+    assert check.details["required_opponents"] == list(opponents)
+    assert check.details["required_matchup_count"] == 9
+    assert check.details["missing_matchups"] == []
+
+
+def test_generalization_results_use_mode_specific_matchup_coverage(tmp_path):
+    from src.evaluation.validation import validate_checkpoint_results
+    from tests.evaluation.test_experiment_validation import (
+        write_sample_generalization_csv,
+    )
+
+    csv_path = tmp_path / "generalization_results.csv"
+    write_sample_generalization_csv(csv_path)
+
+    report = validate_checkpoint_results(
+        csv_path,
+        validation_mode=VALIDATION_MODE_GENERALIZATION,
+        algorithm_specs=(ALGORITHM_VALIDATION_SPECS[0],),
+    )
+
+    matchup_coverage_check = next(
+        check
+        for check in report.checks
+        if check.category == "matchup_coverage"
+    )
+    assert matchup_coverage_check.status == STATUS_PASS
+    assert matchup_coverage_check.details["required_matchup_count"] == 9
+    assert matchup_coverage_check.details["missing_matchups"] == []
+
+
+def test_head_to_head_matchup_coverage_requires_four_algorithm_pairs():
+    spec = ALGORITHM_VALIDATION_SPECS[3]
+    rows = make_algorithm_matchup_rows(
+        spec,
+        ("rule_based", "always_raise"),
+        roles=("adaptive", "policy_general"),
+    )
+
+    check = validate_required_matchups_present(
+        rows,
+        (spec,),
+        fail_when_missing=True,
+        validation_mode=VALIDATION_MODE_HEAD_TO_HEAD,
+    )[0]
+
+    assert check.status == STATUS_PASS
+    assert check.details["required_roles"] == ["adaptive", "policy_general"]
+    assert check.details["required_opponents"] == [
+        "rule_based",
+        "always_raise",
+    ]
+    assert check.details["required_matchup_count"] == 4
+    assert check.details["missing_matchups"] == []
+
+
+def test_selected_matchup_coverage_warns_in_non_strict_mode():
+    spec = ALGORITHM_VALIDATION_SPECS[2]
+    rows = make_algorithm_matchup_rows(
+        spec,
+        ("tight", "aggressive"),
+    )
+
+    check = validate_required_matchups_present(
+        rows,
+        (spec,),
+        fail_when_missing=False,
+    )[0]
+
+    assert check.status == STATUS_WARNING
+    assert check.details["missing_matchup_count"] == 3
+    assert {
+        matchup["agent_name"]
+        for matchup in check.details["missing_matchups"]
+    } == {
+        spec.adaptive_agent,
+        spec.oracle_agent,
+        spec.general_policy_agent,
+    }
+    assert {
+        matchup["opponent_name"]
+        for matchup in check.details["missing_matchups"]
+    } == {"calling"}
 
 
 def test_oracle_gap_validation_runs_for_all_present_algorithms():
@@ -413,6 +580,19 @@ def test_validate_checkpoint_results_require_all_algorithms_fails_when_missing(t
         and check.status == STATUS_FAIL
         for check in coverage_checks
     )
+    matchup_coverage_checks = [
+        check
+        for check in report.checks
+        if check.category == "matchup_coverage"
+    ]
+    assert len(matchup_coverage_checks) == 4
+    q_learning_matchup_coverage = next(
+        check
+        for check in matchup_coverage_checks
+        if check.algorithm_name == ALGORITHM_Q_LEARNING
+    )
+    assert q_learning_matchup_coverage.status == STATUS_FAIL
+    assert q_learning_matchup_coverage.details["missing_matchup_count"] == 9
     assert not report.passed
 
 
@@ -459,3 +639,21 @@ def test_validate_checkpoint_results_selected_algorithms_adds_coverage_warnings(
     assert monte_carlo_check.status == STATUS_WARNING
     assert monte_carlo_check.details["missing_roles"] == ["policy_general"]
     assert monte_carlo_check.details["missing_agents"] == ["policy_general_mc"]
+
+    matchup_coverage_checks = [
+        check
+        for check in report.checks
+        if check.category == "matchup_coverage"
+    ]
+    assert len(matchup_coverage_checks) == 2
+    monte_carlo_matchup_coverage = next(
+        check
+        for check in matchup_coverage_checks
+        if check.algorithm_name == ALGORITHM_MONTE_CARLO
+    )
+    assert monte_carlo_matchup_coverage.status == STATUS_WARNING
+    assert monte_carlo_matchup_coverage.details["missing_matchup_count"] == 3
+    assert {
+        matchup["agent_name"]
+        for matchup in monte_carlo_matchup_coverage.details["missing_matchups"]
+    } == {"policy_general_mc"}
