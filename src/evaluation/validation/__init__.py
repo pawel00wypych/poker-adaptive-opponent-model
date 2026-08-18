@@ -36,6 +36,7 @@ from src.evaluation.validation.common import (
     STATUS_WARNING,
     VALIDATION_MODE_BASELINE_SANITY,
     VALIDATION_MODE_CHECKPOINT,
+    VALIDATION_MODE_CROSS_PLAY,
     VALIDATION_MODE_GENERALIZATION,
     VALIDATION_MODE_HEAD_TO_HEAD,
     VALIDATION_MODE_STRESS_TEST,
@@ -49,6 +50,12 @@ from src.evaluation.validation.common import (
     validate_extreme_bb_per_100,
     validate_minimum_seed_coverage,
     validate_seed_stability,
+)
+from src.evaluation.validation.cross_play_validation import (
+    validate_cross_play_classifier_coverage,
+    validate_cross_play_matchup_coverage,
+    validate_cross_play_pair_reciprocity,
+    validate_cross_play_results_from_best_rows,
 )
 from src.evaluation.validation.generalization_validation import (
     validate_generalization_adaptive_beats_agent,
@@ -100,6 +107,7 @@ __all__ = [
     "VALIDATION_MODES",
     "VALIDATION_MODE_BASELINE_SANITY",
     "VALIDATION_MODE_CHECKPOINT",
+    "VALIDATION_MODE_CROSS_PLAY",
     "VALIDATION_MODE_GENERALIZATION",
     "VALIDATION_MODE_HEAD_TO_HEAD",
     "VALIDATION_MODE_STRESS_TEST",
@@ -123,6 +131,10 @@ __all__ = [
     "validate_baseline_sanity_results_from_best_rows",
     "validate_checkpoint_results",
     "validate_classifier_quality",
+    "validate_cross_play_classifier_coverage",
+    "validate_cross_play_matchup_coverage",
+    "validate_cross_play_pair_reciprocity",
+    "validate_cross_play_results_from_best_rows",
     "validate_expected_algorithms_present",
     "validate_extreme_bb_per_100",
     "validate_generalization_adaptive_beats_agent",

@@ -30,6 +30,7 @@ from src.evaluation.validation.common import (
     STATUS_WARNING,
     VALIDATION_MODE_BASELINE_SANITY,
     VALIDATION_MODE_CHECKPOINT,
+    VALIDATION_MODE_CROSS_PLAY,
     VALIDATION_MODE_GENERALIZATION,
     VALIDATION_MODE_HEAD_TO_HEAD,
     VALIDATION_MODE_STRESS_TEST,
@@ -50,6 +51,10 @@ from src.evaluation.validation.common import (
     validate_extreme_bb_per_100,
     validate_minimum_seed_coverage,
     validate_seed_stability,
+)
+from src.evaluation.validation.cross_play_validation import (
+    validate_cross_play_matchup_coverage,
+    validate_cross_play_results_from_best_rows,
 )
 from src.evaluation.validation.generalization_validation import (
     validate_generalization_results_from_best_rows,
@@ -78,6 +83,7 @@ _REQUIRED_ALGORITHM_ROLES_BY_MODE = {
     VALIDATION_MODE_HEAD_TO_HEAD: ("adaptive", "policy_general"),
     VALIDATION_MODE_STRESS_TEST: ("adaptive", "policy_general"),
     VALIDATION_MODE_BASELINE_SANITY: (),
+    VALIDATION_MODE_CROSS_PLAY: ("adaptive",),
 }
 
 _REQUIRED_MATCHUP_OPPONENTS_BY_MODE = {
@@ -200,6 +206,13 @@ def validate_required_matchups_present(
     fail_when_missing: bool,
     validation_mode: str = VALIDATION_MODE_CHECKPOINT,
 ) -> list[ValidationCheckResult]:
+    if validation_mode == VALIDATION_MODE_CROSS_PLAY:
+        return validate_cross_play_matchup_coverage(
+            best_rows,
+            expected_specs,
+            fail_when_missing=fail_when_missing,
+        )
+
     if validation_mode not in _REQUIRED_MATCHUP_OPPONENTS_BY_MODE:
         raise ValueError(
             "Unsupported validation_mode "
@@ -791,6 +804,7 @@ def validate_checkpoint_results(
         else (
             ALGORITHM_VALIDATION_SPECS
             if require_all_algorithms
+            or validation_mode == VALIDATION_MODE_CROSS_PLAY
             else available_algorithm_specs(best_rows)
         )
     )
@@ -800,6 +814,25 @@ def validate_checkpoint_results(
             best_rows,
             thresholds,
             comparison_rows=aggregated,
+        )
+    elif validation_mode == VALIDATION_MODE_CROSS_PLAY:
+        checks = []
+        if require_all_algorithms or algorithm_specs is not None:
+            checks.extend(
+                validate_expected_algorithms_present(
+                    best_rows,
+                    expected_specs,
+                    fail_when_missing=require_all_algorithms,
+                    validation_mode=validation_mode,
+                )
+            )
+        checks.extend(
+            validate_cross_play_results_from_best_rows(
+                best_rows,
+                thresholds,
+                algorithm_specs=expected_specs,
+                comparison_rows=aggregated,
+            )
         )
     elif validation_mode == VALIDATION_MODE_STRESS_TEST:
         checks = []

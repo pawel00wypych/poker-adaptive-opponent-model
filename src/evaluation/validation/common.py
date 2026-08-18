@@ -52,12 +52,15 @@ VALIDATION_MODE_STRESS_TEST = "stress-test"
 
 VALIDATION_MODE_BASELINE_SANITY = "baseline-sanity"
 
+VALIDATION_MODE_CROSS_PLAY = "cross-play"
+
 VALIDATION_MODES = (
     VALIDATION_MODE_CHECKPOINT,
     VALIDATION_MODE_HEAD_TO_HEAD,
     VALIDATION_MODE_GENERALIZATION,
     VALIDATION_MODE_STRESS_TEST,
     VALIDATION_MODE_BASELINE_SANITY,
+    VALIDATION_MODE_CROSS_PLAY,
 )
 
 DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS = (
@@ -144,6 +147,7 @@ class ValidationThresholds:
     min_seeds_per_matchup: int = 2
     max_baseline_mirror_abs_profit_bb: float = 1.0
     max_baseline_pair_sum_abs_profit_bb: float = 2.0
+    max_cross_play_pair_sum_abs_profit_bb: float = 2.0
 
 @dataclass(frozen=True)
 class ValidationCheckResult:
