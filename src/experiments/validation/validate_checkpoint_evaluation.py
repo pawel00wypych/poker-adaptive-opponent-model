@@ -246,7 +246,7 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
     )
 
 
-def main() -> None:
+def main() -> int:
     args = parse_args()
     thresholds = build_thresholds(args)
     report = validate_checkpoint_results(
@@ -286,6 +286,8 @@ def main() -> None:
         f"{counts}"
     )
 
+    return 0 if report.passed else 1
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
