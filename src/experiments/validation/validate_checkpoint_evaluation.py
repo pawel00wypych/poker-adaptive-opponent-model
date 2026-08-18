@@ -16,6 +16,13 @@ from src.evaluation.validation import (
 )
 
 
+def _positive_int(value: str) -> int:
+    parsed_value = int(value)
+    if parsed_value < 1:
+        raise argparse.ArgumentTypeError("value must be at least 1")
+    return parsed_value
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -89,6 +96,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--min-classifier-coverage",
         type=float,
         default=80.0,
+    )
+    parser.add_argument(
+        "--min-seeds-per-matchup",
+        type=_positive_int,
+        default=2,
+        help=(
+            "Minimum number of distinct model seeds required for each "
+            "evaluated agent/opponent matchup."
+        ),
     )
     parser.add_argument(
         "--max-std-across-seeds-bb",
@@ -186,6 +202,7 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         min_tight_mean_profit_bb=args.min_tight_mean_profit_bb,
         min_classifier_accuracy=args.min_classifier_accuracy,
         min_classifier_coverage=args.min_classifier_coverage,
+        min_seeds_per_matchup=args.min_seeds_per_matchup,
         max_std_across_seeds_bb=args.max_std_across_seeds_bb,
         extreme_bb_per_100_threshold=(
             args.extreme_bb_per_100_threshold

@@ -1,6 +1,7 @@
 import json
 
 import pandas as pd
+import pytest
 
 from src.evaluation.validation import (
     STATUS_FAIL,
@@ -314,6 +315,7 @@ def test_render_validation_markdown_contains_thresholds(tmp_path):
     csv_path = tmp_path / "checkpoint_results.csv"
     write_sample_checkpoint_csv(csv_path)
     thresholds = ValidationThresholds(
+        min_seeds_per_matchup=2,
         max_std_across_seeds_bb=2.5,
     )
 
@@ -324,6 +326,7 @@ def test_render_validation_markdown_contains_thresholds(tmp_path):
     markdown = render_validation_markdown(report)
 
     assert "max_std_across_seeds_bb" in markdown
+    assert "min_seeds_per_matchup" in markdown
     assert "2.5" in markdown
 
 
@@ -344,6 +347,8 @@ def test_validation_cli_parser_accepts_threshold_overrides():
             "--require-all-algorithms",
             "--min-classifier-accuracy",
             "75",
+            "--min-seeds-per-matchup",
+            "5",
             "--max-std-across-seeds-bb",
             "7",
             "--always-raise-adaptive-warning-gap-bb",
@@ -369,6 +374,7 @@ def test_validation_cli_parser_accepts_threshold_overrides():
     assert args.algorithms == ["monte_carlo", "q_learning"]
     assert args.require_all_algorithms is True
     assert thresholds.min_classifier_accuracy == 75.0
+    assert thresholds.min_seeds_per_matchup == 5
     assert thresholds.max_std_across_seeds_bb == 7.0
     assert thresholds.always_raise_adaptive_warning_gap_bb == 4.0
     assert thresholds.high_always_raise_mean_profit_bb == 17.0
@@ -377,6 +383,20 @@ def test_validation_cli_parser_accepts_threshold_overrides():
     assert thresholds.max_adaptive_underperformance_vs_general_bb == 2.0
     assert thresholds.always_raise_stress_loss_bb == -12.0
     assert thresholds.always_raise_stress_bust_rate == 75.0
+
+
+def test_validation_cli_rejects_non_positive_seed_minimum():
+    with pytest.raises(SystemExit):
+        parse_args(
+            [
+                "--input-path",
+                "results/evaluation/results.csv",
+                "--output-dir",
+                "reports/validation",
+                "--min-seeds-per-matchup",
+                "0",
+            ]
+        )
 
 
 
