@@ -55,8 +55,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--require-all-algorithms",
         action="store_true",
         help=(
-            "Fail validation when an expected final RL algorithm is "
-            "missing from the result file."
+            "Fail validation when an expected final RL algorithm or any "
+            "required evaluation matchup is missing from the result file."
         ),
     )
 
