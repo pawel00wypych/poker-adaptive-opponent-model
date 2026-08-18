@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
+from typing import cast
 
 import pandas as pd
 
@@ -47,10 +48,16 @@ VALIDATION_MODE_HEAD_TO_HEAD = "head-to-head"
 
 VALIDATION_MODE_GENERALIZATION = "generalization"
 
+VALIDATION_MODE_STRESS_TEST = "stress-test"
+
+VALIDATION_MODE_BASELINE_SANITY = "baseline-sanity"
+
 VALIDATION_MODES = (
     VALIDATION_MODE_CHECKPOINT,
     VALIDATION_MODE_HEAD_TO_HEAD,
     VALIDATION_MODE_GENERALIZATION,
+    VALIDATION_MODE_STRESS_TEST,
+    VALIDATION_MODE_BASELINE_SANITY,
 )
 
 DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS = (
@@ -95,6 +102,21 @@ GENERALIZATION_SPECIALIST_AGENTS = (
 )
 
 
+def _missing_values_as_none(value: object) -> object:
+    if isinstance(value, dict):
+        return {
+            key: _missing_values_as_none(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_missing_values_as_none(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_missing_values_as_none(item) for item in value)
+    if pd.api.types.is_scalar(value) and bool(pd.isna(value)):
+        return None
+    return value
+
+
 @dataclass(frozen=True)
 class ValidationThresholds:
     min_adaptive_delta_vs_rule_based_bb: float = 0.0
@@ -120,6 +142,8 @@ class ValidationThresholds:
     generalization_extreme_aggressive_min_profit_bb: float = -5.0
     generalization_extreme_aggressive_max_bust_rate: float = 85.0
     min_seeds_per_matchup: int = 2
+    max_baseline_mirror_abs_profit_bb: float = 1.0
+    max_baseline_pair_sum_abs_profit_bb: float = 2.0
 
 @dataclass(frozen=True)
 class ValidationCheckResult:
@@ -136,7 +160,10 @@ class ValidationCheckResult:
     details: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
-        return asdict(self)
+        return cast(
+            dict[str, object],
+            _missing_values_as_none(asdict(self)),
+        )
 
 @dataclass(frozen=True)
 class ValidationReport:
@@ -162,17 +189,22 @@ class ValidationReport:
         }
 
     def to_dict(self) -> dict[str, object]:
-        return {
-            "input_path": self.input_path,
-            "validation_mode": self.validation_mode,
-            "passed": self.passed,
-            "status_counts": self.status_counts(),
-            "thresholds": asdict(self.thresholds),
-            "checks": [
-                check.to_dict()
-                for check in self.checks
-            ],
-        }
+        return cast(
+            dict[str, object],
+            _missing_values_as_none(
+                {
+                    "input_path": self.input_path,
+                    "validation_mode": self.validation_mode,
+                    "passed": self.passed,
+                    "status_counts": self.status_counts(),
+                    "thresholds": asdict(self.thresholds),
+                    "checks": [
+                        check.to_dict()
+                        for check in self.checks
+                    ],
+                }
+            ),
+        )
 
 def _format_float(value: float | None) -> str:
     if value is None or pd.isna(value):
