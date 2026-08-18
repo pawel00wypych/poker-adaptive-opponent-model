@@ -35,7 +35,9 @@ from src.evaluation.validation.common import (
     _best_rows_by_agent_and_opponent,
     _checkpoint_episode,
     _find_row,
+    _find_rows_at_latest_common_checkpoint,
     _format_float,
+    _missing_common_checkpoint_result,
     _missing_row_result,
     validate_always_raise_outperforms_adaptive,
     validate_always_raise_trivial_exploit,
@@ -294,16 +296,14 @@ def validate_adaptive_beats_rule_based(
 
     for spec in _algorithm_specs(best_rows, algorithm_specs):
         for opponent_name in opponents:
-            adaptive_row = _find_row(
-                best_rows,
-                spec.adaptive_agent,
-                opponent_name,
+            matchups = (
+                (spec.adaptive_agent, opponent_name),
+                (RULE_BASED_AGENT, opponent_name),
             )
-            rule_based_row = _find_row(
-                best_rows,
-                RULE_BASED_AGENT,
-                opponent_name,
+            checkpoint_episode, rows = (
+                _find_rows_at_latest_common_checkpoint(best_rows, matchups)
             )
+            adaptive_row, rule_based_row = rows
             check_name = (
                 f"{spec.algorithm_name}: Adaptive beats rule-based "
                 f"vs {opponent_name}"
@@ -333,6 +333,20 @@ def validate_adaptive_beats_rule_based(
                 )
                 continue
 
+            if checkpoint_episode is None:
+                results.append(
+                    _missing_common_checkpoint_result(
+                        check_name,
+                        "baseline_delta",
+                        best_rows,
+                        matchups,
+                        algorithm_name=spec.algorithm_name,
+                        agent_name=spec.adaptive_agent,
+                        opponent_name=opponent_name,
+                    )
+                )
+                continue
+
             delta = float(
                 adaptive_row["mean_profit_bb"]
                 - rule_based_row["mean_profit_bb"]
@@ -351,7 +365,7 @@ def validate_adaptive_beats_rule_based(
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=_checkpoint_episode(adaptive_row),
+                    checkpoint_episode=checkpoint_episode,
                     observed_value=delta,
                     threshold=(
                         thresholds.min_adaptive_delta_vs_rule_based_bb
@@ -389,16 +403,14 @@ def validate_oracle_not_worse_than_adaptive(
 
     for spec in _algorithm_specs(best_rows, algorithm_specs):
         for opponent_name in opponents:
-            oracle_row = _find_row(
-                best_rows,
-                spec.oracle_agent,
-                opponent_name,
+            matchups = (
+                (spec.oracle_agent, opponent_name),
+                (spec.adaptive_agent, opponent_name),
             )
-            adaptive_row = _find_row(
-                best_rows,
-                spec.adaptive_agent,
-                opponent_name,
+            checkpoint_episode, rows = (
+                _find_rows_at_latest_common_checkpoint(best_rows, matchups)
             )
+            oracle_row, adaptive_row = rows
             check_name = (
                 f"{spec.algorithm_name}: Oracle not significantly worse "
                 f"than adaptive vs {opponent_name}"
@@ -428,6 +440,20 @@ def validate_oracle_not_worse_than_adaptive(
                 )
                 continue
 
+            if checkpoint_episode is None:
+                results.append(
+                    _missing_common_checkpoint_result(
+                        check_name,
+                        "oracle_gap",
+                        best_rows,
+                        matchups,
+                        algorithm_name=spec.algorithm_name,
+                        agent_name=spec.oracle_agent,
+                        opponent_name=opponent_name,
+                    )
+                )
+                continue
+
             oracle_gap = float(
                 oracle_row["mean_profit_bb"]
                 - adaptive_row["mean_profit_bb"]
@@ -446,7 +472,7 @@ def validate_oracle_not_worse_than_adaptive(
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.oracle_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=_checkpoint_episode(oracle_row),
+                    checkpoint_episode=checkpoint_episode,
                     observed_value=oracle_gap,
                     threshold=-thresholds.max_oracle_underperformance_bb,
                     message=(
@@ -625,14 +651,15 @@ def validate_tight_baseline_saturation(
             RULE_BASED_AGENT,
             ALWAYS_RAISE_AGENT,
         )
-        rows_by_agent = {
-            agent_name: _find_row(
-                best_rows,
-                agent_name,
-                OPPONENT_TYPE_TIGHT,
-            )
+        matchups = tuple(
+            (agent_name, OPPONENT_TYPE_TIGHT)
             for agent_name in required_agents
-        }
+        )
+        checkpoint_episode, rows = _find_rows_at_latest_common_checkpoint(
+            best_rows,
+            matchups,
+        )
+        rows_by_agent = dict(zip(required_agents, rows, strict=True))
         check_name = (
             f"{spec.algorithm_name}: TightPlayer baseline "
             "saturation sanity check"
@@ -653,6 +680,20 @@ def validate_tight_baseline_saturation(
                 missing = True
                 break
         if missing:
+            continue
+
+        if checkpoint_episode is None:
+            results.append(
+                _missing_common_checkpoint_result(
+                    check_name,
+                    "always_raise_sanity",
+                    best_rows,
+                    matchups,
+                    algorithm_name=spec.algorithm_name,
+                    agent_name=spec.adaptive_agent,
+                    opponent_name=OPPONENT_TYPE_TIGHT,
+                )
+            )
             continue
 
         assert all(row is not None for row in rows_by_agent.values())
@@ -688,7 +729,7 @@ def validate_tight_baseline_saturation(
                 algorithm_name=spec.algorithm_name,
                 agent_name=ALWAYS_RAISE_AGENT,
                 opponent_name=OPPONENT_TYPE_TIGHT,
-                checkpoint_episode=_checkpoint_episode(always_raise_row),
+                checkpoint_episode=checkpoint_episode,
                 observed_value=float(always_raise_row["mean_profit_bb"]),
                 threshold=thresholds.min_tight_mean_profit_bb,
                 message=(
@@ -764,6 +805,7 @@ def validate_checkpoint_results(
                 best_rows,
                 thresholds,
                 algorithm_specs=expected_specs,
+                comparison_rows=aggregated,
             )
         )
     elif validation_mode == VALIDATION_MODE_GENERALIZATION:
@@ -790,6 +832,7 @@ def validate_checkpoint_results(
                 best_rows,
                 thresholds,
                 algorithm_specs=expected_specs,
+                comparison_rows=aggregated,
             )
         )
     else:
@@ -814,14 +857,14 @@ def validate_checkpoint_results(
             )
         checks.extend(
             validate_adaptive_beats_rule_based(
-                best_rows,
+                aggregated,
                 thresholds,
                 algorithm_specs=specs,
             )
         )
         checks.extend(
             validate_oracle_not_worse_than_adaptive(
-                best_rows,
+                aggregated,
                 thresholds,
                 algorithm_specs=specs,
             )
@@ -860,7 +903,7 @@ def validate_checkpoint_results(
         )
         checks.extend(
             validate_always_raise_outperforms_adaptive(
-                best_rows,
+                aggregated,
                 thresholds,
                 algorithm_specs=specs,
             )
@@ -873,7 +916,7 @@ def validate_checkpoint_results(
         )
         checks.extend(
             validate_tight_baseline_saturation(
-                best_rows,
+                aggregated,
                 thresholds,
                 algorithm_specs=specs,
             )
