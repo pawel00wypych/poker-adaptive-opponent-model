@@ -8,6 +8,12 @@ from src.evaluation.algorithm_metadata import (
     ALGORITHM_Q_LEARNING,
     ALGORITHM_SARSA,
 )
+from src.evaluation.metrics.seed_statistics import (
+    SEED_CI_LOWER_COLUMN,
+    SEED_CI_UPPER_COLUMN,
+    SEED_SPREAD_COLUMN,
+    SEED_STANDARD_ERROR_COLUMN,
+)
 from src.evaluation.reporting.algorithm_comparison import (
     add_algorithm_deltas,
     add_algorithm_ranking,
@@ -248,6 +254,10 @@ def test_build_algorithm_comparison_from_raw_results_csv(tmp_path):
     assert len(global_ranking) == 4
     assert len(algorithm_by_opponent) == 8
     assert "delta_vs_monte_carlo" in deltas.columns
+    assert SEED_STANDARD_ERROR_COLUMN in algorithm_by_opponent.columns
+    assert SEED_CI_LOWER_COLUMN in algorithm_by_opponent.columns
+    assert SEED_CI_UPPER_COLUMN in algorithm_by_opponent.columns
+    assert SEED_SPREAD_COLUMN in algorithm_by_opponent.columns
 
     aggressive_rows = algorithm_by_opponent[
         algorithm_by_opponent["opponent_name"] == "aggressive_extreme"
@@ -295,6 +305,11 @@ def test_write_algorithm_comparison_outputs_creates_all_formats_and_charts(tmp_p
 
     data = json.loads((output_dir / "algorithm_comparison.json").read_text(encoding="utf-8"))
     assert data["overview"]["algorithm_summary_rows"] == 8
+    assert SEED_CI_LOWER_COLUMN in data["algorithm_by_opponent"][0]
+
+    algorithm_csv = pd.read_csv(output_dir / "algorithm_by_opponent.csv")
+    assert SEED_STANDARD_ERROR_COLUMN in algorithm_csv.columns
+    assert SEED_CI_LOWER_COLUMN in algorithm_csv.columns
 
 
 def test_parse_args_supports_algorithm_comparison_options():

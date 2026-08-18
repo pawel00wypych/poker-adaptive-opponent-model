@@ -1,5 +1,14 @@
 import pandas as pd
+import pytest
 
+from src.evaluation.metrics.seed_statistics import (
+    SEED_CI_LOWER_COLUMN,
+    SEED_CI_UPPER_COLUMN,
+    SEED_MAX_COLUMN,
+    SEED_MIN_COLUMN,
+    SEED_SPREAD_COLUMN,
+    SEED_STANDARD_ERROR_COLUMN,
+)
 from src.evaluation.reporting.checkpoint_report import (
     aggregate_across_seeds,
     best_rows_by_agent,
@@ -100,6 +109,15 @@ def test_aggregate_across_seeds_calculates_agent_checkpoint_rows(tmp_path):
     assert row["seeds"] == 2
     assert row["games"] == 2
     assert row["mean_profit_bb"] == 1.5
+    assert row["mean_profit_bb_std_across_seeds"] == pytest.approx(
+        0.7071067811865476
+    )
+    assert row[SEED_STANDARD_ERROR_COLUMN] == pytest.approx(0.5)
+    assert row[SEED_CI_LOWER_COLUMN] == pytest.approx(-4.853102368087348)
+    assert row[SEED_CI_UPPER_COLUMN] == pytest.approx(7.853102368087348)
+    assert row[SEED_MIN_COLUMN] == 1.0
+    assert row[SEED_MAX_COLUMN] == 2.0
+    assert row[SEED_SPREAD_COLUMN] == 1.0
 
 
 def test_best_rows_by_agent_selects_highest_mean_profit(tmp_path):

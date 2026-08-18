@@ -2,6 +2,12 @@ import json
 
 import pandas as pd
 
+from src.evaluation.metrics.seed_statistics import (
+    SEED_CI_LOWER_COLUMN,
+    SEED_CI_UPPER_COLUMN,
+    SEED_SPREAD_COLUMN,
+    SEED_STANDARD_ERROR_COLUMN,
+)
 from src.evaluation.reporting.experiment_summary import (
     QUALITY_FAIL,
     QUALITY_OK,
@@ -17,7 +23,6 @@ from src.experiments.reporting.create_experiment_summary import (
     build_thresholds,
     parse_args,
 )
-
 
 REQUIRED_RESULT_COLUMNS = {
     "training_run": "sample_run",
@@ -268,6 +273,10 @@ def test_build_experiment_summary_creates_ranking_deltas_and_findings(tmp_path):
     assert "delta_vs_rule_based" in ranking.columns
     assert "delta_vs_oracle" in deltas.columns
     assert "quality_status" in quality_flags.columns
+    assert SEED_STANDARD_ERROR_COLUMN in ranking.columns
+    assert SEED_CI_LOWER_COLUMN in ranking.columns
+    assert SEED_CI_UPPER_COLUMN in ranking.columns
+    assert SEED_SPREAD_COLUMN in ranking.columns
     assert any(
         "Adaptive Monte Carlo beats the rule-based baseline" in finding
         for finding in report.main_findings
@@ -299,6 +308,11 @@ def test_write_experiment_summary_outputs_creates_markdown_json_csv_and_latex(tm
         (output_dir / "experiment_summary.json").read_text(encoding="utf-8")
     )
     assert "main_findings" in summary_json
+    assert SEED_CI_LOWER_COLUMN in summary_json["ranking"][0]
+
+    ranking_csv = pd.read_csv(output_dir / "agent_ranking.csv")
+    assert SEED_STANDARD_ERROR_COLUMN in ranking_csv.columns
+    assert SEED_CI_LOWER_COLUMN in ranking_csv.columns
 
     markdown = (output_dir / "experiment_summary.md").read_text(encoding="utf-8")
     assert "## Charts" in markdown

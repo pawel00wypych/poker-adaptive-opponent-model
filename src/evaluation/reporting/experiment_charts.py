@@ -10,19 +10,25 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from src.evaluation.metrics.seed_statistics import (
+    SEED_CI_LOWER_COLUMN,
+    SEED_CI_MARGIN_COLUMN,
+    SEED_CI_UPPER_COLUMN,
+    SEED_STANDARD_ERROR_COLUMN,
+    add_seed_level_statistical_summary,
+)
 from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.reporting.plot_utils import ensure_output_dir, save_current_figure
 
 MEAN_CI_CHART_FILENAME = "mean_profit_ci_by_opponent.png"
 SEED_STABILITY_CHART_FILENAME = "seed_stability_by_opponent.png"
 
-DEFAULT_CI_MULTIPLIER = 1.96
 DEFAULT_STD_WARNING_THRESHOLD_BB = 5.0
 
 
 @dataclass(frozen=True)
 class ExperimentChartConfig:
-    ci_multiplier: float = DEFAULT_CI_MULTIPLIER
+    ci_multiplier: float | None = None
     max_std_across_seeds_bb: float = DEFAULT_STD_WARNING_THRESHOLD_BB
     max_label_length: int = 34
 
@@ -89,37 +95,26 @@ def add_cross_seed_confidence_interval(
     summary_table: pd.DataFrame,
     config: ExperimentChartConfig | None = None,
 ) -> pd.DataFrame:
-    """Add approximate cross-seed CI columns for mean_profit_bb.
+    """Ensure cross-seed confidence columns are available for charting.
 
-    The checkpoint metrics already contain per-seed confidence intervals across
-    games. For summary charts we need a single interval around the aggregated
-    mean across training seeds, so this function uses std_across_seeds / sqrt(n).
+    The default path delegates to the canonical Student-t seed summary. The
+    optional multiplier is retained as a backward-compatible chart override.
     """
 
     config = config or ExperimentChartConfig()
-    result = summary_table.copy()
+    result = add_seed_level_statistical_summary(summary_table)
 
-    if result.empty:
-        for column in [
-            "mean_profit_bb_standard_error_across_seeds",
-            "mean_profit_bb_ci_95_lower",
-            "mean_profit_bb_ci_95_upper",
-            "mean_profit_bb_ci_95_error",
-        ]:
-            result[column] = pd.Series(dtype="float64")
-        return result
+    if config.ci_multiplier is not None and not result.empty:
+        margin = config.ci_multiplier * result[SEED_STANDARD_ERROR_COLUMN]
+        result[SEED_CI_MARGIN_COLUMN] = margin
+        result[SEED_CI_LOWER_COLUMN] = result["mean_profit_bb"] - margin
+        result[SEED_CI_UPPER_COLUMN] = result["mean_profit_bb"] + margin
 
-    seeds = result.get("seeds", 1).fillna(1).replace(0, 1).astype(float)
-    std = result.get("mean_profit_bb_std_across_seeds", 0.0).fillna(0.0)
-    mean = result.get("mean_profit_bb", 0.0).fillna(0.0)
-
-    standard_error = std / seeds.pow(0.5)
-    error = config.ci_multiplier * standard_error
-
-    result["mean_profit_bb_standard_error_across_seeds"] = standard_error
-    result["mean_profit_bb_ci_95_lower"] = mean - error
-    result["mean_profit_bb_ci_95_upper"] = mean + error
-    result["mean_profit_bb_ci_95_error"] = error
+    # Preserve the original chart-only column names for callers that already
+    # consume this helper directly.
+    result["mean_profit_bb_ci_95_lower"] = result[SEED_CI_LOWER_COLUMN]
+    result["mean_profit_bb_ci_95_upper"] = result[SEED_CI_UPPER_COLUMN]
+    result["mean_profit_bb_ci_95_error"] = result[SEED_CI_MARGIN_COLUMN]
 
     return result
 
@@ -147,7 +142,7 @@ def plot_mean_profit_confidence_interval(
     plt.errorbar(
         x_positions,
         data["mean_profit_bb"],
-        yerr=data["mean_profit_bb_ci_95_error"],
+        yerr=data[SEED_CI_MARGIN_COLUMN],
         fmt="none",
         capsize=4,
         linewidth=1,
@@ -155,7 +150,7 @@ def plot_mean_profit_confidence_interval(
     plt.axhline(0, linewidth=1)
     plt.xticks(x_positions, data["plot_label"], rotation=45, ha="right")
     plt.ylabel("Mean profit per game [BB]")
-    plt.title("Mean profit with approximate 95% CI across seeds")
+    plt.title("Mean profit with 95% Student-t CI across seeds")
     plt.grid(axis="y", alpha=0.25)
 
     output_path = Path(output_path)
