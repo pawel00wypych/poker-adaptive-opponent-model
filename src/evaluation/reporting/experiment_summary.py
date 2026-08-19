@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.evaluation.algorithm_metadata import ADAPTIVE_AGENT_TO_ALGORITHM
 from src.evaluation.constants import (
-    ADAPTIVE_MC_AGENT,
     AGENT_TO_ORACLE_AGENT,
     ALWAYS_RAISE_AGENT,
     ORACLE_AGENTS,
@@ -417,62 +417,75 @@ def _average_mean_profit(summary_table: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def _adaptive_rule_based_findings(summary_table: pd.DataFrame) -> str | None:
-    adaptive_rows = summary_table[
-        summary_table["agent_name"] == ADAPTIVE_MC_AGENT
-    ]
+def _adaptive_rule_based_findings(summary_table: pd.DataFrame) -> list[str]:
     rule_based_rows = summary_table[
         summary_table["agent_name"] == RULE_BASED_AGENT
     ]
 
-    if adaptive_rows.empty or rule_based_rows.empty:
-        return None
+    if rule_based_rows.empty:
+        return []
 
-    merged = adaptive_rows[SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]].merge(
-        rule_based_rows[SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]],
-        on=SUMMARY_GROUP_COLUMNS,
-        suffixes=("_adaptive", "_rule_based"),
-    )
+    findings: list[str] = []
+    for adaptive_agent, algorithm_name in ADAPTIVE_AGENT_TO_ALGORITHM.items():
+        adaptive_rows = summary_table[
+            summary_table["agent_name"] == adaptive_agent
+        ]
+        if adaptive_rows.empty:
+            continue
 
-    if merged.empty:
-        return None
+        merged = adaptive_rows[
+            SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]
+        ].merge(
+            rule_based_rows[SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]],
+            on=SUMMARY_GROUP_COLUMNS,
+            suffixes=("_adaptive", "_rule_based"),
+        )
+        if merged.empty:
+            continue
 
-    merged["delta"] = (
-        merged["mean_profit_bb_adaptive"]
-        - merged["mean_profit_bb_rule_based"]
-    )
-    wins = int((merged["delta"] > 0).sum())
-    total = len(merged)
-    avg_delta = float(merged["delta"].mean())
+        merged["delta"] = (
+            merged["mean_profit_bb_adaptive"]
+            - merged["mean_profit_bb_rule_based"]
+        )
+        wins = int((merged["delta"] > 0).sum())
+        total = len(merged)
+        avg_delta = float(merged["delta"].mean())
+        findings.append(
+            f"Adaptive {algorithm_name} beats the rule-based baseline in "
+            f"{wins}/{total} comparable matchup groups "
+            f"(average delta {_format_signed(avg_delta)} BB/game)."
+        )
 
-    return (
-        "Adaptive Monte Carlo beats the rule-based baseline in "
-        f"{wins}/{total} comparable matchup groups "
-        f"(average delta {_format_signed(avg_delta)} BB/game)."
-    )
+    return findings
 
 
-def _oracle_gap_finding(summary_table: pd.DataFrame) -> str | None:
+def _oracle_gap_findings(summary_table: pd.DataFrame) -> list[str]:
     if "delta_vs_oracle" not in summary_table.columns:
-        return None
+        return []
 
     comparable = summary_table[
         summary_table["delta_vs_oracle"].notna()
-        & (~summary_table["agent_name"].isin(ORACLE_AGENTS))
     ]
 
     if comparable.empty:
-        return None
+        return []
 
-    adaptive = comparable[comparable["agent_name"] == ADAPTIVE_MC_AGENT]
-    source = adaptive if not adaptive.empty else comparable
-    avg_gap = float(source["delta_vs_oracle"].mean())
+    findings: list[str] = []
+    for adaptive_agent, algorithm_name in ADAPTIVE_AGENT_TO_ALGORITHM.items():
+        adaptive_rows = comparable[
+            comparable["agent_name"] == adaptive_agent
+        ]
+        if adaptive_rows.empty:
+            continue
 
-    return (
-        "Average delta vs oracle for "
-        f"{'Adaptive Monte Carlo' if not adaptive.empty else 'non-oracle agents'} "
-        f"is {_format_signed(avg_gap)} BB/game."
-    )
+        avg_gap = float(adaptive_rows["delta_vs_oracle"].mean())
+        findings.append(
+            "Average delta vs oracle for "
+            f"Adaptive {algorithm_name} is "
+            f"{_format_signed(avg_gap)} BB/game."
+        )
+
+    return findings
 
 
 def _high_seed_variance_finding(
@@ -569,9 +582,10 @@ def generate_main_findings(
             f"with {best['avg_mean_profit_bb']:.3f} BB/game."
         )
 
+    findings.extend(_adaptive_rule_based_findings(summary_table))
+    findings.extend(_oracle_gap_findings(summary_table))
+
     for finding in [
-        _adaptive_rule_based_findings(summary_table),
-        _oracle_gap_finding(summary_table),
         _high_seed_variance_finding(summary_table, thresholds),
         _always_raise_finding(summary_table, thresholds),
         _tight_saturation_finding(summary_table, thresholds),
