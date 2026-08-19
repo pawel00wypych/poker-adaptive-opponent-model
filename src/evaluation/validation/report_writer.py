@@ -91,6 +91,17 @@ def render_validation_markdown(report: ValidationReport) -> str:
         "",
         f"- **Evaluation file:** `{report.input_path}`",
         f"- **Validation mode:** `{report.validation_mode}`",
+        (
+            f"- **Selected checkpoint:** `{report.checkpoint_episode}`"
+            if report.checkpoint_episode is not None
+            else "- **Selected checkpoint:** `n/a`"
+        ),
+        (
+            "- **Checkpoint selection:** "
+            f"`{report.checkpoint_selection}`"
+            if report.checkpoint_selection is not None
+            else "- **Checkpoint selection:** `n/a`"
+        ),
         f"- **Overall status:** `{'PASS' if report.passed else 'FAIL'}`",
         "",
         "## Status summary",
