@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 
+from src.evaluation.algorithm_metadata import ADAPTIVE_AGENTS
 from src.evaluation.metrics.seed_statistics import (
     SEED_CI_LOWER_COLUMN,
     SEED_CI_UPPER_COLUMN,
@@ -12,6 +13,7 @@ from src.evaluation.metrics.seed_statistics import (
 from src.evaluation.reporting.checkpoint_report import (
     aggregate_across_seeds,
     best_rows_by_agent,
+    create_checkpoint_plots,
     load_checkpoint_report_data,
     write_checkpoint_html_report,
 )
@@ -158,3 +160,35 @@ def test_write_checkpoint_html_report_creates_file_and_plots(tmp_path):
     assert "Checkpoint evaluation report" in html
     assert "Metric glossary" in html
     assert any((output_dir / "plots").glob("*.png"))
+
+
+def test_classifier_plots_include_all_adaptive_agents(monkeypatch, tmp_path):
+    rows = []
+    for agent_name in [*ADAPTIVE_AGENTS, "rule_based"]:
+        rows.append(
+            {
+                "agent_name": agent_name,
+                "checkpoint_episode": 1000,
+                "mean_profit_bb": 1.0,
+                "bb_per_100": 10.0,
+                "win_rate": 60.0,
+                "bust_rate": 10.0,
+                "global_classifier_accuracy": 80.0,
+                "global_classifier_coverage": 90.0,
+            }
+        )
+
+    classifier_plot_agents = []
+
+    def capture_plot(aggregated, metric, ylabel, output_path):
+        if metric.startswith("global_classifier_"):
+            classifier_plot_agents.append(set(aggregated["agent_name"]))
+
+    monkeypatch.setattr(
+        "src.evaluation.reporting.checkpoint_report.plot_metric_by_checkpoint",
+        capture_plot,
+    )
+
+    create_checkpoint_plots(pd.DataFrame(rows), tmp_path)
+
+    assert classifier_plot_agents == [set(ADAPTIVE_AGENTS)] * 2
