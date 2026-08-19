@@ -69,6 +69,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "required evaluation matchup is missing from the result file."
         ),
     )
+    parser.add_argument(
+        "--checkpoint-episode",
+        type=_positive_int,
+        default=None,
+        help=(
+            "Validate a specific checkpoint episode. Defaults to the "
+            "latest checkpoint available in the result file."
+        ),
+    )
 
     parser.add_argument(
         "--min-adaptive-delta-vs-rule-based-bb",
@@ -286,6 +295,7 @@ def main() -> int:
         validation_mode=args.validation_mode,
         algorithm_specs=algorithm_specs_from_keys(args.algorithms),
         require_all_algorithms=args.require_all_algorithms,
+        checkpoint_episode=args.checkpoint_episode,
     )
 
     created_paths = []

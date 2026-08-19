@@ -39,7 +39,6 @@ from src.evaluation.validation.common import (
     ValidationReport,
     ValidationThresholds,
     _add_mean_hands_played,
-    _best_rows_by_agent_and_opponent,
     _checkpoint_episode,
     _find_row,
     _find_rows_at_latest_common_checkpoint,
@@ -780,12 +779,48 @@ def validate_tight_baseline_saturation(
     return results
 
 
+def _select_validation_checkpoint(
+    aggregated: pd.DataFrame,
+    checkpoint_episode: int | None = None,
+) -> tuple[pd.DataFrame, int, str]:
+    if aggregated.empty or "checkpoint_episode" not in aggregated.columns:
+        raise ValueError("No checkpoint evaluation rows were found.")
+
+    available_checkpoints = sorted(
+        {
+            int(value)
+            for value in aggregated["checkpoint_episode"].dropna()
+        }
+    )
+    if not available_checkpoints:
+        raise ValueError("No checkpoint episodes were found in evaluation data.")
+
+    if checkpoint_episode is None:
+        selected_checkpoint = available_checkpoints[-1]
+        selection_strategy = "latest"
+    else:
+        selected_checkpoint = checkpoint_episode
+        selection_strategy = "explicit"
+
+    if selected_checkpoint not in available_checkpoints:
+        raise ValueError(
+            f"Checkpoint {selected_checkpoint} is not present in evaluation "
+            f"data. Available checkpoints: {available_checkpoints}."
+        )
+
+    selected_rows = aggregated[
+        aggregated["checkpoint_episode"] == selected_checkpoint
+    ].reset_index(drop=True)
+    return selected_rows, selected_checkpoint, selection_strategy
+
+
 def validate_checkpoint_results(
     input_path: str | Path,
     thresholds: ValidationThresholds | None = None,
     validation_mode: str = VALIDATION_MODE_CHECKPOINT,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
     require_all_algorithms: bool = False,
+    checkpoint_episode: int | None = None,
 ) -> ValidationReport:
     if validation_mode not in VALIDATION_MODES:
         raise ValueError(
@@ -797,7 +832,12 @@ def validate_checkpoint_results(
     metrics = load_checkpoint_report_data(input_path)
     aggregated = aggregate_across_seeds(metrics)
     aggregated = _add_mean_hands_played(aggregated, metrics)
-    best_rows = _best_rows_by_agent_and_opponent(aggregated)
+    validation_rows, selected_checkpoint, checkpoint_selection = (
+        _select_validation_checkpoint(
+            aggregated,
+            checkpoint_episode=checkpoint_episode,
+        )
+    )
     expected_specs = tuple(
         algorithm_specs
         if algorithm_specs is not None
@@ -805,22 +845,22 @@ def validate_checkpoint_results(
             ALGORITHM_VALIDATION_SPECS
             if require_all_algorithms
             or validation_mode == VALIDATION_MODE_CROSS_PLAY
-            else available_algorithm_specs(best_rows)
+            else available_algorithm_specs(aggregated)
         )
     )
 
     if validation_mode == VALIDATION_MODE_BASELINE_SANITY:
         checks = validate_baseline_sanity_results_from_best_rows(
-            best_rows,
+            validation_rows,
             thresholds,
-            comparison_rows=aggregated,
+            comparison_rows=validation_rows,
         )
     elif validation_mode == VALIDATION_MODE_CROSS_PLAY:
         checks = []
         if require_all_algorithms or algorithm_specs is not None:
             checks.extend(
                 validate_expected_algorithms_present(
-                    best_rows,
+                    validation_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
                     validation_mode=validation_mode,
@@ -828,10 +868,10 @@ def validate_checkpoint_results(
             )
         checks.extend(
             validate_cross_play_results_from_best_rows(
-                best_rows,
+                validation_rows,
                 thresholds,
                 algorithm_specs=expected_specs,
-                comparison_rows=aggregated,
+                comparison_rows=validation_rows,
             )
         )
     elif validation_mode == VALIDATION_MODE_STRESS_TEST:
@@ -839,7 +879,7 @@ def validate_checkpoint_results(
         if require_all_algorithms or algorithm_specs is not None:
             checks.extend(
                 validate_expected_algorithms_present(
-                    best_rows,
+                    validation_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
                     validation_mode=validation_mode,
@@ -847,7 +887,7 @@ def validate_checkpoint_results(
             )
             checks.extend(
                 validate_required_matchups_present(
-                    best_rows,
+                    validation_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
                     validation_mode=validation_mode,
@@ -855,10 +895,10 @@ def validate_checkpoint_results(
             )
         checks.extend(
             validate_stress_test_results_from_best_rows(
-                best_rows,
+                validation_rows,
                 thresholds,
                 algorithm_specs=expected_specs,
-                comparison_rows=aggregated,
+                comparison_rows=validation_rows,
             )
         )
     elif validation_mode == VALIDATION_MODE_HEAD_TO_HEAD:
@@ -866,7 +906,7 @@ def validate_checkpoint_results(
         if require_all_algorithms or algorithm_specs is not None:
             checks.extend(
                 validate_expected_algorithms_present(
-                    best_rows,
+                    validation_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
                     validation_mode=validation_mode,
@@ -874,7 +914,7 @@ def validate_checkpoint_results(
             )
             checks.extend(
                 validate_required_matchups_present(
-                    best_rows,
+                    validation_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
                     validation_mode=validation_mode,
@@ -882,10 +922,10 @@ def validate_checkpoint_results(
             )
         checks.extend(
             validate_head_to_head_results_from_best_rows(
-                best_rows,
+                validation_rows,
                 thresholds,
                 algorithm_specs=expected_specs,
-                comparison_rows=aggregated,
+                comparison_rows=validation_rows,
             )
         )
     elif validation_mode == VALIDATION_MODE_GENERALIZATION:
@@ -893,7 +933,7 @@ def validate_checkpoint_results(
         if require_all_algorithms or algorithm_specs is not None:
             checks.extend(
                 validate_expected_algorithms_present(
-                    best_rows,
+                    validation_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
                     validation_mode=validation_mode,
@@ -901,7 +941,7 @@ def validate_checkpoint_results(
             )
             checks.extend(
                 validate_required_matchups_present(
-                    best_rows,
+                    validation_rows,
                     expected_specs,
                     fail_when_missing=require_all_algorithms,
                     validation_mode=validation_mode,
@@ -909,10 +949,10 @@ def validate_checkpoint_results(
             )
         checks.extend(
             validate_generalization_results_from_best_rows(
-                best_rows,
+                validation_rows,
                 thresholds,
                 algorithm_specs=expected_specs,
-                comparison_rows=aggregated,
+                comparison_rows=validation_rows,
             )
         )
     else:
@@ -921,7 +961,7 @@ def validate_checkpoint_results(
         if require_all_algorithms or algorithm_specs is not None:
             checks.extend(
                 validate_expected_algorithms_present(
-                    best_rows,
+                    validation_rows,
                     specs,
                     fail_when_missing=require_all_algorithms,
                     validation_mode=validation_mode,
@@ -929,7 +969,7 @@ def validate_checkpoint_results(
             )
             checks.extend(
                 validate_required_matchups_present(
-                    best_rows,
+                    validation_rows,
                     specs,
                     fail_when_missing=require_all_algorithms,
                     validation_mode=validation_mode,
@@ -937,66 +977,66 @@ def validate_checkpoint_results(
             )
         checks.extend(
             validate_adaptive_beats_rule_based(
-                aggregated,
+                validation_rows,
                 thresholds,
                 algorithm_specs=specs,
             )
         )
         checks.extend(
             validate_oracle_not_worse_than_adaptive(
-                aggregated,
+                validation_rows,
                 thresholds,
                 algorithm_specs=specs,
             )
         )
         checks.extend(
             validate_tight_exploitation(
-                best_rows,
+                validation_rows,
                 thresholds,
                 algorithm_specs=specs,
             )
         )
         checks.extend(
             validate_classifier_quality(
-                best_rows,
+                validation_rows,
                 thresholds,
                 algorithm_specs=specs,
             )
         )
         checks.extend(
             validate_minimum_seed_coverage(
-                best_rows,
+                validation_rows,
                 thresholds,
             )
         )
         checks.extend(
             validate_seed_stability(
-                best_rows,
+                validation_rows,
                 thresholds,
             )
         )
         checks.extend(
             validate_extreme_bb_per_100(
-                best_rows,
+                validation_rows,
                 thresholds,
             )
         )
         checks.extend(
             validate_always_raise_outperforms_adaptive(
-                aggregated,
+                validation_rows,
                 thresholds,
                 algorithm_specs=specs,
             )
         )
         checks.extend(
             validate_always_raise_trivial_exploit(
-                best_rows,
+                validation_rows,
                 thresholds,
             )
         )
         checks.extend(
             validate_tight_baseline_saturation(
-                aggregated,
+                validation_rows,
                 thresholds,
                 algorithm_specs=specs,
             )
@@ -1007,4 +1047,6 @@ def validate_checkpoint_results(
         thresholds=thresholds,
         checks=checks,
         validation_mode=validation_mode,
+        checkpoint_episode=selected_checkpoint,
+        checkpoint_selection=checkpoint_selection,
     )
