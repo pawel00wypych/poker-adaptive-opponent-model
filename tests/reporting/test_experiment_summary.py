@@ -133,6 +133,38 @@ def write_sample_results_csv(path):
         opponent="calling",
         profit_by_seed=(19.0, 21.0),
     )
+    for adaptive_agent, oracle_agent, adaptive_profit, oracle_profit in [
+        (
+            "adaptive_q_learning",
+            "oracle_q_learning",
+            (10.0, 12.0),
+            (12.0, 14.0),
+        ),
+        (
+            "adaptive_sarsa",
+            "oracle_sarsa",
+            (-3.0, -2.0),
+            (0.0, 1.0),
+        ),
+        (
+            "adaptive_double_q_learning",
+            "oracle_double_q_learning",
+            (5.0, 7.0),
+            (7.0, 9.0),
+        ),
+    ]:
+        add_group(
+            rows,
+            agent=adaptive_agent,
+            opponent="calling",
+            profit_by_seed=adaptive_profit,
+        )
+        add_group(
+            rows,
+            agent=oracle_agent,
+            opponent="calling",
+            profit_by_seed=oracle_profit,
+        )
     add_group(
         rows,
         agent="always_raise",
@@ -277,10 +309,22 @@ def test_build_experiment_summary_creates_ranking_deltas_and_findings(tmp_path):
     assert SEED_CI_LOWER_COLUMN in ranking.columns
     assert SEED_CI_UPPER_COLUMN in ranking.columns
     assert SEED_SPREAD_COLUMN in ranking.columns
-    assert any(
-        "Adaptive Monte Carlo beats the rule-based baseline" in finding
-        for finding in report.main_findings
-    )
+    for algorithm_name in [
+        "Monte Carlo",
+        "Q-learning",
+        "SARSA",
+        "Double Q-learning",
+    ]:
+        assert any(
+            f"Adaptive {algorithm_name} beats the rule-based baseline"
+            in finding
+            for finding in report.main_findings
+        )
+        assert any(
+            f"Average delta vs oracle for Adaptive {algorithm_name}"
+            in finding
+            for finding in report.main_findings
+        )
 
 
 def test_write_experiment_summary_outputs_creates_markdown_json_csv_and_latex(tmp_path):
