@@ -175,6 +175,8 @@ class ValidationReport:
     thresholds: ValidationThresholds
     checks: list[ValidationCheckResult]
     validation_mode: str = VALIDATION_MODE_CHECKPOINT
+    checkpoint_episode: int | None = None
+    checkpoint_selection: str | None = None
 
     @property
     def passed(self) -> bool:
@@ -199,6 +201,8 @@ class ValidationReport:
                 {
                     "input_path": self.input_path,
                     "validation_mode": self.validation_mode,
+                    "checkpoint_episode": self.checkpoint_episode,
+                    "checkpoint_selection": self.checkpoint_selection,
                     "passed": self.passed,
                     "status_counts": self.status_counts(),
                     "thresholds": asdict(self.thresholds),

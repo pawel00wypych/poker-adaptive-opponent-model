@@ -57,9 +57,11 @@ def test_main_returns_exit_code_from_validation_result(
         validation_mode="checkpoint",
         algorithms=None,
         require_all_algorithms=False,
+        checkpoint_episode=1500,
     )
     report = make_report(status)
     created_formats: list[str] = []
+    validation_calls: list[dict] = []
 
     monkeypatch.setattr(cli, "parse_args", lambda: args)
     monkeypatch.setattr(
@@ -70,7 +72,7 @@ def test_main_returns_exit_code_from_validation_result(
     monkeypatch.setattr(
         cli,
         "validate_checkpoint_results",
-        lambda **kwargs: report,
+        lambda **kwargs: validation_calls.append(kwargs) or report,
     )
     monkeypatch.setattr(
         cli,
@@ -93,6 +95,7 @@ def test_main_returns_exit_code_from_validation_result(
 
     assert exit_code == expected_exit_code
     assert created_formats == ["markdown", "json"]
+    assert validation_calls[0]["checkpoint_episode"] == 1500
     assert f"Validation status: {expected_label}" in capsys.readouterr().out
 
 

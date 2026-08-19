@@ -168,19 +168,19 @@ def test_validate_checkpoint_results_dispatches_head_to_head_mode(
     monkeypatch.setattr(
         checkpoint_validation,
         "aggregate_across_seeds",
-        lambda metrics: pd.DataFrame({"aggregated": [1]}),
+        lambda metrics: pd.DataFrame(
+            {
+                "aggregated": [1],
+                "agent_name": ["adaptive_mc"],
+                "checkpoint_episode": [1000],
+            }
+        ),
     )
     monkeypatch.setattr(
         checkpoint_validation,
         "_add_mean_hands_played",
         lambda aggregated, metrics: aggregated,
     )
-    monkeypatch.setattr(
-        checkpoint_validation,
-        "_best_rows_by_agent_and_opponent",
-        lambda aggregated: pd.DataFrame({"agent_name": ["adaptive_mc"]}),
-    )
-
     def fake_head_to_head_validation(
         best_rows,
         thresholds,
@@ -215,6 +215,8 @@ def test_validate_checkpoint_results_dispatches_head_to_head_mode(
     )
 
     assert report.validation_mode == VALIDATION_MODE_HEAD_TO_HEAD
+    assert report.checkpoint_episode == 1000
+    assert report.checkpoint_selection == "latest"
     assert [check.check_name for check in report.checks] == [
         "head_to_head_delegate"
     ]
@@ -239,19 +241,19 @@ def test_validate_checkpoint_results_dispatches_generalization_mode(
     monkeypatch.setattr(
         checkpoint_validation,
         "aggregate_across_seeds",
-        lambda metrics: pd.DataFrame({"aggregated": [1]}),
+        lambda metrics: pd.DataFrame(
+            {
+                "aggregated": [1],
+                "agent_name": ["adaptive_mc"],
+                "checkpoint_episode": [1000],
+            }
+        ),
     )
     monkeypatch.setattr(
         checkpoint_validation,
         "_add_mean_hands_played",
         lambda aggregated, metrics: aggregated,
     )
-    monkeypatch.setattr(
-        checkpoint_validation,
-        "_best_rows_by_agent_and_opponent",
-        lambda aggregated: pd.DataFrame({"agent_name": ["adaptive_mc"]}),
-    )
-
     def fake_generalization_validation(
         best_rows,
         thresholds,
@@ -286,6 +288,8 @@ def test_validate_checkpoint_results_dispatches_generalization_mode(
     )
 
     assert report.validation_mode == VALIDATION_MODE_GENERALIZATION
+    assert report.checkpoint_episode == 1000
+    assert report.checkpoint_selection == "latest"
     assert [check.check_name for check in report.checks] == [
         "generalization_delegate"
     ]
