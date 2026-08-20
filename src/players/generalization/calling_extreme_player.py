@@ -31,7 +31,7 @@ class CallingExtremePlayer(PlayerTemplate):
         strong_raise_probability: float = 0.08,
     ):
         super().__init__(player_name=player_name)
-        self.rng = rng or random.Random()
+        self.rng = rng if rng is not None else random
         self.call_probability = call_probability
         self.max_call_stack_ratio = max_call_stack_ratio
         self.weak_expensive_fold_probability = weak_expensive_fold_probability
