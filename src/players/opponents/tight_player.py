@@ -32,7 +32,7 @@ class TightPlayer(PlayerTemplate):
         premium_raise_probability: float = 0.35,
     ):
         super().__init__(player_name=player_name)
-        self.rng = rng or random.Random()
+        self.rng = rng if rng is not None else random
         self.max_call_stack_ratio = max_call_stack_ratio
         self.strong_raise_probability = strong_raise_probability
         self.premium_raise_probability = premium_raise_probability

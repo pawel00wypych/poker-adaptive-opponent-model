@@ -18,7 +18,7 @@ class AggressiveExtremePlayer(PlayerTemplate):
 
     def __init__(self, player_name: str = "aggressive_extreme", rng: random.Random | None = None):
         super().__init__(player_name=player_name)
-        self.rng = rng or random.Random()
+        self.rng = rng if rng is not None else random
 
     def declare_action(self, valid_actions, hole_card, round_state):
         return _choose_aggressive_action(
