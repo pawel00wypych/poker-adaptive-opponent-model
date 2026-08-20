@@ -23,8 +23,11 @@ from src.evaluation.validation.common import (
     _find_row,
     _find_rows_at_latest_common_checkpoint,
     _format_float,
+    _minimum_delta_status,
     _missing_common_checkpoint_result,
     _missing_row_result,
+    _paired_seed_message,
+    _paired_seed_statistics_for_check,
     validate_extreme_bb_per_100,
     validate_minimum_seed_coverage,
     validate_seed_stability,
@@ -212,6 +215,7 @@ def validate_adaptive_not_worse_than_general_rule_based(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+    seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
@@ -268,11 +272,51 @@ def validate_adaptive_not_worse_than_general_rule_based(
             )
             continue
 
-        adaptive_gap = float(
-            adaptive_row["mean_profit_bb"] - general_row["mean_profit_bb"]
+        paired_statistics, unavailable_result = (
+            _paired_seed_statistics_for_check(
+                seed_rows,
+                left_agent_name=spec.adaptive_agent,
+                right_agent_name=spec.general_policy_agent,
+                opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
+                checkpoint_episode=checkpoint_episode,
+                thresholds=thresholds,
+                check_name=check_name,
+                category="head_to_head_adaptive_gap",
+                algorithm_name=spec.algorithm_name,
+                agent_name=spec.adaptive_agent,
+            )
         )
+        if unavailable_result is not None:
+            results.append(unavailable_result)
+            continue
+
         threshold = -thresholds.max_adaptive_underperformance_vs_general_bb
-        status = STATUS_PASS if adaptive_gap >= threshold else STATUS_WARNING
+        if paired_statistics is None:
+            adaptive_gap = float(
+                adaptive_row["mean_profit_bb"]
+                - general_row["mean_profit_bb"]
+            )
+            status = (
+                STATUS_PASS
+                if adaptive_gap >= threshold
+                else STATUS_WARNING
+            )
+            message = (
+                "Adaptive minus fixed general mean profit vs "
+                "RuleBasedPlayer is "
+                f"{_format_float(adaptive_gap)} BB/game."
+            )
+        else:
+            adaptive_gap = float(paired_statistics.mean_delta)
+            status = _minimum_delta_status(
+                paired_statistics,
+                threshold,
+                underperformance_status=STATUS_WARNING,
+            )
+            message = _paired_seed_message(
+                "Adaptive minus fixed general mean profit vs RuleBasedPlayer",
+                paired_statistics,
+            )
 
         results.append(
             ValidationCheckResult(
@@ -285,11 +329,27 @@ def validate_adaptive_not_worse_than_general_rule_based(
                 checkpoint_episode=checkpoint_episode,
                 observed_value=adaptive_gap,
                 threshold=threshold,
-                message=(
-                    "Adaptive minus fixed general mean profit vs "
-                    "RuleBasedPlayer is "
-                    f"{_format_float(adaptive_gap)} BB/game."
+                sample_size=(
+                    paired_statistics.common_seed_count
+                    if paired_statistics is not None
+                    else None
                 ),
+                standard_error=(
+                    paired_statistics.standard_error
+                    if paired_statistics is not None
+                    else None
+                ),
+                ci_lower=(
+                    paired_statistics.ci_lower
+                    if paired_statistics is not None
+                    else None
+                ),
+                ci_upper=(
+                    paired_statistics.ci_upper
+                    if paired_statistics is not None
+                    else None
+                ),
+                message=message,
                 details={
                     "algorithm": spec.algorithm_name,
                     "adaptive_agent": spec.adaptive_agent,
@@ -299,6 +359,15 @@ def validate_adaptive_not_worse_than_general_rule_based(
                     "general_checkpoint_episode": checkpoint_episode,
                     "max_underperformance_bb": (
                         thresholds.max_adaptive_underperformance_vs_general_bb
+                    ),
+                    **(
+                        {
+                            "paired_seed_statistics": (
+                                paired_statistics.to_details()
+                            )
+                        }
+                        if paired_statistics is not None
+                        else {}
                     ),
                 },
             )
@@ -480,6 +549,7 @@ def validate_head_to_head_results_from_best_rows(
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
     comparison_rows: pd.DataFrame | None = None,
+    seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
     aligned_comparison_rows = (
@@ -505,6 +575,7 @@ def validate_head_to_head_results_from_best_rows(
             aligned_comparison_rows,
             thresholds,
             algorithm_specs=specs,
+            seed_rows=seed_rows,
         )
     )
     checks.extend(
