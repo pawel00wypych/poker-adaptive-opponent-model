@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from src.evaluation.algorithm_metadata import ALGORITHM_VALIDATION_SPECS
 from src.evaluation.validation import (
@@ -57,6 +58,23 @@ def make_comparison_row(
     }
 
 
+def make_seed_comparison_row(
+    agent_name: str,
+    opponent_name: str,
+    model_seed: int,
+    mean_profit_bb: float,
+) -> dict[str, object]:
+    return {
+        **make_comparison_row(
+            agent_name,
+            opponent_name,
+            1000,
+            mean_profit_bb,
+        ),
+        "model_seed": model_seed,
+    }
+
+
 def test_cross_play_mode_validates_required_adaptive_matrix(tmp_path):
     csv_path = tmp_path / "cross_play.csv"
     write_sample_cross_play_csv(csv_path)
@@ -80,6 +98,16 @@ def test_cross_play_mode_validates_required_adaptive_matrix(tmp_path):
     assert categories.count("cross_play_pair_reciprocity") == 6
     assert categories.count("cross_play_classifier_coverage") == 12
     assert categories.count("seed_coverage") == 12
+    reciprocity_checks = [
+        check
+        for check in report.checks
+        if check.category == "cross_play_pair_reciprocity"
+    ]
+    assert all(check.sample_size == 2 for check in reciprocity_checks)
+    assert all(
+        "paired_seed_statistics" in check.details
+        for check in reciprocity_checks
+    )
 
 
 def test_cross_play_mode_fails_when_directed_matchup_is_missing(tmp_path):
@@ -188,6 +216,127 @@ def test_cross_play_reciprocity_uses_latest_common_checkpoint():
     assert check.details["pair_sum_bb"] == 6.0
 
 
+def test_cross_play_reciprocity_uses_ci_of_per_seed_pair_sums():
+    first_spec, second_spec = ALGORITHM_VALIDATION_SPECS[:2]
+    aggregated = pd.DataFrame(
+        [
+            make_comparison_row(
+                first_spec.adaptive_agent,
+                second_spec.adaptive_agent,
+                1000,
+                10.0,
+            ),
+            make_comparison_row(
+                second_spec.adaptive_agent,
+                first_spec.adaptive_agent,
+                1000,
+                -29.0 / 3.0,
+            ),
+        ]
+    )
+    seed_rows = pd.DataFrame(
+        [
+            make_seed_comparison_row(
+                first_spec.adaptive_agent,
+                second_spec.adaptive_agent,
+                seed,
+                value,
+            )
+            for seed, value in enumerate((5.0, 10.0, 15.0), start=1)
+        ]
+        + [
+            make_seed_comparison_row(
+                second_spec.adaptive_agent,
+                first_spec.adaptive_agent,
+                seed,
+                value,
+            )
+            for seed, value in enumerate((-10.0, -10.0, -9.0), start=1)
+        ]
+    )
+
+    check = validate_cross_play_pair_reciprocity(
+        aggregated,
+        ValidationThresholds(
+            max_cross_play_pair_sum_abs_profit_bb=2.0,
+        ),
+        (first_spec, second_spec),
+        seed_rows=seed_rows,
+    )[0]
+
+    assert check.observed_value == pytest.approx(1.0 / 3.0)
+    assert check.status == STATUS_WARNING
+    assert check.sample_size == 3
+    assert check.ci_lower < -2.0
+    assert check.ci_upper > 2.0
+    paired = check.details["paired_seed_statistics"]
+    assert paired["operation"] == "sum"
+    assert paired["pair_sums_by_seed"] == {
+        "1": -5.0,
+        "2": 0.0,
+        "3": 6.0,
+    }
+
+
+def test_cross_play_reciprocity_fails_without_common_seeds():
+    first_spec, second_spec = ALGORITHM_VALIDATION_SPECS[:2]
+    aggregated = pd.DataFrame(
+        [
+            make_comparison_row(
+                first_spec.adaptive_agent,
+                second_spec.adaptive_agent,
+                1000,
+                1.0,
+            ),
+            make_comparison_row(
+                second_spec.adaptive_agent,
+                first_spec.adaptive_agent,
+                1000,
+                -1.0,
+            ),
+        ]
+    )
+    seed_rows = pd.DataFrame(
+        [
+            make_seed_comparison_row(
+                first_spec.adaptive_agent,
+                second_spec.adaptive_agent,
+                1,
+                1.0,
+            ),
+            make_seed_comparison_row(
+                first_spec.adaptive_agent,
+                second_spec.adaptive_agent,
+                2,
+                1.0,
+            ),
+            make_seed_comparison_row(
+                second_spec.adaptive_agent,
+                first_spec.adaptive_agent,
+                3,
+                -1.0,
+            ),
+            make_seed_comparison_row(
+                second_spec.adaptive_agent,
+                first_spec.adaptive_agent,
+                4,
+                -1.0,
+            ),
+        ]
+    )
+
+    check = validate_cross_play_pair_reciprocity(
+        aggregated,
+        ValidationThresholds(min_seeds_per_matchup=2),
+        (first_spec, second_spec),
+        seed_rows=seed_rows,
+    )[0]
+
+    assert check.status == STATUS_FAIL
+    assert check.sample_size == 0
+    assert "0 common model seed(s)" in check.message
+
+
 def test_cross_play_validates_optional_same_algorithm_general_pair(tmp_path):
     csv_path = tmp_path / "cross_play.csv"
     write_sample_cross_play_csv(csv_path)
@@ -204,7 +353,7 @@ def test_cross_play_validates_optional_same_algorithm_general_pair(tmp_path):
         rows,
         agent=spec.general_policy_agent,
         opponent=spec.adaptive_agent,
-        profit_by_seed=(-3.1, -2.9),
+        profit_by_seed=(-2.9, -3.1),
     )
     pd.DataFrame(rows).to_csv(csv_path, index=False)
 
@@ -224,6 +373,9 @@ def test_cross_play_validates_optional_same_algorithm_general_pair(tmp_path):
 
     assert check.status == STATUS_PASS
     assert check.algorithm_name == "Monte Carlo"
+    assert check.sample_size == 2
+    assert check.ci_lower == 0.0
+    assert check.ci_upper == 0.0
     assert check.details["required_matchup"] is False
 
 

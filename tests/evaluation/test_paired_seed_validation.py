@@ -18,6 +18,9 @@ from src.evaluation.validation.common import ValidationReport
 from src.evaluation.validation.generalization_validation import (
     validate_generalization_adaptive_beats_agent,
 )
+from src.evaluation.validation.head_to_head_validation import (
+    validate_adaptive_not_worse_than_general_rule_based,
+)
 from tests.evaluation.test_experiment_validation import (
     write_sample_checkpoint_csv,
 )
@@ -241,6 +244,63 @@ def test_generalization_comparison_counts_only_ci_supported_wins():
     assert paired["mean_delta"] == 2.0
     assert paired["ci_lower"] == 2.0
     assert paired["ci_upper"] == 2.0
+
+
+def test_head_to_head_comparison_uses_paired_seed_confidence_interval():
+    opponent_name = "rule_based"
+    aggregated = pd.DataFrame(
+        [
+            aggregate_row(
+                SPEC.adaptive_agent,
+                10.0,
+                opponent_name=opponent_name,
+            ),
+            aggregate_row(
+                SPEC.general_policy_agent,
+                9.0,
+                opponent_name=opponent_name,
+            ),
+        ]
+    )
+    seed_rows = pd.DataFrame(
+        [
+            seed_row(
+                SPEC.adaptive_agent,
+                seed,
+                value,
+                opponent_name=opponent_name,
+            )
+            for seed, value in enumerate((0.0, 10.0, 20.0), start=1)
+        ]
+        + [
+            seed_row(
+                SPEC.general_policy_agent,
+                seed,
+                value,
+                opponent_name=opponent_name,
+            )
+            for seed, value in enumerate((10.0, 9.0, 8.0), start=1)
+        ]
+    )
+
+    check = validate_adaptive_not_worse_than_general_rule_based(
+        aggregated,
+        ValidationThresholds(
+            max_adaptive_underperformance_vs_general_bb=1.0,
+        ),
+        algorithm_specs=(SPEC,),
+        seed_rows=seed_rows,
+    )[0]
+
+    assert check.observed_value == 1.0
+    assert check.status == STATUS_WARNING
+    assert check.sample_size == 3
+    assert check.ci_lower < -1.0 < check.ci_upper
+    assert check.details["paired_seed_statistics"]["deltas_by_seed"] == {
+        "1": -10.0,
+        "2": 1.0,
+        "3": 12.0,
+    }
 
 
 def test_validation_markdown_includes_paired_statistical_columns():

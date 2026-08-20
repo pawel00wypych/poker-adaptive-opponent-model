@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from src.evaluation.metrics.paired_seed_statistics import (
+    PAIRED_SEED_OPERATION_SUM,
     PairedSeedStatisticsError,
     calculate_paired_seed_statistics,
 )
@@ -109,3 +110,48 @@ def test_paired_seed_statistics_reject_duplicate_seed_rows():
             opponent_name="calling",
             checkpoint_episode=1000,
         )
+
+
+def test_paired_seed_statistics_support_opposite_direction_sums():
+    rows = pd.DataFrame(
+        [
+            make_seed_row(
+                "adaptive_mc",
+                seed,
+                value,
+                opponent_name="adaptive_q_learning",
+            )
+            for seed, value in enumerate((5.0, 10.0, 15.0), start=1)
+        ]
+        + [
+            make_seed_row(
+                "adaptive_q_learning",
+                seed,
+                value,
+                opponent_name="adaptive_mc",
+            )
+            for seed, value in enumerate((-4.0, -8.0, -12.0), start=1)
+        ]
+    )
+
+    statistics = calculate_paired_seed_statistics(
+        rows,
+        left_agent_name="adaptive_mc",
+        right_agent_name="adaptive_q_learning",
+        opponent_name="adaptive_q_learning",
+        right_opponent_name="adaptive_mc",
+        checkpoint_episode=1000,
+        operation=PAIRED_SEED_OPERATION_SUM,
+    )
+
+    assert statistics.operation == PAIRED_SEED_OPERATION_SUM
+    assert statistics.paired_values_by_seed == {1: 1.0, 2: 2.0, 3: 3.0}
+    assert statistics.mean_value == 2.0
+    assert statistics.standard_error == pytest.approx(0.5773502691896258)
+    details = statistics.to_details()
+    assert details["pair_sums_by_seed"] == {
+        "1": 1.0,
+        "2": 2.0,
+        "3": 3.0,
+    }
+    assert details["mean_pair_sum"] == 2.0

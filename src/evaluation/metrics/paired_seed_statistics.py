@@ -8,6 +8,13 @@ from scipy.stats import t as student_t
 
 from src.evaluation.metrics.seed_statistics import SEED_CONFIDENCE_LEVEL
 
+PAIRED_SEED_OPERATION_DIFFERENCE = "difference"
+PAIRED_SEED_OPERATION_SUM = "sum"
+PAIRED_SEED_OPERATIONS = (
+    PAIRED_SEED_OPERATION_DIFFERENCE,
+    PAIRED_SEED_OPERATION_SUM,
+)
+
 
 class PairedSeedStatisticsError(ValueError):
     """Raised when seed-level rows cannot form an unambiguous pairing."""
@@ -15,19 +22,21 @@ class PairedSeedStatisticsError(ValueError):
 
 @dataclass(frozen=True)
 class PairedSeedStatistics:
-    """Statistical summary of ``left - right`` values paired by model seed."""
+    """Statistical summary of two result series paired by model seed."""
 
     left_agent_name: str
     right_agent_name: str
     opponent_name: str
+    right_opponent_name: str
+    operation: str
     checkpoint_episode: int | None
     left_seed_count: int
     right_seed_count: int
     common_seeds: tuple[object, ...]
     left_only_seeds: tuple[object, ...]
     right_only_seeds: tuple[object, ...]
-    deltas_by_seed: dict[object, float]
-    mean_delta: float | None
+    paired_values_by_seed: dict[object, float]
+    mean_value: float | None
     standard_deviation: float | None
     standard_error: float | None
     ci_lower: float | None
@@ -38,14 +47,35 @@ class PairedSeedStatistics:
     def common_seed_count(self) -> int:
         return len(self.common_seeds)
 
+    @property
+    def deltas_by_seed(self) -> dict[object, float]:
+        """Return the legacy difference-oriented field name."""
+
+        return self.paired_values_by_seed
+
+    @property
+    def mean_delta(self) -> float | None:
+        """Return the legacy difference-oriented field name."""
+
+        return self.mean_value
+
     def to_details(self) -> dict[str, object]:
-        return {
+        operator = (
+            "-"
+            if self.operation == PAIRED_SEED_OPERATION_DIFFERENCE
+            else "+"
+        )
+        details: dict[str, object] = {
             "comparison": (
-                f"{self.left_agent_name} - {self.right_agent_name}"
+                f"{self.left_agent_name} vs {self.opponent_name} "
+                f"{operator} {self.right_agent_name} vs "
+                f"{self.right_opponent_name}"
             ),
+            "operation": self.operation,
             "left_agent_name": self.left_agent_name,
             "right_agent_name": self.right_agent_name,
-            "opponent_name": self.opponent_name,
+            "left_opponent_name": self.opponent_name,
+            "right_opponent_name": self.right_opponent_name,
             "checkpoint_episode": self.checkpoint_episode,
             "left_seed_count": self.left_seed_count,
             "right_seed_count": self.right_seed_count,
@@ -53,17 +83,25 @@ class PairedSeedStatistics:
             "common_seeds": list(self.common_seeds),
             "left_only_seeds": list(self.left_only_seeds),
             "right_only_seeds": list(self.right_only_seeds),
-            "deltas_by_seed": {
+            "paired_values_by_seed": {
                 str(seed): delta
-                for seed, delta in self.deltas_by_seed.items()
+                for seed, delta in self.paired_values_by_seed.items()
             },
-            "mean_delta": self.mean_delta,
+            "mean_value": self.mean_value,
             "standard_deviation": self.standard_deviation,
             "standard_error": self.standard_error,
             "confidence_level": self.confidence_level,
             "ci_lower": self.ci_lower,
             "ci_upper": self.ci_upper,
         }
+        if self.operation == PAIRED_SEED_OPERATION_DIFFERENCE:
+            details["opponent_name"] = self.opponent_name
+            details["deltas_by_seed"] = details["paired_values_by_seed"]
+            details["mean_delta"] = self.mean_value
+        else:
+            details["pair_sums_by_seed"] = details["paired_values_by_seed"]
+            details["mean_pair_sum"] = self.mean_value
+        return details
 
 
 def _as_python_scalar(value: object) -> object:
@@ -133,9 +171,11 @@ def calculate_paired_seed_statistics(
     left_agent_name: str,
     right_agent_name: str,
     opponent_name: str,
+    right_opponent_name: str | None = None,
     checkpoint_episode: int | None = None,
+    operation: str = PAIRED_SEED_OPERATION_DIFFERENCE,
 ) -> PairedSeedStatistics:
-    """Calculate a Student-t CI for per-seed ``left - right`` deltas."""
+    """Calculate a Student-t CI for a per-seed difference or sum."""
 
     required_columns = {
         "agent_name",
@@ -151,6 +191,14 @@ def calculate_paired_seed_statistics(
             f"{missing_columns}."
         )
 
+    if operation not in PAIRED_SEED_OPERATIONS:
+        raise PairedSeedStatisticsError(
+            f"Unsupported paired seed operation {operation!r}. Expected one "
+            f"of {PAIRED_SEED_OPERATIONS}."
+        )
+
+    compared_right_opponent = right_opponent_name or opponent_name
+
     left_values = _agent_seed_values(
         seed_rows,
         agent_name=left_agent_name,
@@ -160,7 +208,7 @@ def calculate_paired_seed_statistics(
     right_values = _agent_seed_values(
         seed_rows,
         agent_name=right_agent_name,
-        opponent_name=opponent_name,
+        opponent_name=compared_right_opponent,
         checkpoint_episode=checkpoint_episode,
     )
 
@@ -169,10 +217,16 @@ def calculate_paired_seed_statistics(
     common_seeds = _sorted_seed_values(left_seeds & right_seeds)
     left_only_seeds = _sorted_seed_values(left_seeds - right_seeds)
     right_only_seeds = _sorted_seed_values(right_seeds - left_seeds)
-    deltas_by_seed = {
-        seed: float(left_values.loc[seed] - right_values.loc[seed])
-        for seed in common_seeds
-    }
+    if operation == PAIRED_SEED_OPERATION_DIFFERENCE:
+        deltas_by_seed = {
+            seed: float(left_values.loc[seed] - right_values.loc[seed])
+            for seed in common_seeds
+        }
+    else:
+        deltas_by_seed = {
+            seed: float(left_values.loc[seed] + right_values.loc[seed])
+            for seed in common_seeds
+        }
 
     delta_values = np.asarray(list(deltas_by_seed.values()), dtype="float64")
     mean_delta = (
@@ -204,14 +258,16 @@ def calculate_paired_seed_statistics(
         left_agent_name=left_agent_name,
         right_agent_name=right_agent_name,
         opponent_name=opponent_name,
+        right_opponent_name=compared_right_opponent,
+        operation=operation,
         checkpoint_episode=checkpoint_episode,
         left_seed_count=len(left_seeds),
         right_seed_count=len(right_seeds),
         common_seeds=common_seeds,
         left_only_seeds=left_only_seeds,
         right_only_seeds=right_only_seeds,
-        deltas_by_seed=deltas_by_seed,
-        mean_delta=mean_delta,
+        paired_values_by_seed=deltas_by_seed,
+        mean_value=mean_delta,
         standard_deviation=standard_deviation,
         standard_error=standard_error,
         ci_lower=ci_lower,
