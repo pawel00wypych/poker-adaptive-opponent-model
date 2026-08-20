@@ -996,14 +996,25 @@ def validate_checkpoint_results(
                     validation_mode=validation_mode,
                 )
             )
-        checks.extend(
-            validate_cross_play_results_from_best_rows(
-                validation_rows,
-                thresholds,
-                algorithm_specs=expected_specs,
-                comparison_rows=validation_rows,
+        if seed_validation_rows is None:
+            checks.extend(
+                validate_cross_play_results_from_best_rows(
+                    validation_rows,
+                    thresholds,
+                    algorithm_specs=expected_specs,
+                    comparison_rows=validation_rows,
+                )
             )
-        )
+        else:
+            checks.extend(
+                validate_cross_play_results_from_best_rows(
+                    validation_rows,
+                    thresholds,
+                    algorithm_specs=expected_specs,
+                    comparison_rows=validation_rows,
+                    seed_rows=seed_validation_rows,
+                )
+            )
     elif validation_mode == VALIDATION_MODE_STRESS_TEST:
         checks = []
         if require_all_algorithms or algorithm_specs is not None:

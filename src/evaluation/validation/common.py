@@ -22,6 +22,7 @@ from src.evaluation.constants import (
     RULE_BASED_AGENT,
 )
 from src.evaluation.metrics.paired_seed_statistics import (
+    PAIRED_SEED_OPERATION_DIFFERENCE,
     PairedSeedStatistics,
     PairedSeedStatisticsError,
     calculate_paired_seed_statistics,
@@ -235,6 +236,8 @@ def _paired_seed_statistics_for_check(
     left_agent_name: str,
     right_agent_name: str,
     opponent_name: str,
+    right_opponent_name: str | None = None,
+    operation: str = PAIRED_SEED_OPERATION_DIFFERENCE,
     checkpoint_episode: int,
     thresholds: ValidationThresholds,
     check_name: str,
@@ -257,7 +260,9 @@ def _paired_seed_statistics_for_check(
             left_agent_name=left_agent_name,
             right_agent_name=right_agent_name,
             opponent_name=opponent_name,
+            right_opponent_name=right_opponent_name,
             checkpoint_episode=checkpoint_episode,
+            operation=operation,
         )
     except PairedSeedStatisticsError as error:
         return None, ValidationCheckResult(
@@ -274,11 +279,12 @@ def _paired_seed_statistics_for_check(
 
     details = {"paired_seed_statistics": statistics.to_details()}
     if statistics.left_seed_count == 0 or statistics.right_seed_count == 0:
-        missing_agent = (
-            left_agent_name
-            if statistics.left_seed_count == 0
-            else right_agent_name
-        )
+        if statistics.left_seed_count == 0:
+            missing_agent = left_agent_name
+            missing_opponent = opponent_name
+        else:
+            missing_agent = right_agent_name
+            missing_opponent = statistics.right_opponent_name
         return None, ValidationCheckResult(
             check_name=check_name,
             status=STATUS_SKIPPED,
@@ -290,7 +296,7 @@ def _paired_seed_statistics_for_check(
             sample_size=statistics.common_seed_count,
             message=(
                 "Missing seed-level rows for "
-                f"{missing_agent} vs {opponent_name}."
+                f"{missing_agent} vs {missing_opponent}."
             ),
             details=details,
         )
