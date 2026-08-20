@@ -9,10 +9,10 @@ from src.evaluation.runners.generalization_evaluator import (
     ALWAYS_RAISE_AGENT,
     DEFAULT_GENERALIZATION_AGENTS,
     DEFAULT_GENERALIZATION_OPPONENTS,
+    ORACLE_DOUBLE_Q_LEARNING_AGENT,
     ORACLE_MC_AGENT,
     ORACLE_Q_LEARNING_AGENT,
     ORACLE_SARSA_AGENT,
-    ORACLE_DOUBLE_Q_LEARNING_AGENT,
     POLICY_CALLING_AGENT,
     POLICY_GENERAL_MC_AGENT,
     RULE_BASED_AGENT,
@@ -26,14 +26,14 @@ from src.evaluation.runners.generalization_evaluator import (
     write_generalization_rows,
 )
 from src.experiments.evaluation.run_generalization_evaluation import parse_args
-from src.players.learned.adaptive_player import AdaptivePlayer
 from src.players.baselines.always_call_player import AlwaysCallPlayer
 from src.players.baselines.always_raise_player import AlwaysRaisePlayer
-from src.players.learned.fixed_policy_player import FixedPolicyPlayer
+from src.players.baselines.rule_based_player import RuleBasedPlayer
 from src.players.generalization.aggressive_extreme_player import AggressiveExtremePlayer
 from src.players.generalization.calling_extreme_player import CallingExtremePlayer
+from src.players.learned.adaptive_player import AdaptivePlayer
+from src.players.learned.fixed_policy_player import FixedPolicyPlayer
 from src.players.learned.oracle_player import OraclePlayer
-from src.players.baselines.rule_based_player import RuleBasedPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
@@ -84,6 +84,8 @@ def sample_raw_row() -> dict:
         "experiment_id": "seed_42_episodes_2000",
         "experiment_name": "adaptive_mc_vs_calling_extreme",
         "game_id": 0,
+        "matchup_game_index": 0,
+        "evaluation_seed": 123_456,
         "agent_name": ADAPTIVE_MC_AGENT,
         "opponent_name": "calling_extreme",
         "final_stack": 120,
@@ -274,6 +276,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
                 kwargs["tested_agent_name"],
                 kwargs["opponent_name"],
                 kwargs["game_id"],
+                kwargs["matchup_game_index"],
             )
         )
 
@@ -286,6 +289,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
                 "agent_name": kwargs["tested_agent_name"],
                 "opponent_name": kwargs["opponent_name"],
                 "game_id": kwargs["game_id"],
+                "matchup_game_index": kwargs["matchup_game_index"],
             }
         )
 
@@ -317,6 +321,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
     assert rows[0]["experiment_name"] == "policy_general_mc_vs_calling_extreme"
     assert rows[-1]["experiment_name"] == "adaptive_mc_vs_aggressive_extreme"
     assert [row["game_id"] for row in rows] == list(range(8))
+    assert [call[3] for call in calls] == [0, 1] * 4
     assert rows[0]["evaluation_type"] == "generalization"
 
 
