@@ -21,6 +21,11 @@ from src.evaluation.constants import (
     POLICY_TIGHT_AGENT,
     RULE_BASED_AGENT,
 )
+from src.evaluation.metrics.paired_seed_statistics import (
+    PairedSeedStatistics,
+    PairedSeedStatisticsError,
+    calculate_paired_seed_statistics,
+)
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
@@ -161,6 +166,10 @@ class ValidationCheckResult:
     checkpoint_episode: int | None = None
     observed_value: float | None = None
     threshold: float | None = None
+    sample_size: int | None = None
+    standard_error: float | None = None
+    ci_lower: float | None = None
+    ci_upper: float | None = None
     details: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
@@ -218,6 +227,139 @@ def _format_float(value: float | None) -> str:
     if value is None or pd.isna(value):
         return "n/a"
     return f"{value:.3f}"
+
+
+def _paired_seed_statistics_for_check(
+    seed_rows: pd.DataFrame | None,
+    *,
+    left_agent_name: str,
+    right_agent_name: str,
+    opponent_name: str,
+    checkpoint_episode: int,
+    thresholds: ValidationThresholds,
+    check_name: str,
+    category: str,
+    algorithm_name: str | None,
+    agent_name: str | None,
+) -> tuple[PairedSeedStatistics | None, ValidationCheckResult | None]:
+    """Return paired statistics or a validation result explaining no result.
+
+    ``None`` seed rows retain compatibility for callers that only have legacy
+    aggregate rows. The main validation pipeline always supplies seed rows.
+    """
+
+    if seed_rows is None:
+        return None, None
+
+    try:
+        statistics = calculate_paired_seed_statistics(
+            seed_rows,
+            left_agent_name=left_agent_name,
+            right_agent_name=right_agent_name,
+            opponent_name=opponent_name,
+            checkpoint_episode=checkpoint_episode,
+        )
+    except PairedSeedStatisticsError as error:
+        return None, ValidationCheckResult(
+            check_name=check_name,
+            status=STATUS_FAIL,
+            category=category,
+            algorithm_name=algorithm_name,
+            agent_name=agent_name,
+            opponent_name=opponent_name,
+            checkpoint_episode=checkpoint_episode,
+            message=f"Cannot calculate paired seed statistics: {error}",
+            details={"paired_seed_error": str(error)},
+        )
+
+    details = {"paired_seed_statistics": statistics.to_details()}
+    if statistics.left_seed_count == 0 or statistics.right_seed_count == 0:
+        missing_agent = (
+            left_agent_name
+            if statistics.left_seed_count == 0
+            else right_agent_name
+        )
+        return None, ValidationCheckResult(
+            check_name=check_name,
+            status=STATUS_SKIPPED,
+            category=category,
+            algorithm_name=algorithm_name,
+            agent_name=agent_name,
+            opponent_name=opponent_name,
+            checkpoint_episode=checkpoint_episode,
+            sample_size=statistics.common_seed_count,
+            message=(
+                "Missing seed-level rows for "
+                f"{missing_agent} vs {opponent_name}."
+            ),
+            details=details,
+        )
+
+    minimum_common_seeds = max(2, thresholds.min_seeds_per_matchup)
+    if statistics.common_seed_count < minimum_common_seeds:
+        details["minimum_common_seeds"] = minimum_common_seeds
+        return None, ValidationCheckResult(
+            check_name=check_name,
+            status=STATUS_FAIL,
+            category=category,
+            algorithm_name=algorithm_name,
+            agent_name=agent_name,
+            opponent_name=opponent_name,
+            checkpoint_episode=checkpoint_episode,
+            observed_value=statistics.mean_delta,
+            sample_size=statistics.common_seed_count,
+            standard_error=statistics.standard_error,
+            ci_lower=statistics.ci_lower,
+            ci_upper=statistics.ci_upper,
+            message=(
+                "Paired comparison has "
+                f"{statistics.common_seed_count} common model seed(s); "
+                f"at least {minimum_common_seeds} are required."
+            ),
+            details=details,
+        )
+
+    return statistics, None
+
+
+def _minimum_delta_status(
+    statistics: PairedSeedStatistics,
+    threshold: float,
+    *,
+    underperformance_status: str = STATUS_FAIL,
+) -> str:
+    if statistics.ci_lower is None or statistics.ci_upper is None:
+        raise ValueError("Paired confidence interval is unavailable.")
+    if statistics.ci_lower >= threshold:
+        return STATUS_PASS
+    if statistics.ci_upper < threshold:
+        return underperformance_status
+    return STATUS_WARNING
+
+
+def _maximum_delta_status(
+    statistics: PairedSeedStatistics,
+    threshold: float,
+    *,
+    exceedance_status: str = STATUS_WARNING,
+) -> str:
+    if statistics.ci_lower is None or statistics.ci_upper is None:
+        raise ValueError("Paired confidence interval is unavailable.")
+    if statistics.ci_upper <= threshold:
+        return STATUS_PASS
+    return exceedance_status
+
+
+def _paired_seed_message(
+    label: str,
+    statistics: PairedSeedStatistics,
+) -> str:
+    return (
+        f"{label} is {_format_float(statistics.mean_delta)} BB/game "
+        f"across {statistics.common_seed_count} paired seed(s); 95% t-CI "
+        f"[{_format_float(statistics.ci_lower)}, "
+        f"{_format_float(statistics.ci_upper)}]."
+    )
 
 def _add_mean_hands_played(
     aggregated: pd.DataFrame,
@@ -571,6 +713,7 @@ def validate_always_raise_outperforms_adaptive(
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = TRAINING_OPPONENT_TYPES,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+    seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
     specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
@@ -628,18 +771,53 @@ def validate_always_raise_outperforms_adaptive(
                 )
                 continue
 
-            delta = float(
-                always_raise_row["mean_profit_bb"]
-                - adaptive_row["mean_profit_bb"]
+            paired_statistics, unavailable_result = (
+                _paired_seed_statistics_for_check(
+                    seed_rows,
+                    left_agent_name=ALWAYS_RAISE_AGENT,
+                    right_agent_name=spec.adaptive_agent,
+                    opponent_name=opponent_name,
+                    checkpoint_episode=checkpoint_episode,
+                    thresholds=thresholds,
+                    check_name=check_name,
+                    category="always_raise_sanity",
+                    algorithm_name=spec.algorithm_name,
+                    agent_name=ALWAYS_RAISE_AGENT,
+                )
             )
-            is_large_gap = (
-                delta >= thresholds.always_raise_adaptive_warning_gap_bb
-            )
+            if unavailable_result is not None:
+                results.append(unavailable_result)
+                continue
+
+            if paired_statistics is None:
+                delta = float(
+                    always_raise_row["mean_profit_bb"]
+                    - adaptive_row["mean_profit_bb"]
+                )
+                is_large_gap = (
+                    delta
+                    >= thresholds.always_raise_adaptive_warning_gap_bb
+                )
+                status = STATUS_WARNING if is_large_gap else STATUS_PASS
+                message = (
+                    "Always-raise minus adaptive mean profit is "
+                    f"{_format_float(delta)} BB/game."
+                )
+            else:
+                delta = float(paired_statistics.mean_delta)
+                status = _maximum_delta_status(
+                    paired_statistics,
+                    thresholds.always_raise_adaptive_warning_gap_bb,
+                )
+                message = _paired_seed_message(
+                    "Always-raise minus adaptive mean profit",
+                    paired_statistics,
+                )
 
             results.append(
                 ValidationCheckResult(
                     check_name=check_name,
-                    status=STATUS_WARNING if is_large_gap else STATUS_PASS,
+                    status=status,
                     category="always_raise_sanity",
                     algorithm_name=spec.algorithm_name,
                     agent_name=ALWAYS_RAISE_AGENT,
@@ -649,10 +827,27 @@ def validate_always_raise_outperforms_adaptive(
                     threshold=(
                         thresholds.always_raise_adaptive_warning_gap_bb
                     ),
-                    message=(
-                        "Always-raise minus adaptive mean profit is "
-                        f"{_format_float(delta)} BB/game."
+                    sample_size=(
+                        paired_statistics.common_seed_count
+                        if paired_statistics is not None
+                        else None
                     ),
+                    standard_error=(
+                        paired_statistics.standard_error
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    ci_lower=(
+                        paired_statistics.ci_lower
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    ci_upper=(
+                        paired_statistics.ci_upper
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    message=message,
                     details={
                         "algorithm": spec.algorithm_name,
                         "adaptive_agent": spec.adaptive_agent,
@@ -664,6 +859,15 @@ def validate_always_raise_outperforms_adaptive(
                         ),
                         "adaptive_checkpoint_episode": _checkpoint_episode(
                             adaptive_row
+                        ),
+                        **(
+                            {
+                                "paired_seed_statistics": (
+                                    paired_statistics.to_details()
+                                )
+                            }
+                            if paired_statistics is not None
+                            else {}
                         ),
                     },
                 )

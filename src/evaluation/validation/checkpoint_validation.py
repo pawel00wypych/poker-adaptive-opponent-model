@@ -43,8 +43,11 @@ from src.evaluation.validation.common import (
     _find_row,
     _find_rows_at_latest_common_checkpoint,
     _format_float,
+    _minimum_delta_status,
     _missing_common_checkpoint_result,
     _missing_row_result,
+    _paired_seed_message,
+    _paired_seed_statistics_for_check,
     validate_always_raise_outperforms_adaptive,
     validate_always_raise_trivial_exploit,
     validate_extreme_bb_per_100,
@@ -317,6 +320,7 @@ def validate_adaptive_beats_rule_based(
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+    seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
@@ -373,15 +377,48 @@ def validate_adaptive_beats_rule_based(
                 )
                 continue
 
-            delta = float(
-                adaptive_row["mean_profit_bb"]
-                - rule_based_row["mean_profit_bb"]
+            paired_statistics, unavailable_result = (
+                _paired_seed_statistics_for_check(
+                    seed_rows,
+                    left_agent_name=spec.adaptive_agent,
+                    right_agent_name=RULE_BASED_AGENT,
+                    opponent_name=opponent_name,
+                    checkpoint_episode=checkpoint_episode,
+                    thresholds=thresholds,
+                    check_name=check_name,
+                    category="baseline_delta",
+                    algorithm_name=spec.algorithm_name,
+                    agent_name=spec.adaptive_agent,
+                )
             )
-            status = (
-                STATUS_PASS
-                if delta >= thresholds.min_adaptive_delta_vs_rule_based_bb
-                else STATUS_FAIL
-            )
+            if unavailable_result is not None:
+                results.append(unavailable_result)
+                continue
+
+            if paired_statistics is None:
+                delta = float(
+                    adaptive_row["mean_profit_bb"]
+                    - rule_based_row["mean_profit_bb"]
+                )
+                status = (
+                    STATUS_PASS
+                    if delta >= thresholds.min_adaptive_delta_vs_rule_based_bb
+                    else STATUS_FAIL
+                )
+                message = (
+                    "Adaptive mean profit delta vs rule-based is "
+                    f"{_format_float(delta)} BB/game."
+                )
+            else:
+                delta = float(paired_statistics.mean_delta)
+                status = _minimum_delta_status(
+                    paired_statistics,
+                    thresholds.min_adaptive_delta_vs_rule_based_bb,
+                )
+                message = _paired_seed_message(
+                    "Adaptive minus rule-based mean profit",
+                    paired_statistics,
+                )
 
             results.append(
                 ValidationCheckResult(
@@ -396,10 +433,27 @@ def validate_adaptive_beats_rule_based(
                     threshold=(
                         thresholds.min_adaptive_delta_vs_rule_based_bb
                     ),
-                    message=(
-                        "Adaptive mean profit delta vs rule-based is "
-                        f"{_format_float(delta)} BB/game."
+                    sample_size=(
+                        paired_statistics.common_seed_count
+                        if paired_statistics is not None
+                        else None
                     ),
+                    standard_error=(
+                        paired_statistics.standard_error
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    ci_lower=(
+                        paired_statistics.ci_lower
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    ci_upper=(
+                        paired_statistics.ci_upper
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    message=message,
                     details={
                         "algorithm": spec.algorithm_name,
                         "adaptive_agent": spec.adaptive_agent,
@@ -411,6 +465,15 @@ def validate_adaptive_beats_rule_based(
                         ),
                         "rule_based_checkpoint_episode": _checkpoint_episode(
                             rule_based_row
+                        ),
+                        **(
+                            {
+                                "paired_seed_statistics": (
+                                    paired_statistics.to_details()
+                                )
+                            }
+                            if paired_statistics is not None
+                            else {}
                         ),
                     },
                 )
@@ -424,6 +487,7 @@ def validate_oracle_not_worse_than_adaptive(
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = DEFAULT_ORACLE_OPPONENTS,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+    seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
@@ -480,15 +544,50 @@ def validate_oracle_not_worse_than_adaptive(
                 )
                 continue
 
-            oracle_gap = float(
-                oracle_row["mean_profit_bb"]
-                - adaptive_row["mean_profit_bb"]
+            paired_statistics, unavailable_result = (
+                _paired_seed_statistics_for_check(
+                    seed_rows,
+                    left_agent_name=spec.oracle_agent,
+                    right_agent_name=spec.adaptive_agent,
+                    opponent_name=opponent_name,
+                    checkpoint_episode=checkpoint_episode,
+                    thresholds=thresholds,
+                    check_name=check_name,
+                    category="oracle_gap",
+                    algorithm_name=spec.algorithm_name,
+                    agent_name=spec.oracle_agent,
+                )
             )
-            status = (
-                STATUS_PASS
-                if oracle_gap >= -thresholds.max_oracle_underperformance_bb
-                else STATUS_WARNING
-            )
+            if unavailable_result is not None:
+                results.append(unavailable_result)
+                continue
+
+            threshold = -thresholds.max_oracle_underperformance_bb
+            if paired_statistics is None:
+                oracle_gap = float(
+                    oracle_row["mean_profit_bb"]
+                    - adaptive_row["mean_profit_bb"]
+                )
+                status = (
+                    STATUS_PASS
+                    if oracle_gap >= threshold
+                    else STATUS_WARNING
+                )
+                message = (
+                    "Oracle minus adaptive mean profit is "
+                    f"{_format_float(oracle_gap)} BB/game."
+                )
+            else:
+                oracle_gap = float(paired_statistics.mean_delta)
+                status = _minimum_delta_status(
+                    paired_statistics,
+                    threshold,
+                    underperformance_status=STATUS_WARNING,
+                )
+                message = _paired_seed_message(
+                    "Oracle minus adaptive mean profit",
+                    paired_statistics,
+                )
 
             results.append(
                 ValidationCheckResult(
@@ -500,11 +599,28 @@ def validate_oracle_not_worse_than_adaptive(
                     opponent_name=opponent_name,
                     checkpoint_episode=checkpoint_episode,
                     observed_value=oracle_gap,
-                    threshold=-thresholds.max_oracle_underperformance_bb,
-                    message=(
-                        "Oracle minus adaptive mean profit is "
-                        f"{_format_float(oracle_gap)} BB/game."
+                    threshold=threshold,
+                    sample_size=(
+                        paired_statistics.common_seed_count
+                        if paired_statistics is not None
+                        else None
                     ),
+                    standard_error=(
+                        paired_statistics.standard_error
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    ci_lower=(
+                        paired_statistics.ci_lower
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    ci_upper=(
+                        paired_statistics.ci_upper
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    message=message,
                     details={
                         "algorithm": spec.algorithm_name,
                         "oracle_agent": spec.oracle_agent,
@@ -517,6 +633,15 @@ def validate_oracle_not_worse_than_adaptive(
                         ),
                         "adaptive_checkpoint_episode": _checkpoint_episode(
                             adaptive_row
+                        ),
+                        **(
+                            {
+                                "paired_seed_statistics": (
+                                    paired_statistics.to_details()
+                                )
+                            }
+                            if paired_statistics is not None
+                            else {}
                         ),
                     },
                 )
@@ -838,6 +963,11 @@ def validate_checkpoint_results(
             checkpoint_episode=checkpoint_episode,
         )
     )
+    seed_validation_rows = None
+    if "checkpoint_episode" in metrics.columns:
+        seed_validation_rows = metrics[
+            metrics["checkpoint_episode"] == selected_checkpoint
+        ].reset_index(drop=True)
     expected_specs = tuple(
         algorithm_specs
         if algorithm_specs is not None
@@ -893,14 +1023,25 @@ def validate_checkpoint_results(
                     validation_mode=validation_mode,
                 )
             )
-        checks.extend(
-            validate_stress_test_results_from_best_rows(
-                validation_rows,
-                thresholds,
-                algorithm_specs=expected_specs,
-                comparison_rows=validation_rows,
+        if seed_validation_rows is None:
+            checks.extend(
+                validate_stress_test_results_from_best_rows(
+                    validation_rows,
+                    thresholds,
+                    algorithm_specs=expected_specs,
+                    comparison_rows=validation_rows,
+                )
             )
-        )
+        else:
+            checks.extend(
+                validate_stress_test_results_from_best_rows(
+                    validation_rows,
+                    thresholds,
+                    algorithm_specs=expected_specs,
+                    comparison_rows=validation_rows,
+                    seed_rows=seed_validation_rows,
+                )
+            )
     elif validation_mode == VALIDATION_MODE_HEAD_TO_HEAD:
         checks = []
         if require_all_algorithms or algorithm_specs is not None:
@@ -920,14 +1061,25 @@ def validate_checkpoint_results(
                     validation_mode=validation_mode,
                 )
             )
-        checks.extend(
-            validate_head_to_head_results_from_best_rows(
-                validation_rows,
-                thresholds,
-                algorithm_specs=expected_specs,
-                comparison_rows=validation_rows,
+        if seed_validation_rows is None:
+            checks.extend(
+                validate_head_to_head_results_from_best_rows(
+                    validation_rows,
+                    thresholds,
+                    algorithm_specs=expected_specs,
+                    comparison_rows=validation_rows,
+                )
             )
-        )
+        else:
+            checks.extend(
+                validate_head_to_head_results_from_best_rows(
+                    validation_rows,
+                    thresholds,
+                    algorithm_specs=expected_specs,
+                    comparison_rows=validation_rows,
+                    seed_rows=seed_validation_rows,
+                )
+            )
     elif validation_mode == VALIDATION_MODE_GENERALIZATION:
         checks = []
         if require_all_algorithms or algorithm_specs is not None:
@@ -947,14 +1099,25 @@ def validate_checkpoint_results(
                     validation_mode=validation_mode,
                 )
             )
-        checks.extend(
-            validate_generalization_results_from_best_rows(
-                validation_rows,
-                thresholds,
-                algorithm_specs=expected_specs,
-                comparison_rows=validation_rows,
+        if seed_validation_rows is None:
+            checks.extend(
+                validate_generalization_results_from_best_rows(
+                    validation_rows,
+                    thresholds,
+                    algorithm_specs=expected_specs,
+                    comparison_rows=validation_rows,
+                )
             )
-        )
+        else:
+            checks.extend(
+                validate_generalization_results_from_best_rows(
+                    validation_rows,
+                    thresholds,
+                    algorithm_specs=expected_specs,
+                    comparison_rows=validation_rows,
+                    seed_rows=seed_validation_rows,
+                )
+            )
     else:
         specs = expected_specs
         checks: list[ValidationCheckResult] = []
@@ -980,6 +1143,7 @@ def validate_checkpoint_results(
                 validation_rows,
                 thresholds,
                 algorithm_specs=specs,
+                seed_rows=seed_validation_rows,
             )
         )
         checks.extend(
@@ -987,6 +1151,7 @@ def validate_checkpoint_results(
                 validation_rows,
                 thresholds,
                 algorithm_specs=specs,
+                seed_rows=seed_validation_rows,
             )
         )
         checks.extend(
@@ -1026,6 +1191,7 @@ def validate_checkpoint_results(
                 validation_rows,
                 thresholds,
                 algorithm_specs=specs,
+                seed_rows=seed_validation_rows,
             )
         )
         checks.extend(
