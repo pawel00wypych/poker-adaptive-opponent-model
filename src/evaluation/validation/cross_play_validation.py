@@ -6,6 +6,9 @@ from itertools import combinations
 import pandas as pd
 
 from src.evaluation.algorithm_metadata import AlgorithmValidationSpec
+from src.evaluation.metrics.paired_seed_statistics import (
+    PAIRED_SEED_OPERATION_SUM,
+)
 from src.evaluation.validation.common import (
     STATUS_FAIL,
     STATUS_PASS,
@@ -18,6 +21,7 @@ from src.evaluation.validation.common import (
     _format_float,
     _missing_common_checkpoint_result,
     _missing_row_result,
+    _paired_seed_statistics_for_check,
     validate_extreme_bb_per_100,
     validate_minimum_seed_coverage,
     validate_seed_stability,
@@ -176,6 +180,7 @@ def validate_cross_play_pair_reciprocity(
     comparison_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec],
+    seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
     available_matchups = set(
@@ -247,19 +252,65 @@ def validate_cross_play_pair_reciprocity(
             )
             continue
 
+        threshold = thresholds.max_cross_play_pair_sum_abs_profit_bb
+        paired_statistics, unavailable_result = (
+            _paired_seed_statistics_for_check(
+                seed_rows,
+                left_agent_name=first_agent,
+                right_agent_name=second_agent,
+                opponent_name=second_agent,
+                right_opponent_name=first_agent,
+                operation=PAIRED_SEED_OPERATION_SUM,
+                checkpoint_episode=checkpoint_episode,
+                thresholds=thresholds,
+                check_name=check_name,
+                category="cross_play_pair_reciprocity",
+                algorithm_name=algorithm_name,
+                agent_name=first_agent,
+            )
+        )
+        if unavailable_result is not None:
+            results.append(unavailable_result)
+            continue
+
         first_profit = float(first_row["mean_profit_bb"])
         second_profit = float(second_row["mean_profit_bb"])
-        pair_sum = first_profit + second_profit
+        if paired_statistics is None:
+            pair_sum = first_profit + second_profit
+            status = (
+                STATUS_PASS
+                if abs(pair_sum) <= threshold
+                else STATUS_WARNING
+            )
+            message = (
+                "Opposite-direction mean profits sum to "
+                f"{_format_float(pair_sum)} BB/game."
+            )
+        else:
+            pair_sum = float(paired_statistics.mean_value)
+            assert paired_statistics.ci_lower is not None
+            assert paired_statistics.ci_upper is not None
+            interval_within_bounds = (
+                paired_statistics.ci_lower >= -threshold
+                and paired_statistics.ci_upper <= threshold
+            )
+            status = (
+                STATUS_PASS if interval_within_bounds else STATUS_WARNING
+            )
+            message = (
+                "Opposite-direction per-seed profit sums have mean "
+                f"{_format_float(pair_sum)} BB/game across "
+                f"{paired_statistics.common_seed_count} paired seed(s); "
+                "95% t-CI "
+                f"[{_format_float(paired_statistics.ci_lower)}, "
+                f"{_format_float(paired_statistics.ci_upper)}]."
+            )
+
         absolute_pair_sum = abs(pair_sum)
-        threshold = thresholds.max_cross_play_pair_sum_abs_profit_bb
         results.append(
             ValidationCheckResult(
                 check_name=check_name,
-                status=(
-                    STATUS_PASS
-                    if absolute_pair_sum <= threshold
-                    else STATUS_WARNING
-                ),
+                status=status,
                 category="cross_play_pair_reciprocity",
                 algorithm_name=algorithm_name,
                 agent_name=first_agent,
@@ -267,10 +318,27 @@ def validate_cross_play_pair_reciprocity(
                 checkpoint_episode=checkpoint_episode,
                 observed_value=absolute_pair_sum,
                 threshold=threshold,
-                message=(
-                    "Opposite-direction mean profits sum to "
-                    f"{_format_float(pair_sum)} BB/game."
+                sample_size=(
+                    paired_statistics.common_seed_count
+                    if paired_statistics is not None
+                    else None
                 ),
+                standard_error=(
+                    paired_statistics.standard_error
+                    if paired_statistics is not None
+                    else None
+                ),
+                ci_lower=(
+                    paired_statistics.ci_lower
+                    if paired_statistics is not None
+                    else None
+                ),
+                ci_upper=(
+                    paired_statistics.ci_upper
+                    if paired_statistics is not None
+                    else None
+                ),
+                message=message,
                 details={
                     "first_agent": first_agent,
                     "second_agent": second_agent,
@@ -280,6 +348,15 @@ def validate_cross_play_pair_reciprocity(
                     "absolute_pair_sum_bb": absolute_pair_sum,
                     "max_absolute_pair_sum_bb": threshold,
                     "required_matchup": required,
+                    **(
+                        {
+                            "paired_seed_statistics": (
+                                paired_statistics.to_details()
+                            )
+                        }
+                        if paired_statistics is not None
+                        else {}
+                    ),
                 },
             )
         )
@@ -358,6 +435,7 @@ def validate_cross_play_results_from_best_rows(
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec],
     comparison_rows: pd.DataFrame | None = None,
+    seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     specs = tuple(algorithm_specs)
     aligned_comparison_rows = (
@@ -370,6 +448,7 @@ def validate_cross_play_results_from_best_rows(
             aligned_comparison_rows,
             thresholds,
             specs,
+            seed_rows=seed_rows,
         )
     )
     checks.extend(
