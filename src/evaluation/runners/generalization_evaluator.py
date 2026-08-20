@@ -1,8 +1,8 @@
 import csv
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 from pypokerengine.api.game import (
@@ -11,6 +11,30 @@ from pypokerengine.api.game import (
 )
 
 from src.config import GameConfig
+from src.evaluation.constants import (
+    ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
+    ADAPTIVE_MC_AGENT,
+    ADAPTIVE_Q_LEARNING_AGENT,
+    ADAPTIVE_SARSA_AGENT,
+    ALWAYS_CALL_AGENT,
+    ALWAYS_RAISE_AGENT,
+    ORACLE_DOUBLE_Q_LEARNING_AGENT,
+    ORACLE_MC_AGENT,
+    ORACLE_Q_LEARNING_AGENT,
+    ORACLE_SARSA_AGENT,
+    POLICY_AGGRESSIVE_AGENT,
+    POLICY_CALLING_AGENT,
+    POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
+    POLICY_GENERAL_MC_AGENT,
+    POLICY_GENERAL_Q_LEARNING_AGENT,
+    POLICY_GENERAL_SARSA_AGENT,
+    POLICY_TIGHT_AGENT,
+    RULE_BASED_AGENT,
+)
+from src.evaluation.player_factory import (
+    EvaluationAgentLoaders,
+    build_evaluation_player,
+)
 from src.evaluation.runners.checkpoint_evaluator import (
     CHECKPOINT_EVALUATION_FIELDNAMES,
     ModelBundle,
@@ -26,29 +50,8 @@ from src.evaluation.runners.checkpoint_evaluator import (
     load_sarsa_adaptive_agents,
     load_sarsa_eval_agent,
 )
-from src.evaluation.constants import (
-    ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
-    ADAPTIVE_MC_AGENT,
-    ADAPTIVE_Q_LEARNING_AGENT,
-    ADAPTIVE_SARSA_AGENT,
-    ALWAYS_CALL_AGENT,
-    ALWAYS_RAISE_AGENT,
-    ORACLE_MC_AGENT,
-    ORACLE_Q_LEARNING_AGENT,
-    ORACLE_SARSA_AGENT,
-    ORACLE_DOUBLE_Q_LEARNING_AGENT,
-    POLICY_AGGRESSIVE_AGENT,
-    POLICY_CALLING_AGENT,
-    POLICY_TIGHT_AGENT,
-    POLICY_GENERAL_MC_AGENT,
-    POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
-    POLICY_GENERAL_Q_LEARNING_AGENT,
-    POLICY_GENERAL_SARSA_AGENT,
-    RULE_BASED_AGENT,
-)
-from src.evaluation.player_factory import (
-    EvaluationAgentLoaders,
-    build_evaluation_player,
+from src.evaluation.runners.evaluation_seed import (
+    build_paired_evaluation_seed,
 )
 from src.players.constants import GENERALIZATION_OPPONENTS
 from src.players.generalization.generalization_opponents import (
@@ -56,7 +59,6 @@ from src.players.generalization.generalization_opponents import (
     get_generalization_opponent_base_type,
     was_generalization_opponent_seen_during_training,
 )
-
 
 GENERALIZATION_EVALUATION_TYPE = "generalization"
 GENERALIZATION_TRAINING_SCOPE = "base_opponents"
@@ -210,13 +212,13 @@ def build_generalization_seed(
     eval_seed_base: int,
     model_seed: int,
     checkpoint_episode: int,
-    game_id: int,
+    matchup_game_index: int,
 ) -> int:
-    return (
-        eval_seed_base
-        + model_seed * 1_000_000
-        + checkpoint_episode * 1_000
-        + game_id
+    return build_paired_evaluation_seed(
+        eval_seed_base=eval_seed_base,
+        model_seed=model_seed,
+        checkpoint_episode=checkpoint_episode,
+        matchup_game_index=matchup_game_index,
     )
 
 
@@ -247,6 +249,7 @@ def evaluate_single_generalization_game(
     tested_agent_name: str,
     opponent_name: str,
     game_id: int,
+    matchup_game_index: int,
     game_config: GameConfig,
     eval_seed_base: int,
 ) -> dict:
@@ -254,7 +257,7 @@ def evaluate_single_generalization_game(
         eval_seed_base=eval_seed_base,
         model_seed=bundle.seed,
         checkpoint_episode=bundle.checkpoint_episode,
-        game_id=game_id,
+        matchup_game_index=matchup_game_index,
     )
 
     set_generalization_seed(game_seed)
@@ -322,6 +325,8 @@ def evaluate_single_generalization_game(
                 tested_agent_name=tested_agent_name,
                 opponent_name=opponent_name,
                 game_id=game_id,
+                matchup_game_index=matchup_game_index,
+                evaluation_seed=game_seed,
                 final_stack=player_result["stack"],
                 initial_stack=game_config.initial_stack,
                 hands_played=hands_played,
@@ -363,7 +368,7 @@ def evaluate_generalization_bundle(
                 opponent_name
             )
 
-            for _ in range(config.games_per_matchup):
+            for matchup_game_index in range(config.games_per_matchup):
                 row = evaluate_single_generalization_game(
                     bundle=bundle,
                     tested_agent_name=(
@@ -371,6 +376,7 @@ def evaluate_generalization_bundle(
                     ),
                     opponent_name=opponent_name,
                     game_id=game_id,
+                    matchup_game_index=matchup_game_index,
                     game_config=game_config,
                     eval_seed_base=config.eval_seed_base,
                 )

@@ -1,8 +1,8 @@
 import csv
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 from pypokerengine.api.game import (
@@ -40,7 +40,9 @@ from src.evaluation.runners.checkpoint_evaluator import (
     load_sarsa_adaptive_agents,
     load_sarsa_eval_agent,
 )
-
+from src.evaluation.runners.evaluation_seed import (
+    build_paired_evaluation_seed,
+)
 
 CROSS_PLAY_EVALUATION_TYPE = "cross_play"
 
@@ -196,13 +198,13 @@ def build_cross_play_seed(
     eval_seed_base: int,
     model_seed: int,
     checkpoint_episode: int,
-    game_id: int,
+    matchup_game_index: int,
 ) -> int:
-    return (
-        eval_seed_base
-        + model_seed * 1_000_000
-        + checkpoint_episode * 1_000
-        + game_id
+    return build_paired_evaluation_seed(
+        eval_seed_base=eval_seed_base,
+        model_seed=model_seed,
+        checkpoint_episode=checkpoint_episode,
+        matchup_game_index=matchup_game_index,
     )
 
 
@@ -234,6 +236,7 @@ def evaluate_single_cross_play_game(
     tested_agent_name: str,
     opponent_agent_name: str,
     game_id: int,
+    matchup_game_index: int,
     game_config: GameConfig,
     eval_seed_base: int,
 ) -> dict:
@@ -249,7 +252,7 @@ def evaluate_single_cross_play_game(
         eval_seed_base=eval_seed_base,
         model_seed=bundle.seed,
         checkpoint_episode=bundle.checkpoint_episode,
-        game_id=game_id,
+        matchup_game_index=matchup_game_index,
     )
 
     set_cross_play_seed(game_seed)
@@ -312,6 +315,8 @@ def evaluate_single_cross_play_game(
                 tested_agent_name=tested_agent_name,
                 opponent_name=opponent_agent_name,
                 game_id=game_id,
+                matchup_game_index=matchup_game_index,
+                evaluation_seed=game_seed,
                 final_stack=player_result["stack"],
                 initial_stack=game_config.initial_stack,
                 hands_played=hands_played,
@@ -359,12 +364,13 @@ def evaluate_cross_play_bundle(
             ):
                 continue
 
-            for _ in range(config.games_per_matchup):
+            for matchup_game_index in range(config.games_per_matchup):
                 row = evaluate_single_cross_play_game(
                     bundle=bundle,
                     tested_agent_name=tested_agent_name,
                     opponent_agent_name=opponent_agent_name,
                     game_id=game_id,
+                    matchup_game_index=matchup_game_index,
                     game_config=game_config,
                     eval_seed_base=config.eval_seed_base,
                 )

@@ -166,17 +166,23 @@ def test_build_cross_play_seed_is_deterministic_and_distinct():
         eval_seed_base=700_000,
         model_seed=42,
         checkpoint_episode=1000,
-        game_id=0,
+        matchup_game_index=0,
+    )
+    repeated = build_cross_play_seed(
+        eval_seed_base=700_000,
+        model_seed=42,
+        checkpoint_episode=1000,
+        matchup_game_index=0,
     )
     second = build_cross_play_seed(
         eval_seed_base=700_000,
         model_seed=42,
         checkpoint_episode=1000,
-        game_id=1,
+        matchup_game_index=1,
     )
 
-    assert first == 42_000_000 + 1_000_000 + 700_000
-    assert second == first + 1
+    assert first == repeated
+    assert second != first
 
 
 def test_evaluate_cross_play_bundle_runs_directed_matchups(tmp_path, monkeypatch):
@@ -188,10 +194,18 @@ def test_evaluate_cross_play_bundle_runs_directed_matchups(tmp_path, monkeypatch
         tested_agent_name,
         opponent_agent_name,
         game_id,
+        matchup_game_index,
         game_config,
         eval_seed_base,
     ):
-        calls.append((tested_agent_name, opponent_agent_name, game_id))
+        calls.append(
+            (
+                tested_agent_name,
+                opponent_agent_name,
+                game_id,
+                matchup_game_index,
+            )
+        )
         return {
             "training_run": bundle.training_run_directory.name,
             "model_seed": bundle.seed,
@@ -199,6 +213,8 @@ def test_evaluate_cross_play_bundle_runs_directed_matchups(tmp_path, monkeypatch
             "experiment_id": bundle.experiment_id,
             "experiment_name": f"{tested_agent_name}_vs_{opponent_agent_name}",
             "game_id": game_id,
+            "matchup_game_index": matchup_game_index,
+            "evaluation_seed": 123_456,
             "agent_name": tested_agent_name,
             "opponent_name": opponent_agent_name,
             "final_stack": 110,
@@ -250,7 +266,17 @@ def test_evaluate_cross_play_bundle_runs_directed_matchups(tmp_path, monkeypatch
 
     assert len(rows) == 4
     assert len(calls) == 4
-    assert (ADAPTIVE_MC_AGENT, ADAPTIVE_MC_AGENT, 0) not in calls
-    assert calls[0] == (ADAPTIVE_MC_AGENT, ADAPTIVE_Q_LEARNING_AGENT, 0)
+    assert all(
+        tested_agent != opponent_agent
+        for tested_agent, opponent_agent, _, _ in calls
+    )
+    assert calls[0] == (
+        ADAPTIVE_MC_AGENT,
+        ADAPTIVE_Q_LEARNING_AGENT,
+        0,
+        0,
+    )
+    assert [call[2] for call in calls] == list(range(4))
+    assert [call[3] for call in calls] == [0, 1, 0, 1]
     assert rows[0]["evaluation_type"] == "cross_play"
     assert "cross_play_matchup_type" in CROSS_PLAY_EVALUATION_FIELDNAMES
