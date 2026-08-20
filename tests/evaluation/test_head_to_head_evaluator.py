@@ -20,11 +20,11 @@ from src.evaluation.runners.head_to_head_evaluator import (
     write_head_to_head_rows,
 )
 from src.experiments.evaluation.run_head_to_head_evaluation import parse_args
-from src.players.learned.adaptive_player import AdaptivePlayer
 from src.players.baselines.always_call_player import AlwaysCallPlayer
 from src.players.baselines.always_raise_player import AlwaysRaisePlayer
-from src.players.learned.fixed_policy_player import FixedPolicyPlayer
 from src.players.baselines.rule_based_player import RuleBasedPlayer
+from src.players.learned.adaptive_player import AdaptivePlayer
+from src.players.learned.fixed_policy_player import FixedPolicyPlayer
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
@@ -173,6 +173,7 @@ def test_evaluate_head_to_head_bundle_runs_all_matchups(
                 kwargs["tested_agent_name"],
                 kwargs["opponent_name"],
                 kwargs["game_id"],
+                kwargs["matchup_game_index"],
             )
         )
         return {
@@ -184,6 +185,8 @@ def test_evaluate_head_to_head_bundle_runs_all_matchups(
                 f"{kwargs['tested_agent_name']}_vs_{kwargs['opponent_name']}"
             ),
             "game_id": kwargs["game_id"],
+            "matchup_game_index": kwargs["matchup_game_index"],
+            "evaluation_seed": 123_456,
             "agent_name": kwargs["tested_agent_name"],
             "opponent_name": kwargs["opponent_name"],
             "final_stack": 120,
@@ -232,6 +235,7 @@ def test_evaluate_head_to_head_bundle_runs_all_matchups(
     assert rows[0]["experiment_name"] == "always_call_vs_always_call"
     assert rows[-1]["experiment_name"] == "always_raise_vs_always_raise"
     assert [row["game_id"] for row in rows] == list(range(8))
+    assert [call[3] for call in calls] == [0, 1] * 4
 
 
 def test_write_head_to_head_rows_creates_csv(tmp_path):

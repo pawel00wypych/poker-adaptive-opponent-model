@@ -1,8 +1,8 @@
 import csv
 import random
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 import numpy as np
 from pypokerengine.api.game import (
@@ -10,8 +10,8 @@ from pypokerengine.api.game import (
     start_poker,
 )
 
-from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.agents.double_q_learning_agent import DoubleQLearningAgent
+from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.agents.q_learning_agent import QLearningAgent
 from src.agents.sarsa_agent import SarsaAgent
 from src.config import GameConfig
@@ -23,9 +23,12 @@ from src.evaluation.player_factory import (
     EvaluationAgentLoaders,
     build_evaluation_player,
 )
-from src.players.opponents.factory import build_opponent
+from src.evaluation.runners.evaluation_seed import (
+    build_paired_evaluation_seed,
+)
 from src.players.learned.adaptive_player import AdaptivePlayer
 from src.players.learned.oracle_player import OraclePlayer
+from src.players.opponents.factory import build_opponent
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
@@ -731,13 +734,13 @@ def build_game_seed(
     eval_seed_base: int,
     model_seed: int,
     checkpoint_episode: int,
-    game_id: int,
+    matchup_game_index: int,
 ) -> int:
-    return (
-        eval_seed_base
-        + model_seed * 1_000_000
-        + checkpoint_episode * 1_000
-        + game_id
+    return build_paired_evaluation_seed(
+        eval_seed_base=eval_seed_base,
+        model_seed=model_seed,
+        checkpoint_episode=checkpoint_episode,
+        matchup_game_index=matchup_game_index,
     )
 
 
@@ -747,6 +750,8 @@ def build_result_row(
     tested_agent_name: str,
     opponent_name: str,
     game_id: int,
+    matchup_game_index: int,
+    evaluation_seed: int,
     final_stack: int,
     initial_stack: int,
     hands_played: int,
@@ -776,6 +781,8 @@ def build_result_row(
             f"{tested_agent_name}_vs_{opponent_name}"
         ),
         "game_id": game_id,
+        "matchup_game_index": matchup_game_index,
+        "evaluation_seed": evaluation_seed,
         "agent_name": tested_agent_name,
         "opponent_name": opponent_name,
         "final_stack": final_stack,
@@ -805,6 +812,7 @@ def evaluate_single_game(
     tested_agent_name: str,
     opponent_name: str,
     game_id: int,
+    matchup_game_index: int,
     game_config: GameConfig,
     eval_seed_base: int,
 ) -> dict:
@@ -812,7 +820,7 @@ def evaluate_single_game(
         eval_seed_base=eval_seed_base,
         model_seed=bundle.seed,
         checkpoint_episode=bundle.checkpoint_episode,
-        game_id=game_id,
+        matchup_game_index=matchup_game_index,
     )
 
     set_evaluation_seed(game_seed)
@@ -879,6 +887,8 @@ def evaluate_single_game(
                 tested_agent_name=tested_agent_name,
                 opponent_name=opponent_name,
                 game_id=game_id,
+                matchup_game_index=matchup_game_index,
+                evaluation_seed=game_seed,
                 final_stack=player_result["stack"],
                 initial_stack=game_config.initial_stack,
                 hands_played=hands_played,
@@ -907,7 +917,7 @@ def evaluate_bundle(
 
     for tested_agent_name in config.tested_agents:
         for opponent_name in config.opponents:
-            for _ in range(config.games_per_matchup):
+            for matchup_game_index in range(config.games_per_matchup):
                 row = evaluate_single_game(
                     bundle=bundle,
                     tested_agent_name=(
@@ -915,6 +925,7 @@ def evaluate_bundle(
                     ),
                     opponent_name=opponent_name,
                     game_id=game_id,
+                    matchup_game_index=matchup_game_index,
                     game_config=game_config,
                     eval_seed_base=config.eval_seed_base,
                 )
@@ -932,6 +943,8 @@ CHECKPOINT_EVALUATION_FIELDNAMES = [
     "experiment_id",
     "experiment_name",
     "game_id",
+    "matchup_game_index",
+    "evaluation_seed",
     "agent_name",
     "opponent_name",
     "final_stack",

@@ -162,17 +162,23 @@ def test_build_stress_test_seed_is_deterministic_and_distinct():
         eval_seed_base=600_000,
         model_seed=42,
         checkpoint_episode=1000,
-        game_id=0,
+        matchup_game_index=0,
+    )
+    repeated = build_stress_test_seed(
+        eval_seed_base=600_000,
+        model_seed=42,
+        checkpoint_episode=1000,
+        matchup_game_index=0,
     )
     second = build_stress_test_seed(
         eval_seed_base=600_000,
         model_seed=42,
         checkpoint_episode=1000,
-        game_id=1,
+        matchup_game_index=1,
     )
 
-    assert first == 42_000_000 + 1_000_000 + 600_000
-    assert second == first + 1
+    assert first == repeated
+    assert second != first
 
 
 def test_evaluate_stress_test_bundle_runs_all_matchups(tmp_path, monkeypatch):
@@ -184,10 +190,18 @@ def test_evaluate_stress_test_bundle_runs_all_matchups(tmp_path, monkeypatch):
         tested_agent_name,
         opponent_name,
         game_id,
+        matchup_game_index,
         game_config,
         eval_seed_base,
     ):
-        calls.append((tested_agent_name, opponent_name, game_id))
+        calls.append(
+            (
+                tested_agent_name,
+                opponent_name,
+                game_id,
+                matchup_game_index,
+            )
+        )
         return {
             "training_run": bundle.training_run_directory.name,
             "model_seed": bundle.seed,
@@ -195,6 +209,8 @@ def test_evaluate_stress_test_bundle_runs_all_matchups(tmp_path, monkeypatch):
             "experiment_id": bundle.experiment_id,
             "experiment_name": f"{tested_agent_name}_vs_{opponent_name}",
             "game_id": game_id,
+            "matchup_game_index": matchup_game_index,
+            "evaluation_seed": 123_456,
             "agent_name": tested_agent_name,
             "opponent_name": opponent_name,
             "final_stack": 110,
@@ -243,5 +259,7 @@ def test_evaluate_stress_test_bundle_runs_all_matchups(tmp_path, monkeypatch):
 
     assert len(rows) == 8
     assert len(calls) == 8
+    assert [call[2] for call in calls] == list(range(8))
+    assert [call[3] for call in calls] == [0, 1] * 4
     assert rows[0]["evaluation_type"] == "stress_test"
     assert "stress_opponent_type" in STRESS_TEST_EVALUATION_FIELDNAMES

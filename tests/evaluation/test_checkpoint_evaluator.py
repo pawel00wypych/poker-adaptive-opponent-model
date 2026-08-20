@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from src.evaluation.runners.checkpoint_evaluator import (
+    CheckpointEvaluationConfig,
     ModelBundle,
     build_game_seed,
     build_model_bundle,
@@ -11,6 +12,7 @@ from src.evaluation.runners.checkpoint_evaluator import (
     checkpoint_model_path,
     discover_model_bundles,
     discover_seed_directories,
+    evaluate_bundle,
     parse_seed_from_directory,
 )
 
@@ -270,14 +272,14 @@ def test_build_game_seed_is_deterministic():
         eval_seed_base=100_000,
         model_seed=42,
         checkpoint_episode=5000,
-        game_id=7,
+        matchup_game_index=7,
     )
 
     second = build_game_seed(
         eval_seed_base=100_000,
         model_seed=42,
         checkpoint_episode=5000,
-        game_id=7,
+        matchup_game_index=7,
     )
 
     assert first == second
@@ -288,14 +290,14 @@ def test_build_game_seed_changes_for_different_game():
         eval_seed_base=100_000,
         model_seed=42,
         checkpoint_episode=5000,
-        game_id=7,
+        matchup_game_index=7,
     )
 
     second = build_game_seed(
         eval_seed_base=100_000,
         model_seed=42,
         checkpoint_episode=5000,
-        game_id=8,
+        matchup_game_index=8,
     )
 
     assert first != second
@@ -319,6 +321,8 @@ def test_build_result_row_calculates_profit_fields(
         tested_agent_name="adaptive_mc",
         opponent_name="calling",
         game_id=3,
+        matchup_game_index=1,
+        evaluation_seed=123_456,
         final_stack=250,
         initial_stack=200,
         hands_played=20,
@@ -349,13 +353,64 @@ def test_build_result_row_calculates_profit_fields(
     assert row["ended_by_round_limit"] == 0
     assert row["model_seed"] == 42
     assert row["checkpoint_episode"] == 5000
+    assert row["game_id"] == 3
+    assert row["matchup_game_index"] == 1
+    assert row["evaluation_seed"] == 123_456
     assert row["final_predicted_type"] == "calling"
 
-from src.evaluation.constants import (
-    SUPPORTED_TESTED_AGENTS,
-    CROSS_POLICY_AGENT_TO_POLICY_TYPE,
-)
 
+def test_evaluate_bundle_restarts_game_index_for_each_matchup(
+    tmp_path,
+    monkeypatch,
+):
+    calls = []
+
+    def fake_evaluate_single_game(**kwargs):
+        calls.append(
+            (
+                kwargs["tested_agent_name"],
+                kwargs["opponent_name"],
+                kwargs["game_id"],
+                kwargs["matchup_game_index"],
+            )
+        )
+        return kwargs
+
+    monkeypatch.setattr(
+        "src.evaluation.runners.checkpoint_evaluator.evaluate_single_game",
+        fake_evaluate_single_game,
+    )
+
+    bundle = ModelBundle(
+        training_run_directory=tmp_path / "run",
+        seed=42,
+        checkpoint_episode=5000,
+        unknown_model_path=Path("unknown.pkl"),
+        tight_model_path=Path("tight.pkl"),
+        aggressive_model_path=Path("aggressive.pkl"),
+        calling_model_path=Path("calling.pkl"),
+    )
+    config = CheckpointEvaluationConfig(
+        games_per_matchup=2,
+        opponents=("calling", "tight"),
+        tested_agents=("adaptive_mc", "oracle_mc"),
+        eval_seed_base=100_000,
+        output_path=tmp_path / "evaluation.csv",
+    )
+
+    rows = evaluate_bundle(
+        bundle=bundle,
+        config=config,
+    )
+
+    assert len(rows) == 8
+    assert [call[2] for call in calls] == list(range(8))
+    assert [call[3] for call in calls] == [0, 1] * 4
+
+from src.evaluation.constants import (
+    CROSS_POLICY_AGENT_TO_POLICY_TYPE,
+    SUPPORTED_TESTED_AGENTS,
+)
 from src.evaluation.runners.checkpoint_evaluator import (
     get_classifier_metrics,
 )
