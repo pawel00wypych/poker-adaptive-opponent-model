@@ -36,6 +36,10 @@ def validation_checks_to_dataframe(
                 "checkpoint_episode",
                 "observed_value",
                 "threshold",
+                "sample_size",
+                "standard_error",
+                "ci_lower",
+                "ci_upper",
                 "message",
             ]
         )
@@ -54,12 +58,26 @@ def _format_report_table(df: pd.DataFrame) -> pd.DataFrame:
             "checkpoint_episode",
             "observed_value",
             "threshold",
+            "sample_size",
+            "standard_error",
+            "ci_lower",
+            "ci_upper",
             "message",
         ]
     ].copy()
 
-    for column in ["observed_value", "threshold"]:
+    for column in [
+        "observed_value",
+        "threshold",
+        "standard_error",
+        "ci_lower",
+        "ci_upper",
+    ]:
         table[column] = table[column].map(_format_float)
+
+    table["sample_size"] = table["sample_size"].map(
+        lambda value: "n/a" if pd.isna(value) else str(int(value))
+    )
 
     table["agent_name"] = table["agent_name"].map(
         lambda value: display_agent_name(value)
