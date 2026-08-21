@@ -16,7 +16,7 @@ from src.evaluation.validation import (
     VALIDATION_MODE_HEAD_TO_HEAD,
     ValidationThresholds,
 )
-from src.evaluation.validation.checkpoint_validation import (
+from src.evaluation.validation.evaluation_validation import (
     validate_classifier_quality,
     validate_expected_algorithms_present,
     validate_oracle_not_worse_than_adaptive,
@@ -44,7 +44,8 @@ def make_best_row(
         "training_run": "sample_run",
         "agent_name": agent_name,
         "opponent_name": opponent_name,
-        "checkpoint_episode": 1000,
+        "model_source": "final",
+        "training_episode": 1000,
         "seeds": 2,
         "games": 20,
         "mean_profit_bb": mean_profit_bb,
@@ -133,7 +134,7 @@ def test_available_algorithm_specs_detects_present_algorithms_only():
     ]
 
 
-def test_checkpoint_coverage_requires_all_three_algorithm_roles():
+def test_training_episode_coverage_requires_all_three_algorithm_roles():
     spec = ALGORITHM_VALIDATION_SPECS[0]
     rows = pd.DataFrame(
         [
@@ -165,7 +166,7 @@ def test_checkpoint_coverage_requires_all_three_algorithm_roles():
     assert not check.details["present"]
 
 
-def test_checkpoint_coverage_passes_for_complete_algorithm_triplet():
+def test_training_episode_coverage_passes_for_complete_algorithm_triplet():
     spec = ALGORITHM_VALIDATION_SPECS[2]
     rows = pd.DataFrame(
         [
@@ -250,7 +251,7 @@ def test_head_to_head_coverage_does_not_require_oracle_role():
 
 
 def test_head_to_head_results_use_mode_specific_coverage_roles(tmp_path):
-    from src.evaluation.validation import validate_checkpoint_results
+    from src.evaluation.validation import validate_evaluation_results
     from tests.evaluation.test_experiment_validation import (
         write_sample_head_to_head_csv,
     )
@@ -258,16 +259,14 @@ def test_head_to_head_results_use_mode_specific_coverage_roles(tmp_path):
     csv_path = tmp_path / "head_to_head_results.csv"
     write_sample_head_to_head_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_HEAD_TO_HEAD,
         algorithm_specs=(ALGORITHM_VALIDATION_SPECS[0],),
     )
 
     coverage_check = next(
-        check
-        for check in report.checks
-        if check.category == "algorithm_coverage"
+        check for check in report.checks if check.category == "algorithm_coverage"
     )
     assert coverage_check.status == STATUS_PASS
     assert coverage_check.details["required_roles"] == [
@@ -277,9 +276,7 @@ def test_head_to_head_results_use_mode_specific_coverage_roles(tmp_path):
     assert coverage_check.details["missing_agents"] == []
 
     matchup_coverage_check = next(
-        check
-        for check in report.checks
-        if check.category == "matchup_coverage"
+        check for check in report.checks if check.category == "matchup_coverage"
     )
     assert matchup_coverage_check.status == STATUS_PASS
     assert matchup_coverage_check.details["required_matchup_count"] == 4
@@ -300,7 +297,7 @@ def test_algorithm_coverage_passes_for_all_complete_algorithms():
     assert all(check.details["missing_agents"] == [] for check in checks)
 
 
-def test_checkpoint_matchup_coverage_reports_exact_missing_pair():
+def test_training_episode_matchup_coverage_reports_exact_missing_pair():
     spec = ALGORITHM_VALIDATION_SPECS[0]
     rows = make_algorithm_matchup_rows(
         spec,
@@ -357,7 +354,7 @@ def test_generalization_matchup_coverage_uses_all_extreme_opponents():
 
 
 def test_generalization_results_use_mode_specific_matchup_coverage(tmp_path):
-    from src.evaluation.validation import validate_checkpoint_results
+    from src.evaluation.validation import validate_evaluation_results
     from tests.evaluation.test_experiment_validation import (
         write_sample_generalization_csv,
     )
@@ -365,16 +362,14 @@ def test_generalization_results_use_mode_specific_matchup_coverage(tmp_path):
     csv_path = tmp_path / "generalization_results.csv"
     write_sample_generalization_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_GENERALIZATION,
         algorithm_specs=(ALGORITHM_VALIDATION_SPECS[0],),
     )
 
     matchup_coverage_check = next(
-        check
-        for check in report.checks
-        if check.category == "matchup_coverage"
+        check for check in report.checks if check.category == "matchup_coverage"
     )
     assert matchup_coverage_check.status == STATUS_PASS
     assert matchup_coverage_check.details["required_matchup_count"] == 9
@@ -421,17 +416,13 @@ def test_selected_matchup_coverage_warns_in_non_strict_mode():
 
     assert check.status == STATUS_WARNING
     assert check.details["missing_matchup_count"] == 3
-    assert {
-        matchup["agent_name"]
-        for matchup in check.details["missing_matchups"]
-    } == {
+    assert {matchup["agent_name"] for matchup in check.details["missing_matchups"]} == {
         spec.adaptive_agent,
         spec.oracle_agent,
         spec.general_policy_agent,
     }
     assert {
-        matchup["opponent_name"]
-        for matchup in check.details["missing_matchups"]
+        matchup["opponent_name"] for matchup in check.details["missing_matchups"]
     } == {"calling"}
 
 
@@ -551,39 +542,36 @@ def test_missing_algorithm_rows_do_not_create_unrelated_checks():
     assert checks[0].algorithm_name == ALGORITHM_MONTE_CARLO
 
 
-def test_validate_checkpoint_results_require_all_algorithms_fails_when_missing(tmp_path):
+def test_validate_evaluation_results_require_all_algorithms_fails_when_missing(
+    tmp_path,
+):
     from src.evaluation.validation import (
         STATUS_FAIL,
-        validate_checkpoint_results,
+        validate_evaluation_results,
     )
     from tests.evaluation.test_experiment_validation import (
-        write_sample_checkpoint_csv,
+        write_sample_final_model_csv,
     )
 
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         require_all_algorithms=True,
     )
 
     coverage_checks = [
-        check
-        for check in report.checks
-        if check.category == "algorithm_coverage"
+        check for check in report.checks if check.category == "algorithm_coverage"
     ]
 
     assert len(coverage_checks) == 4
     assert any(
-        check.algorithm_name == ALGORITHM_Q_LEARNING
-        and check.status == STATUS_FAIL
+        check.algorithm_name == ALGORITHM_Q_LEARNING and check.status == STATUS_FAIL
         for check in coverage_checks
     )
     matchup_coverage_checks = [
-        check
-        for check in report.checks
-        if check.category == "matchup_coverage"
+        check for check in report.checks if check.category == "matchup_coverage"
     ]
     assert len(matchup_coverage_checks) == 4
     q_learning_matchup_coverage = next(
@@ -596,22 +584,24 @@ def test_validate_checkpoint_results_require_all_algorithms_fails_when_missing(t
     assert not report.passed
 
 
-def test_validate_checkpoint_results_selected_algorithms_adds_coverage_warnings(tmp_path):
+def test_validate_evaluation_results_selected_algorithms_adds_coverage_warnings(
+    tmp_path,
+):
     from src.evaluation.algorithm_metadata import (
         ALGORITHM_VALIDATION_SPEC_BY_KEY,
     )
     from src.evaluation.validation import (
         STATUS_WARNING,
-        validate_checkpoint_results,
+        validate_evaluation_results,
     )
     from tests.evaluation.test_experiment_validation import (
-        write_sample_checkpoint_csv,
+        write_sample_final_model_csv,
     )
 
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         algorithm_specs=(
             ALGORITHM_VALIDATION_SPEC_BY_KEY["monte_carlo"],
@@ -620,15 +610,12 @@ def test_validate_checkpoint_results_selected_algorithms_adds_coverage_warnings(
     )
 
     coverage_checks = [
-        check
-        for check in report.checks
-        if check.category == "algorithm_coverage"
+        check for check in report.checks if check.category == "algorithm_coverage"
     ]
 
     assert len(coverage_checks) == 2
     assert any(
-        check.algorithm_name == ALGORITHM_Q_LEARNING
-        and check.status == STATUS_WARNING
+        check.algorithm_name == ALGORITHM_Q_LEARNING and check.status == STATUS_WARNING
         for check in coverage_checks
     )
     monte_carlo_check = next(
@@ -641,9 +628,7 @@ def test_validate_checkpoint_results_selected_algorithms_adds_coverage_warnings(
     assert monte_carlo_check.details["missing_agents"] == ["policy_general_mc"]
 
     matchup_coverage_checks = [
-        check
-        for check in report.checks
-        if check.category == "matchup_coverage"
+        check for check in report.checks if check.category == "matchup_coverage"
     ]
     assert len(matchup_coverage_checks) == 2
     monte_carlo_matchup_coverage = next(

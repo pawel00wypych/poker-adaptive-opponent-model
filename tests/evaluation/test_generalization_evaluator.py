@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-from src.evaluation.runners.checkpoint_evaluator import ModelBundle
 from src.evaluation.runners.generalization_evaluator import (
     ADAPTIVE_MC_AGENT,
     ALWAYS_CALL_AGENT,
@@ -25,6 +24,7 @@ from src.evaluation.runners.generalization_evaluator import (
     validate_generalization_opponent,
     write_generalization_rows,
 )
+from src.evaluation.runners.model_evaluator import ModelBundle
 from src.experiments.evaluation.run_generalization_evaluation import parse_args
 from src.players.baselines.always_call_player import AlwaysCallPlayer
 from src.players.baselines.always_raise_player import AlwaysRaisePlayer
@@ -59,7 +59,8 @@ def sample_bundle(tmp_path: Path) -> ModelBundle:
     return ModelBundle(
         training_run_directory=tmp_path / "run",
         seed=42,
-        checkpoint_episode=2000,
+        episode=2000,
+        model_source="final",
         unknown_model_path=Path("unknown.pkl"),
         tight_model_path=Path("tight.pkl"),
         aggressive_model_path=Path("aggressive.pkl"),
@@ -80,7 +81,8 @@ def sample_raw_row() -> dict:
     return {
         "training_run": "run",
         "model_seed": 42,
-        "checkpoint_episode": 2000,
+        "model_source": "final",
+        "training_episode": 2000,
         "experiment_id": "seed_42_episodes_2000",
         "experiment_name": "adaptive_mc_vs_calling_extreme",
         "game_id": 0,
@@ -113,18 +115,14 @@ def sample_raw_row() -> dict:
 
 
 def test_build_generalization_opponent_builds_calling_extreme():
-    player = build_generalization_opponent(
-        "calling_extreme"
-    )
+    player = build_generalization_opponent("calling_extreme")
 
     assert isinstance(player, CallingExtremePlayer)
     assert player.player_name == "calling_extreme"
 
 
 def test_build_generalization_opponent_builds_aggressive_extreme():
-    player = build_generalization_opponent(
-        "aggressive_extreme"
-    )
+    player = build_generalization_opponent("aggressive_extreme")
 
     assert isinstance(player, AggressiveExtremePlayer)
     assert player.player_name == "aggressive_extreme"
@@ -157,8 +155,6 @@ def test_build_generalization_adaptive_uses_base_variant_family(
 
     assert isinstance(player, AdaptivePlayer)
     assert player.expected_opponent_type == OPPONENT_TYPE_CALLING
-
-
 
 
 def test_all_algorithm_oracles_are_supported_generalization_agents():
@@ -236,8 +232,6 @@ def test_build_generalization_always_raise_baseline(tmp_path):
 
     assert isinstance(player, AlwaysRaisePlayer)
     assert player.player_name == ALWAYS_RAISE_AGENT
-
-
 
 
 def test_build_generalization_always_call_baseline(tmp_path):
@@ -337,9 +331,7 @@ def test_write_generalization_rows_creates_csv_with_metadata(tmp_path):
         rows=[row],
     )
 
-    text = output_path.read_text(
-        encoding="utf-8"
-    )
+    text = output_path.read_text(encoding="utf-8")
 
     assert "adaptive_mc_vs_calling_extreme" in text
     assert "evaluation_type" in text
@@ -352,13 +344,11 @@ def test_parse_args_uses_expected_defaults():
         [
             "--training-run-dir",
             "results/training_runs/run",
-            "--checkpoint-episodes",
-            "2000",
         ]
     )
 
     assert args.training_run_dir == "results/training_runs/run"
-    assert args.checkpoint_episodes == [2000]
+    assert not hasattr(args, "checkpoint_episodes")
     assert args.agents == list(DEFAULT_GENERALIZATION_AGENTS)
     assert args.opponents == list(DEFAULT_GENERALIZATION_OPPONENTS)
     assert ORACLE_MC_AGENT in args.agents
@@ -369,8 +359,6 @@ def test_parse_args_accepts_custom_generalization_matchups():
         [
             "--training-run-dir",
             "results/training_runs/run",
-            "--checkpoint-episodes",
-            "2000",
             "--agents",
             "policy_general_mc",
             "adaptive_mc",

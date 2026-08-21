@@ -51,7 +51,7 @@ REQUIRED_RESULT_COLUMNS = {
 def make_game_row(
     *,
     seed,
-    checkpoint,
+    training_episode,
     agent,
     opponent,
     game_id,
@@ -62,7 +62,8 @@ def make_game_row(
     row.update(
         {
             "model_seed": seed,
-            "checkpoint_episode": checkpoint,
+            "model_source": "final",
+            "training_episode": training_episode,
             "experiment_name": f"{agent}_vs_{opponent}",
             "agent_name": agent,
             "opponent_name": opponent,
@@ -82,14 +83,14 @@ def add_group(
     agent,
     opponent,
     profits,
-    checkpoint=1000,
+    training_episode=1000,
     seeds=(42, 123),
 ):
     for index, seed in enumerate(seeds):
         rows.append(
             make_game_row(
                 seed=seed,
-                checkpoint=checkpoint,
+                training_episode=training_episode,
                 agent=agent,
                 opponent=opponent,
                 game_id=index,
@@ -102,25 +103,64 @@ def write_sample_results_csv(path):
     rows = []
     # calling: Q-learning is best, MC is second.
     add_group(rows, agent="adaptive_mc", opponent="calling", profits=(10.0, 10.0))
-    add_group(rows, agent="adaptive_q_learning", opponent="calling", profits=(12.0, 12.0))
+    add_group(
+        rows, agent="adaptive_q_learning", opponent="calling", profits=(12.0, 12.0)
+    )
     add_group(rows, agent="adaptive_sarsa", opponent="calling", profits=(11.0, 11.0))
-    add_group(rows, agent="adaptive_double_q_learning", opponent="calling", profits=(9.0, 9.0))
+    add_group(
+        rows, agent="adaptive_double_q_learning", opponent="calling", profits=(9.0, 9.0)
+    )
     add_group(rows, agent="rule_based", opponent="calling", profits=(0.0, 0.0))
     add_group(rows, agent="oracle_mc", opponent="calling", profits=(14.0, 14.0))
     add_group(rows, agent="oracle_q_learning", opponent="calling", profits=(15.0, 15.0))
     add_group(rows, agent="oracle_sarsa", opponent="calling", profits=(14.0, 14.0))
-    add_group(rows, agent="oracle_double_q_learning", opponent="calling", profits=(13.0, 13.0))
+    add_group(
+        rows, agent="oracle_double_q_learning", opponent="calling", profits=(13.0, 13.0)
+    )
 
     # aggressive_extreme: Double Q-learning is best and beats MC.
-    add_group(rows, agent="adaptive_mc", opponent="aggressive_extreme", profits=(-8.0, -8.0))
-    add_group(rows, agent="adaptive_q_learning", opponent="aggressive_extreme", profits=(-2.0, -2.0))
-    add_group(rows, agent="adaptive_sarsa", opponent="aggressive_extreme", profits=(-3.0, -3.0))
-    add_group(rows, agent="adaptive_double_q_learning", opponent="aggressive_extreme", profits=(1.0, 1.0))
-    add_group(rows, agent="rule_based", opponent="aggressive_extreme", profits=(-10.0, -10.0))
-    add_group(rows, agent="oracle_mc", opponent="aggressive_extreme", profits=(2.0, 2.0))
-    add_group(rows, agent="oracle_q_learning", opponent="aggressive_extreme", profits=(3.0, 3.0))
-    add_group(rows, agent="oracle_sarsa", opponent="aggressive_extreme", profits=(2.5, 2.5))
-    add_group(rows, agent="oracle_double_q_learning", opponent="aggressive_extreme", profits=(4.0, 4.0))
+    add_group(
+        rows, agent="adaptive_mc", opponent="aggressive_extreme", profits=(-8.0, -8.0)
+    )
+    add_group(
+        rows,
+        agent="adaptive_q_learning",
+        opponent="aggressive_extreme",
+        profits=(-2.0, -2.0),
+    )
+    add_group(
+        rows,
+        agent="adaptive_sarsa",
+        opponent="aggressive_extreme",
+        profits=(-3.0, -3.0),
+    )
+    add_group(
+        rows,
+        agent="adaptive_double_q_learning",
+        opponent="aggressive_extreme",
+        profits=(1.0, 1.0),
+    )
+    add_group(
+        rows, agent="rule_based", opponent="aggressive_extreme", profits=(-10.0, -10.0)
+    )
+    add_group(
+        rows, agent="oracle_mc", opponent="aggressive_extreme", profits=(2.0, 2.0)
+    )
+    add_group(
+        rows,
+        agent="oracle_q_learning",
+        opponent="aggressive_extreme",
+        profits=(3.0, 3.0),
+    )
+    add_group(
+        rows, agent="oracle_sarsa", opponent="aggressive_extreme", profits=(2.5, 2.5)
+    )
+    add_group(
+        rows,
+        agent="oracle_double_q_learning",
+        opponent="aggressive_extreme",
+        profits=(4.0, 4.0),
+    )
 
     pd.DataFrame(rows).to_csv(path, index=False)
 
@@ -153,7 +193,8 @@ def test_algorithm_ranking_and_deltas_are_computed_per_opponent():
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 1000,
+                "model_source": "final",
+                "training_episode": 1000,
                 "agent_name": "adaptive_mc",
                 "mean_profit_bb": 10.0,
                 "bb_per_100": 20.0,
@@ -164,7 +205,8 @@ def test_algorithm_ranking_and_deltas_are_computed_per_opponent():
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 1000,
+                "model_source": "final",
+                "training_episode": 1000,
                 "agent_name": "adaptive_q_learning",
                 "mean_profit_bb": 12.0,
                 "bb_per_100": 24.0,
@@ -175,7 +217,8 @@ def test_algorithm_ranking_and_deltas_are_computed_per_opponent():
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 1000,
+                "model_source": "final",
+                "training_episode": 1000,
                 "agent_name": "rule_based",
                 "mean_profit_bb": 1.0,
                 "bb_per_100": 2.0,
@@ -186,7 +229,8 @@ def test_algorithm_ranking_and_deltas_are_computed_per_opponent():
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 1000,
+                "model_source": "final",
+                "training_episode": 1000,
                 "agent_name": "oracle_mc",
                 "mean_profit_bb": 14.0,
                 "bb_per_100": 28.0,
@@ -197,7 +241,8 @@ def test_algorithm_ranking_and_deltas_are_computed_per_opponent():
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 1000,
+                "model_source": "final",
+                "training_episode": 1000,
                 "agent_name": "oracle_q_learning",
                 "mean_profit_bb": 15.0,
                 "bb_per_100": 30.0,
@@ -227,10 +272,42 @@ def test_algorithm_ranking_and_deltas_are_computed_per_opponent():
 def test_global_ranking_uses_average_profit_and_average_rank():
     rows = pd.DataFrame(
         [
-            {"algorithm": ALGORITHM_MONTE_CARLO, "rank": 2, "mean_profit_bb": 10.0, "bb_per_100": 20.0, "win_rate": 80.0, "bust_rate": 5.0, "mean_profit_bb_std_across_seeds": 1.0},
-            {"algorithm": ALGORITHM_MONTE_CARLO, "rank": 4, "mean_profit_bb": -8.0, "bb_per_100": -16.0, "win_rate": 20.0, "bust_rate": 80.0, "mean_profit_bb_std_across_seeds": 2.0},
-            {"algorithm": ALGORITHM_DOUBLE_Q_LEARNING, "rank": 1, "mean_profit_bb": 9.0, "bb_per_100": 18.0, "win_rate": 90.0, "bust_rate": 4.0, "mean_profit_bb_std_across_seeds": 1.0},
-            {"algorithm": ALGORITHM_DOUBLE_Q_LEARNING, "rank": 1, "mean_profit_bb": 1.0, "bb_per_100": 2.0, "win_rate": 55.0, "bust_rate": 45.0, "mean_profit_bb_std_across_seeds": 1.0},
+            {
+                "algorithm": ALGORITHM_MONTE_CARLO,
+                "rank": 2,
+                "mean_profit_bb": 10.0,
+                "bb_per_100": 20.0,
+                "win_rate": 80.0,
+                "bust_rate": 5.0,
+                "mean_profit_bb_std_across_seeds": 1.0,
+            },
+            {
+                "algorithm": ALGORITHM_MONTE_CARLO,
+                "rank": 4,
+                "mean_profit_bb": -8.0,
+                "bb_per_100": -16.0,
+                "win_rate": 20.0,
+                "bust_rate": 80.0,
+                "mean_profit_bb_std_across_seeds": 2.0,
+            },
+            {
+                "algorithm": ALGORITHM_DOUBLE_Q_LEARNING,
+                "rank": 1,
+                "mean_profit_bb": 9.0,
+                "bb_per_100": 18.0,
+                "win_rate": 90.0,
+                "bust_rate": 4.0,
+                "mean_profit_bb_std_across_seeds": 1.0,
+            },
+            {
+                "algorithm": ALGORITHM_DOUBLE_Q_LEARNING,
+                "rank": 1,
+                "mean_profit_bb": 1.0,
+                "bb_per_100": 2.0,
+                "win_rate": 55.0,
+                "bust_rate": 45.0,
+                "mean_profit_bb_std_across_seeds": 1.0,
+            },
         ]
     )
 
@@ -245,7 +322,9 @@ def test_build_algorithm_comparison_from_raw_results_csv(tmp_path):
     input_path = tmp_path / "results.csv"
     write_sample_results_csv(input_path)
 
-    report, global_ranking, algorithm_by_opponent, deltas = build_algorithm_comparison(input_path)
+    report, global_ranking, algorithm_by_opponent, deltas = build_algorithm_comparison(
+        input_path
+    )
 
     assert report.overview["algorithms"] == [
         ALGORITHM_MONTE_CARLO,
@@ -309,7 +388,9 @@ def test_write_algorithm_comparison_outputs_creates_all_formats_and_charts(tmp_p
     assert "Oracle mean profit minus adaptive mean profit" in markdown
     assert ORACLE_GAP_BB_COLUMN in markdown
 
-    data = json.loads((output_dir / "algorithm_comparison.json").read_text(encoding="utf-8"))
+    data = json.loads(
+        (output_dir / "algorithm_comparison.json").read_text(encoding="utf-8")
+    )
     assert data["overview"]["algorithm_summary_rows"] == 8
     assert SEED_CI_LOWER_COLUMN in data["algorithm_by_opponent"][0]
 

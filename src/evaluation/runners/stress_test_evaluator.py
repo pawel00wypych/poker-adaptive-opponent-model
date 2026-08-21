@@ -29,8 +29,11 @@ from src.evaluation.player_factory import (
     build_evaluation_player,
     build_scripted_evaluation_player,
 )
-from src.evaluation.runners.checkpoint_evaluator import (
-    CHECKPOINT_EVALUATION_FIELDNAMES,
+from src.evaluation.runners.evaluation_seed import (
+    build_paired_evaluation_seed,
+)
+from src.evaluation.runners.model_evaluator import (
+    MODEL_EVALUATION_FIELDNAMES,
     ModelBundle,
     build_result_row,
     get_classifier_metrics,
@@ -43,9 +46,6 @@ from src.evaluation.runners.checkpoint_evaluator import (
     load_q_learning_eval_agent,
     load_sarsa_adaptive_agents,
     load_sarsa_eval_agent,
-)
-from src.evaluation.runners.evaluation_seed import (
-    build_paired_evaluation_seed,
 )
 
 STRESS_TEST_EVALUATION_TYPE = "stress_test"
@@ -89,7 +89,7 @@ STRESS_TEST_METADATA_FIELDNAMES = [
 ]
 
 STRESS_TEST_EVALUATION_FIELDNAMES = [
-    *CHECKPOINT_EVALUATION_FIELDNAMES,
+    *MODEL_EVALUATION_FIELDNAMES,
     *STRESS_TEST_METADATA_FIELDNAMES,
 ]
 
@@ -136,9 +136,7 @@ def validate_stress_test_opponent(
 def build_stress_test_opponent(
     opponent_name: str,
 ):
-    validate_stress_test_opponent(
-        opponent_name
-    )
+    validate_stress_test_opponent(opponent_name)
 
     return build_scripted_evaluation_player(
         opponent_name,
@@ -164,9 +162,7 @@ def build_stress_tested_player(
     tested_agent_name: str,
     bundle: ModelBundle,
 ):
-    validate_stress_test_agent(
-        tested_agent_name
-    )
+    validate_stress_test_agent(tested_agent_name)
 
     return build_evaluation_player(
         tested_agent_name=tested_agent_name,
@@ -187,13 +183,13 @@ def build_stress_test_seed(
     *,
     eval_seed_base: int,
     model_seed: int,
-    checkpoint_episode: int,
+    model_episode: int,
     matchup_game_index: int,
 ) -> int:
     return build_paired_evaluation_seed(
         eval_seed_base=eval_seed_base,
         model_seed=model_seed,
-        checkpoint_episode=checkpoint_episode,
+        model_episode=model_episode,
         matchup_game_index=matchup_game_index,
     )
 
@@ -234,7 +230,7 @@ def evaluate_single_stress_test_game(
     game_seed = build_stress_test_seed(
         eval_seed_base=eval_seed_base,
         model_seed=bundle.seed,
-        checkpoint_episode=bundle.checkpoint_episode,
+        model_episode=bundle.model_episode,
         matchup_game_index=matchup_game_index,
     )
 
@@ -251,9 +247,7 @@ def evaluate_single_stress_test_game(
         bundle=bundle,
     )
 
-    opponent = build_stress_test_opponent(
-        opponent_name
-    )
+    opponent = build_stress_test_opponent(opponent_name)
 
     registered_opponent_name = stress_test_opponent_registration_name(
         tested_agent_name=tested_agent_name,
@@ -275,23 +269,15 @@ def evaluate_single_stress_test_game(
         verbose=0,
     )
 
-    hands_played = get_hands_played(
-        tested_player
-    )
+    hands_played = get_hands_played(tested_player)
 
     ended_by_bust = any(
-        player_result["stack"] == 0
-        for player_result in result["players"]
+        player_result["stack"] == 0 for player_result in result["players"]
     )
 
-    ended_by_round_limit = (
-        not ended_by_bust
-        and hands_played >= game_config.max_round
-    )
+    ended_by_round_limit = not ended_by_bust and hands_played >= game_config.max_round
 
-    classifier_metrics = get_classifier_metrics(
-        tested_player
-    )
+    classifier_metrics = get_classifier_metrics(tested_player)
 
     big_blind = game_config.small_blind_amount * 2
 
@@ -318,9 +304,7 @@ def evaluate_single_stress_test_game(
                 opponent_name=opponent_name,
             )
 
-    raise RuntimeError(
-        "Tested player result not found in game result."
-    )
+    raise RuntimeError("Tested player result not found in game result.")
 
 
 def evaluate_stress_test_bundle(
@@ -334,14 +318,10 @@ def evaluate_stress_test_bundle(
     game_id = 0
 
     for tested_agent_name in config.tested_agents:
-        validate_stress_test_agent(
-            tested_agent_name
-        )
+        validate_stress_test_agent(tested_agent_name)
 
         for opponent_name in config.opponents:
-            validate_stress_test_opponent(
-                opponent_name
-            )
+            validate_stress_test_opponent(opponent_name)
 
             for matchup_game_index in range(config.games_per_matchup):
                 row = evaluate_single_stress_test_game(

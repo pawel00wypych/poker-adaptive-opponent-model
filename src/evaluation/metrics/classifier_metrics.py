@@ -23,8 +23,9 @@ CLASSIFIER_COUNTER_COLUMNS = (
 
 CLASSIFIER_QUALITY_REQUIRED_COLUMNS = {
     "training_run",
+    "model_source",
     "model_seed",
-    "checkpoint_episode",
+    "training_episode",
     "agent_name",
     "opponent_name",
     "final_predicted_type",
@@ -33,7 +34,7 @@ CLASSIFIER_QUALITY_REQUIRED_COLUMNS = {
 
 CLASSIFIER_QUALITY_SUMMARY_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "algorithm_name",
     "agent_name",
     "opponent_name",
@@ -60,7 +61,7 @@ CLASSIFIER_QUALITY_SUMMARY_COLUMNS = [
 
 CONFUSION_MATRIX_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "algorithm_name",
     "agent_name",
     "actual_opponent_type",
@@ -101,9 +102,7 @@ def calculate_classifier_summary(
     """Return the legacy per-opponent classifier summary."""
     df = pd.read_csv(results_csv_path)
 
-    adaptive_df = df[
-        df["agent_name"].isin(ADAPTIVE_AGENT_TO_ALGORITHM)
-    ].copy()
+    adaptive_df = df[df["agent_name"].isin(ADAPTIVE_AGENT_TO_ALGORITHM)].copy()
 
     adaptive_df["algorithm_name"] = adaptive_df["agent_name"].map(
         ADAPTIVE_AGENT_TO_ALGORITHM
@@ -112,9 +111,7 @@ def calculate_classifier_summary(
         opponent_family_for_name
     )
     adaptive_df["final_prediction_correct"] = (
-        adaptive_df["final_predicted_type"].map(
-            normalize_final_predicted_type
-        )
+        adaptive_df["final_predicted_type"].map(normalize_final_predicted_type)
         == adaptive_df["opponent_family"]
     )
 
@@ -184,9 +181,7 @@ def load_classifier_quality_rows(
             f"{missing_columns}."
         )
 
-    adaptive = data[
-        data["agent_name"].isin(ADAPTIVE_AGENT_TO_ALGORITHM)
-    ].copy()
+    adaptive = data[data["agent_name"].isin(ADAPTIVE_AGENT_TO_ALGORITHM)].copy()
     if adaptive.empty:
         return adaptive.assign(
             algorithm_name=pd.Series(dtype="object"),
@@ -198,41 +193,51 @@ def load_classifier_quality_rows(
             unexpected_final_prediction=pd.Series(dtype="bool"),
         )
 
-    adaptive["checkpoint_episode"] = pd.to_numeric(
-        adaptive["checkpoint_episode"],
+    invalid_sources = set(adaptive["model_source"].dropna()) - {"final"}
+    if invalid_sources:
+        raise ValueError(
+            "Classifier quality input contains non-final model sources: "
+            f"{sorted(invalid_sources)}. Use the learning-curve report for "
+            "checkpoint analysis."
+        )
+
+    adaptive["training_episode"] = pd.to_numeric(
+        adaptive["training_episode"],
         errors="raise",
     )
+    if adaptive["training_episode"].isna().any():
+        raise ValueError("Final-model classifier rows must contain training_episode.")
+    if (
+        "checkpoint_episode" in adaptive.columns
+        and adaptive["checkpoint_episode"].notna().any()
+    ):
+        raise ValueError(
+            "Final-model classifier rows must not contain checkpoint_episode."
+        )
     for column in CLASSIFIER_COUNTER_COLUMNS:
         adaptive[column] = pd.to_numeric(
             adaptive[column],
             errors="raise",
         )
         if adaptive[column].isna().any() or (adaptive[column] < 0).any():
-            raise ValueError(
-                f"{column} must contain non-negative numeric values."
-            )
+            raise ValueError(f"{column} must contain non-negative numeric values.")
 
-    adaptive["algorithm_name"] = adaptive["agent_name"].map(
-        ADAPTIVE_AGENT_TO_ALGORITHM
-    )
+    adaptive["algorithm_name"] = adaptive["agent_name"].map(ADAPTIVE_AGENT_TO_ALGORITHM)
     adaptive["opponent_family"] = adaptive["opponent_name"].map(
         opponent_family_for_name
     )
-    adaptive["reference_type_available"] = adaptive[
-        "opponent_family"
-    ].isin(TRAINING_OPPONENT_TYPES)
-    adaptive["normalized_final_predicted_type"] = adaptive[
-        "final_predicted_type"
-    ].map(normalize_final_predicted_type)
+    adaptive["reference_type_available"] = adaptive["opponent_family"].isin(
+        TRAINING_OPPONENT_TYPES
+    )
+    adaptive["normalized_final_predicted_type"] = adaptive["final_predicted_type"].map(
+        normalize_final_predicted_type
+    )
     adaptive["final_prediction_unknown"] = adaptive[
         "normalized_final_predicted_type"
     ].eq(OPPONENT_TYPE_UNKNOWN)
-    adaptive["final_prediction_correct"] = (
-        adaptive["reference_type_available"]
-        & adaptive["normalized_final_predicted_type"].eq(
-            adaptive["opponent_family"]
-        )
-    )
+    adaptive["final_prediction_correct"] = adaptive[
+        "reference_type_available"
+    ] & adaptive["normalized_final_predicted_type"].eq(adaptive["opponent_family"])
     adaptive["unexpected_final_prediction"] = ~adaptive[
         "normalized_final_predicted_type"
     ].isin(PREDICTED_TYPE_ORDER)
@@ -240,40 +245,15 @@ def load_classifier_quality_rows(
     return adaptive
 
 
-def select_classifier_checkpoint_rows(
-    rows: pd.DataFrame,
-    checkpoint_episode: int | None = None,
-) -> pd.DataFrame:
-    """Select one explicit checkpoint or the latest per training run."""
+def select_final_classifier_rows(rows: pd.DataFrame) -> pd.DataFrame:
+    """Return all final-model rows without checkpoint-based selection."""
     if rows.empty:
         return rows.copy()
 
-    if checkpoint_episode is not None:
-        selected = rows[
-            rows["checkpoint_episode"] == checkpoint_episode
-        ].copy()
-        if selected.empty:
-            available = sorted(
-                int(value)
-                for value in rows["checkpoint_episode"].dropna().unique()
-            )
-            raise ValueError(
-                f"Checkpoint {checkpoint_episode} is not present for any "
-                "adaptive agent. "
-                f"Available checkpoints: {available}."
-            )
-    else:
-        latest = rows.groupby("training_run")[
-            "checkpoint_episode"
-        ].transform("max")
-        selected = rows[
-            rows["checkpoint_episode"] == latest
-        ].copy()
-
-    return selected.sort_values(
+    return rows.sort_values(
         [
             "training_run",
-            "checkpoint_episode",
+            "training_episode",
             "algorithm_name",
             "opponent_name",
             "model_seed",
@@ -285,9 +265,7 @@ def _percentage(
     numerator: pd.Series,
     denominator: pd.Series,
 ) -> pd.Series:
-    result = numerator.astype("float64").div(
-        denominator.astype("float64")
-    ) * 100.0
+    result = numerator.astype("float64").div(denominator.astype("float64")) * 100.0
     return result.where(denominator > 0)
 
 
@@ -300,7 +278,7 @@ def build_classifier_quality_summary(
 
     group_columns = [
         "training_run",
-        "checkpoint_episode",
+        "training_episode",
         "algorithm_name",
         "agent_name",
         "opponent_name",
@@ -353,8 +331,7 @@ def build_classifier_quality_summary(
         + summary["total_incorrect_classifications"]
     )
     summary["classification_opportunities"] = (
-        summary["total_classified_decisions"]
-        + summary["total_unknown_classifications"]
+        summary["total_classified_decisions"] + summary["total_unknown_classifications"]
     )
     summary["global_classifier_accuracy"] = _percentage(
         summary["total_correct_classifications"],
@@ -381,13 +358,11 @@ def build_classifier_quality_summary(
         summary["final_known_predictions"],
     ).where(summary["reference_type_available"])
 
-    summary["_algorithm_order"] = summary["algorithm_name"].map(
-        ALGORITHM_ORDER
-    )
+    summary["_algorithm_order"] = summary["algorithm_name"].map(ALGORITHM_ORDER)
     summary = summary.sort_values(
         [
             "training_run",
-            "checkpoint_episode",
+            "training_episode",
             "_algorithm_order",
             "opponent_name",
         ]
@@ -408,7 +383,7 @@ def build_classifier_confusion_matrix(
 
     context_columns = [
         "training_run",
-        "checkpoint_episode",
+        "training_episode",
         "algorithm_name",
         "agent_name",
     ]
@@ -434,9 +409,7 @@ def build_classifier_confusion_matrix(
     prediction_types = [
         *PREDICTED_TYPE_ORDER,
         *sorted(
-            set(observed["predicted_opponent_type"]).difference(
-                PREDICTED_TYPE_ORDER
-            )
+            set(observed["predicted_opponent_type"]).difference(PREDICTED_TYPE_ORDER)
         ),
     ]
     complete_rows: list[dict[str, object]] = []
@@ -484,27 +457,22 @@ def build_classifier_confusion_matrix(
         matrix["actual_type_total"],
     )
 
-    matrix["_algorithm_order"] = matrix["algorithm_name"].map(
-        ALGORITHM_ORDER
-    )
+    matrix["_algorithm_order"] = matrix["algorithm_name"].map(ALGORITHM_ORDER)
     actual_order = {
         opponent_type: index
         for index, opponent_type in enumerate(TRAINING_OPPONENT_TYPES)
     }
     prediction_order = {
-        opponent_type: index
-        for index, opponent_type in enumerate(prediction_types)
+        opponent_type: index for index, opponent_type in enumerate(prediction_types)
     }
-    matrix["_actual_order"] = matrix["actual_opponent_type"].map(
-        actual_order
+    matrix["_actual_order"] = matrix["actual_opponent_type"].map(actual_order)
+    matrix["_prediction_order"] = matrix["predicted_opponent_type"].map(
+        prediction_order
     )
-    matrix["_prediction_order"] = matrix[
-        "predicted_opponent_type"
-    ].map(prediction_order)
     matrix = matrix.sort_values(
         [
             "training_run",
-            "checkpoint_episode",
+            "training_episode",
             "_algorithm_order",
             "_actual_order",
             "_prediction_order",

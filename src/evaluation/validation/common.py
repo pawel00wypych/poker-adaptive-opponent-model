@@ -48,7 +48,7 @@ VALIDATION_STATUSES = (
     STATUS_SKIPPED,
 )
 
-VALIDATION_MODE_CHECKPOINT = "checkpoint"
+VALIDATION_MODE_TRAINING_OPPONENT = "training-opponent"
 
 VALIDATION_MODE_HEAD_TO_HEAD = "head-to-head"
 
@@ -61,7 +61,7 @@ VALIDATION_MODE_BASELINE_SANITY = "baseline-sanity"
 VALIDATION_MODE_CROSS_PLAY = "cross-play"
 
 VALIDATION_MODES = (
-    VALIDATION_MODE_CHECKPOINT,
+    VALIDATION_MODE_TRAINING_OPPONENT,
     VALIDATION_MODE_HEAD_TO_HEAD,
     VALIDATION_MODE_GENERALIZATION,
     VALIDATION_MODE_STRESS_TEST,
@@ -113,10 +113,7 @@ GENERALIZATION_SPECIALIST_AGENTS = (
 
 def _missing_values_as_none(value: object) -> object:
     if isinstance(value, dict):
-        return {
-            key: _missing_values_as_none(item)
-            for key, item in value.items()
-        }
+        return {key: _missing_values_as_none(item) for key, item in value.items()}
     if isinstance(value, list):
         return [_missing_values_as_none(item) for item in value]
     if isinstance(value, tuple):
@@ -157,6 +154,7 @@ class ValidationThresholds:
     max_baseline_pair_sum_abs_profit_bb: float = 2.0
     max_cross_play_pair_sum_abs_profit_bb: float = 2.0
 
+
 @dataclass(frozen=True)
 class ValidationCheckResult:
     check_name: str
@@ -166,7 +164,7 @@ class ValidationCheckResult:
     algorithm_name: str | None = None
     agent_name: str | None = None
     opponent_name: str | None = None
-    checkpoint_episode: int | None = None
+    training_episode: int | None = None
     observed_value: float | None = None
     threshold: float | None = None
     sample_size: int | None = None
@@ -181,28 +179,23 @@ class ValidationCheckResult:
             _missing_values_as_none(asdict(self)),
         )
 
+
 @dataclass(frozen=True)
 class ValidationReport:
     input_path: str
     thresholds: ValidationThresholds
     checks: list[ValidationCheckResult]
-    validation_mode: str = VALIDATION_MODE_CHECKPOINT
-    checkpoint_episode: int | None = None
-    checkpoint_selection: str | None = None
+    validation_mode: str = VALIDATION_MODE_TRAINING_OPPONENT
+    training_episode: int | None = None
+    model_selection: str | None = None
 
     @property
     def passed(self) -> bool:
-        return not any(
-            check.status == STATUS_FAIL
-            for check in self.checks
-        )
+        return not any(check.status == STATUS_FAIL for check in self.checks)
 
     def status_counts(self) -> dict[str, int]:
         return {
-            status: sum(
-                check.status == status
-                for check in self.checks
-            )
+            status: sum(check.status == status for check in self.checks)
             for status in VALIDATION_STATUSES
         }
 
@@ -213,18 +206,16 @@ class ValidationReport:
                 {
                     "input_path": self.input_path,
                     "validation_mode": self.validation_mode,
-                    "checkpoint_episode": self.checkpoint_episode,
-                    "checkpoint_selection": self.checkpoint_selection,
+                    "training_episode": self.training_episode,
+                    "model_selection": self.model_selection,
                     "passed": self.passed,
                     "status_counts": self.status_counts(),
                     "thresholds": asdict(self.thresholds),
-                    "checks": [
-                        check.to_dict()
-                        for check in self.checks
-                    ],
+                    "checks": [check.to_dict() for check in self.checks],
                 }
             ),
         )
+
 
 def _format_float(value: float | None) -> str:
     if value is None or pd.isna(value):
@@ -240,7 +231,7 @@ def _paired_seed_statistics_for_check(
     opponent_name: str,
     right_opponent_name: str | None = None,
     operation: str = PAIRED_SEED_OPERATION_DIFFERENCE,
-    checkpoint_episode: int,
+    training_episode: int,
     thresholds: ValidationThresholds,
     check_name: str,
     category: str,
@@ -263,7 +254,7 @@ def _paired_seed_statistics_for_check(
             right_agent_name=right_agent_name,
             opponent_name=opponent_name,
             right_opponent_name=right_opponent_name,
-            checkpoint_episode=checkpoint_episode,
+            training_episode=training_episode,
             operation=operation,
         )
     except PairedSeedStatisticsError as error:
@@ -274,7 +265,7 @@ def _paired_seed_statistics_for_check(
             algorithm_name=algorithm_name,
             agent_name=agent_name,
             opponent_name=opponent_name,
-            checkpoint_episode=checkpoint_episode,
+            training_episode=training_episode,
             message=f"Cannot calculate paired seed statistics: {error}",
             details={"paired_seed_error": str(error)},
         )
@@ -294,11 +285,10 @@ def _paired_seed_statistics_for_check(
             algorithm_name=algorithm_name,
             agent_name=agent_name,
             opponent_name=opponent_name,
-            checkpoint_episode=checkpoint_episode,
+            training_episode=training_episode,
             sample_size=statistics.common_seed_count,
             message=(
-                "Missing seed-level rows for "
-                f"{missing_agent} vs {missing_opponent}."
+                f"Missing seed-level rows for {missing_agent} vs {missing_opponent}."
             ),
             details=details,
         )
@@ -313,7 +303,7 @@ def _paired_seed_statistics_for_check(
             algorithm_name=algorithm_name,
             agent_name=agent_name,
             opponent_name=opponent_name,
-            checkpoint_episode=checkpoint_episode,
+            training_episode=training_episode,
             observed_value=statistics.mean_delta,
             sample_size=statistics.common_seed_count,
             standard_error=statistics.standard_error,
@@ -369,6 +359,7 @@ def _paired_seed_message(
         f"{_format_float(statistics.ci_upper)}]."
     )
 
+
 def _add_mean_hands_played(
     aggregated: pd.DataFrame,
     metrics: pd.DataFrame,
@@ -380,7 +371,7 @@ def _add_mean_hands_played(
         "training_run",
         "agent_name",
         "opponent_name",
-        "checkpoint_episode",
+        "training_episode",
         "total_hands",
         "games",
     }
@@ -391,9 +382,7 @@ def _add_mean_hands_played(
         return aggregated
 
     working = metrics.copy()
-    working["mean_hands_played"] = (
-        working["total_hands"] / working["games"]
-    )
+    working["mean_hands_played"] = working["total_hands"] / working["games"]
 
     hand_means = (
         working.groupby(
@@ -401,7 +390,7 @@ def _add_mean_hands_played(
                 "training_run",
                 "agent_name",
                 "opponent_name",
-                "checkpoint_episode",
+                "training_episode",
             ]
         )["mean_hands_played"]
         .mean()
@@ -414,10 +403,11 @@ def _add_mean_hands_played(
             "training_run",
             "agent_name",
             "opponent_name",
-            "checkpoint_episode",
+            "training_episode",
         ],
         how="left",
     )
+
 
 def _best_rows_by_agent_and_opponent(
     aggregated: pd.DataFrame,
@@ -434,21 +424,19 @@ def _best_rows_by_agent_and_opponent(
 
     return aggregated.loc[indexes].reset_index(drop=True)
 
+
 def _find_row(
     df: pd.DataFrame,
     agent_name: str,
     opponent_name: str,
-    checkpoint_episode: int | None = None,
+    training_episode: int | None = None,
 ) -> pd.Series | None:
     matching = df[
-        (df["agent_name"] == agent_name)
-        & (df["opponent_name"] == opponent_name)
+        (df["agent_name"] == agent_name) & (df["opponent_name"] == opponent_name)
     ]
 
-    if checkpoint_episode is not None:
-        matching = matching[
-            matching["checkpoint_episode"] == checkpoint_episode
-        ]
+    if training_episode is not None:
+        matching = matching[matching["training_episode"] == training_episode]
 
     if matching.empty:
         return None
@@ -459,56 +447,59 @@ def _find_row(
     return matching.iloc[0]
 
 
-def _find_rows_at_latest_common_checkpoint(
+def _find_rows_at_common_training_episode(
     df: pd.DataFrame,
     matchups: Iterable[tuple[str, str]],
 ) -> tuple[int | None, tuple[pd.Series | None, ...]]:
     matchup_list = tuple(matchups)
     available_rows: list[pd.Series | None] = []
-    checkpoint_sets: list[set[int]] = []
+    training_episode_sets: list[set[int]] = []
 
     for agent_name, opponent_name in matchup_list:
         matching = df[
-            (df["agent_name"] == agent_name)
-            & (df["opponent_name"] == opponent_name)
+            (df["agent_name"] == agent_name) & (df["opponent_name"] == opponent_name)
         ]
         if matching.empty:
             available_rows.append(None)
             continue
 
         available_rows.append(matching.iloc[0])
-        checkpoints = {
-            int(checkpoint)
-            for checkpoint in matching["checkpoint_episode"].dropna()
+        training_episodes = {
+            int(training_episode)
+            for training_episode in matching["training_episode"].dropna()
         }
-        checkpoint_sets.append(checkpoints)
+        training_episode_sets.append(training_episodes)
 
     if any(row is None for row in available_rows):
         return None, tuple(available_rows)
 
-    if not checkpoint_sets or any(not checkpoints for checkpoints in checkpoint_sets):
+    if not training_episode_sets or any(
+        not training_episodes for training_episodes in training_episode_sets
+    ):
         return None, tuple(available_rows)
 
-    common_checkpoints = set.intersection(*checkpoint_sets)
-    if not common_checkpoints:
+    common_training_episodes = set.intersection(*training_episode_sets)
+    if not common_training_episodes:
         return None, tuple(available_rows)
 
-    checkpoint_episode = max(common_checkpoints)
+    training_episode = max(common_training_episodes)
     aligned_rows = tuple(
         _find_row(
             df,
             agent_name,
             opponent_name,
-            checkpoint_episode=checkpoint_episode,
+            training_episode=training_episode,
         )
         for agent_name, opponent_name in matchup_list
     )
-    return checkpoint_episode, aligned_rows
+    return training_episode, aligned_rows
 
-def _checkpoint_episode(row: pd.Series | None) -> int | None:
-    if row is None or "checkpoint_episode" not in row:
+
+def _training_episode(row: pd.Series | None) -> int | None:
+    if row is None or "training_episode" not in row:
         return None
-    return int(row["checkpoint_episode"])
+    return int(row["training_episode"])
+
 
 def _missing_row_result(
     check_name: str,
@@ -524,13 +515,11 @@ def _missing_row_result(
         algorithm_name=algorithm_name or algorithm_name_for_agent(agent_name),
         agent_name=agent_name,
         opponent_name=opponent_name,
-        message=(
-            f"Missing row for {agent_name} vs {opponent_name}."
-        ),
+        message=(f"Missing row for {agent_name} vs {opponent_name}."),
     )
 
 
-def _missing_common_checkpoint_result(
+def _missing_common_training_episode_result(
     check_name: str,
     category: str,
     df: pd.DataFrame,
@@ -541,14 +530,14 @@ def _missing_common_checkpoint_result(
     opponent_name: str | None = None,
 ) -> ValidationCheckResult:
     matchup_list = tuple(matchups)
-    checkpoints_by_matchup = {
+    training_episodes_by_matchup = {
         f"{matchup_agent} vs {matchup_opponent}": sorted(
             {
-                int(checkpoint)
-                for checkpoint in df.loc[
+                int(training_episode)
+                for training_episode in df.loc[
                     (df["agent_name"] == matchup_agent)
                     & (df["opponent_name"] == matchup_opponent),
-                    "checkpoint_episode",
+                    "training_episode",
                 ].dropna()
             }
         )
@@ -562,8 +551,7 @@ def _missing_common_checkpoint_result(
         agent_name=agent_name,
         opponent_name=opponent_name,
         message=(
-            "No common checkpoint_episode is available for all rows in "
-            "this comparison."
+            "No common training_episode is available for all rows in this comparison."
         ),
         details={
             "required_matchups": [
@@ -573,7 +561,7 @@ def _missing_common_checkpoint_result(
                 }
                 for matchup_agent, matchup_opponent in matchup_list
             ],
-            "checkpoints_by_matchup": checkpoints_by_matchup,
+            "training_episodes_by_matchup": training_episodes_by_matchup,
         },
     )
 
@@ -598,15 +586,14 @@ def validate_minimum_seed_coverage(
         results.append(
             ValidationCheckResult(
                 check_name=(
-                    "Minimum seed coverage "
-                    f"for {agent_name} vs {opponent_name}"
+                    f"Minimum seed coverage for {agent_name} vs {opponent_name}"
                 ),
                 status=STATUS_PASS if sufficient else STATUS_FAIL,
                 category="seed_coverage",
                 algorithm_name=algorithm_name_for_agent(agent_name),
                 agent_name=agent_name,
                 opponent_name=opponent_name,
-                checkpoint_episode=_checkpoint_episode(row),
+                training_episode=_training_episode(row),
                 observed_value=float(seed_count),
                 threshold=float(minimum_seeds),
                 message=(
@@ -642,26 +629,23 @@ def validate_seed_stability(
 
         results.append(
             ValidationCheckResult(
-                check_name=(
-                    "Seed stability "
-                    f"for {agent_name} vs {opponent_name}"
-                ),
+                check_name=(f"Seed stability for {agent_name} vs {opponent_name}"),
                 status=status,
                 category="seed_stability",
                 algorithm_name=algorithm_name_for_agent(agent_name),
                 agent_name=agent_name,
                 opponent_name=opponent_name,
-                checkpoint_episode=_checkpoint_episode(row),
+                training_episode=_training_episode(row),
                 observed_value=value,
                 threshold=thresholds.max_std_across_seeds_bb,
                 message=(
-                    "Mean profit std across seeds is "
-                    f"{_format_float(value)} BB/game."
+                    f"Mean profit std across seeds is {_format_float(value)} BB/game."
                 ),
             )
         )
 
     return results
+
 
 def validate_extreme_bb_per_100(
     best_rows: pd.DataFrame,
@@ -675,24 +659,21 @@ def validate_extreme_bb_per_100(
         agent_name = str(row["agent_name"])
         opponent_name = str(row["opponent_name"])
         is_extreme = (
-            abs(bb_per_100)
-            > thresholds.extreme_bb_per_100_threshold
-            and mean_hands_played
-            < thresholds.low_mean_hands_played_threshold
+            abs(bb_per_100) > thresholds.extreme_bb_per_100_threshold
+            and mean_hands_played < thresholds.low_mean_hands_played_threshold
         )
 
         results.append(
             ValidationCheckResult(
                 check_name=(
-                    "Extreme BB/100 sanity check "
-                    f"for {agent_name} vs {opponent_name}"
+                    f"Extreme BB/100 sanity check for {agent_name} vs {opponent_name}"
                 ),
                 status=STATUS_WARNING if is_extreme else STATUS_PASS,
                 category="bb_per_100_sanity",
                 algorithm_name=algorithm_name_for_agent(agent_name),
                 agent_name=agent_name,
                 opponent_name=opponent_name,
-                checkpoint_episode=_checkpoint_episode(row),
+                training_episode=_training_episode(row),
                 observed_value=bb_per_100,
                 threshold=thresholds.extreme_bb_per_100_threshold,
                 message=(
@@ -704,9 +685,7 @@ def validate_extreme_bb_per_100(
                 details={
                     "bb_per_100": bb_per_100,
                     "mean_hands_played": mean_hands_played,
-                    "bb_per_100_threshold": (
-                        thresholds.extreme_bb_per_100_threshold
-                    ),
+                    "bb_per_100_threshold": (thresholds.extreme_bb_per_100_threshold),
                     "low_mean_hands_played_threshold": (
                         thresholds.low_mean_hands_played_threshold
                     ),
@@ -715,6 +694,7 @@ def validate_extreme_bb_per_100(
         )
 
     return results
+
 
 def validate_always_raise_outperforms_adaptive(
     best_rows: pd.DataFrame,
@@ -732,8 +712,8 @@ def validate_always_raise_outperforms_adaptive(
                 (ALWAYS_RAISE_AGENT, opponent_name),
                 (spec.adaptive_agent, opponent_name),
             )
-            checkpoint_episode, rows = (
-                _find_rows_at_latest_common_checkpoint(best_rows, matchups)
+            training_episode, rows = _find_rows_at_common_training_episode(
+                best_rows, matchups
             )
             always_raise_row, adaptive_row = rows
             check_name = (
@@ -765,9 +745,9 @@ def validate_always_raise_outperforms_adaptive(
                 )
                 continue
 
-            if checkpoint_episode is None:
+            if training_episode is None:
                 results.append(
-                    _missing_common_checkpoint_result(
+                    _missing_common_training_episode_result(
                         check_name,
                         "always_raise_sanity",
                         best_rows,
@@ -779,19 +759,17 @@ def validate_always_raise_outperforms_adaptive(
                 )
                 continue
 
-            paired_statistics, unavailable_result = (
-                _paired_seed_statistics_for_check(
-                    seed_rows,
-                    left_agent_name=ALWAYS_RAISE_AGENT,
-                    right_agent_name=spec.adaptive_agent,
-                    opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
-                    thresholds=thresholds,
-                    check_name=check_name,
-                    category="always_raise_sanity",
-                    algorithm_name=spec.algorithm_name,
-                    agent_name=ALWAYS_RAISE_AGENT,
-                )
+            paired_statistics, unavailable_result = _paired_seed_statistics_for_check(
+                seed_rows,
+                left_agent_name=ALWAYS_RAISE_AGENT,
+                right_agent_name=spec.adaptive_agent,
+                opponent_name=opponent_name,
+                training_episode=training_episode,
+                thresholds=thresholds,
+                check_name=check_name,
+                category="always_raise_sanity",
+                algorithm_name=spec.algorithm_name,
+                agent_name=ALWAYS_RAISE_AGENT,
             )
             if unavailable_result is not None:
                 results.append(unavailable_result)
@@ -799,13 +777,9 @@ def validate_always_raise_outperforms_adaptive(
 
             if paired_statistics is None:
                 delta = float(
-                    always_raise_row["mean_profit_bb"]
-                    - adaptive_row["mean_profit_bb"]
+                    always_raise_row["mean_profit_bb"] - adaptive_row["mean_profit_bb"]
                 )
-                is_large_gap = (
-                    delta
-                    >= thresholds.always_raise_adaptive_warning_gap_bb
-                )
+                is_large_gap = delta >= thresholds.always_raise_adaptive_warning_gap_bb
                 status = STATUS_WARNING if is_large_gap else STATUS_PASS
                 message = (
                     "Always-raise minus adaptive mean profit is "
@@ -830,11 +804,9 @@ def validate_always_raise_outperforms_adaptive(
                     algorithm_name=spec.algorithm_name,
                     agent_name=ALWAYS_RAISE_AGENT,
                     opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
+                    training_episode=training_episode,
                     observed_value=delta,
-                    threshold=(
-                        thresholds.always_raise_adaptive_warning_gap_bb
-                    ),
+                    threshold=(thresholds.always_raise_adaptive_warning_gap_bb),
                     sample_size=(
                         paired_statistics.common_seed_count
                         if paired_statistics is not None
@@ -865,15 +837,9 @@ def validate_always_raise_outperforms_adaptive(
                         "adaptive_mean_profit_bb": float(
                             adaptive_row["mean_profit_bb"]
                         ),
-                        "adaptive_checkpoint_episode": _checkpoint_episode(
-                            adaptive_row
-                        ),
+                        "adaptive_training_episode": _training_episode(adaptive_row),
                         **(
-                            {
-                                "paired_seed_statistics": (
-                                    paired_statistics.to_details()
-                                )
-                            }
+                            {"paired_seed_statistics": (paired_statistics.to_details())}
                             if paired_statistics is not None
                             else {}
                         ),
@@ -882,6 +848,7 @@ def validate_always_raise_outperforms_adaptive(
             )
 
     return results
+
 
 def validate_always_raise_trivial_exploit(
     best_rows: pd.DataFrame,
@@ -896,10 +863,7 @@ def validate_always_raise_trivial_exploit(
             ALWAYS_RAISE_AGENT,
             opponent_name,
         )
-        check_name = (
-            "Always-raise trivial exploit sanity check "
-            f"vs {opponent_name}"
-        )
+        check_name = f"Always-raise trivial exploit sanity check vs {opponent_name}"
 
         if always_raise_row is None:
             results.append(
@@ -922,15 +886,11 @@ def validate_always_raise_trivial_exploit(
         results.append(
             ValidationCheckResult(
                 check_name=check_name,
-                status=(
-                    STATUS_WARNING
-                    if is_trivial_exploit
-                    else STATUS_PASS
-                ),
+                status=(STATUS_WARNING if is_trivial_exploit else STATUS_PASS),
                 category="always_raise_sanity",
                 agent_name=ALWAYS_RAISE_AGENT,
                 opponent_name=opponent_name,
-                checkpoint_episode=_checkpoint_episode(always_raise_row),
+                training_episode=_training_episode(always_raise_row),
                 observed_value=mean_profit_bb,
                 threshold=thresholds.high_always_raise_mean_profit_bb,
                 message=(
@@ -944,9 +904,7 @@ def validate_always_raise_trivial_exploit(
                     "high_mean_profit_bb_threshold": (
                         thresholds.high_always_raise_mean_profit_bb
                     ),
-                    "high_win_rate_threshold": (
-                        thresholds.high_always_raise_win_rate
-                    ),
+                    "high_win_rate_threshold": (thresholds.high_always_raise_win_rate),
                 },
             )
         )

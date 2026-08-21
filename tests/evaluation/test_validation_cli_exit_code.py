@@ -15,9 +15,9 @@ from src.evaluation.validation import (
     ValidationReport,
     ValidationThresholds,
 )
-from src.experiments.validation import validate_checkpoint_evaluation as cli
+from src.experiments.validation import validate_evaluation_results as cli
 from tests.evaluation.test_experiment_validation import (
-    write_sample_checkpoint_csv,
+    write_sample_final_model_csv,
 )
 
 
@@ -54,10 +54,9 @@ def test_main_returns_exit_code_from_validation_result(
         input_path="results.csv",
         output_dir="reports",
         format="both",
-        validation_mode="checkpoint",
+        validation_mode="training-opponent",
         algorithms=None,
         require_all_algorithms=False,
-        checkpoint_episode=1500,
     )
     report = make_report(status)
     created_formats: list[str] = []
@@ -71,7 +70,7 @@ def test_main_returns_exit_code_from_validation_result(
     )
     monkeypatch.setattr(
         cli,
-        "validate_checkpoint_results",
+        "validate_evaluation_results",
         lambda **kwargs: validation_calls.append(kwargs) or report,
     )
     monkeypatch.setattr(
@@ -95,20 +94,20 @@ def test_main_returns_exit_code_from_validation_result(
 
     assert exit_code == expected_exit_code
     assert created_formats == ["markdown", "json"]
-    assert validation_calls[0]["checkpoint_episode"] == 1500
+    assert "training_episode" not in validation_calls[0]
     assert f"Validation status: {expected_label}" in capsys.readouterr().out
 
 
 def test_module_returns_nonzero_exit_code_and_keeps_failure_report(tmp_path):
-    input_path = tmp_path / "checkpoint_results.csv"
+    input_path = tmp_path / "training_episode_results.csv"
     output_dir = tmp_path / "reports"
-    write_sample_checkpoint_csv(input_path)
+    write_sample_final_model_csv(input_path)
 
     completed = subprocess.run(
         [
             sys.executable,
             "-m",
-            "src.experiments.validation.validate_checkpoint_evaluation",
+            "src.experiments.validation.validate_evaluation_results",
             "--input-path",
             str(input_path),
             "--output-dir",

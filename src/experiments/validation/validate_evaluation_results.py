@@ -7,10 +7,10 @@ from src.evaluation.algorithm_metadata import (
     algorithm_specs_from_keys,
 )
 from src.evaluation.validation import (
-    VALIDATION_MODE_CHECKPOINT,
+    VALIDATION_MODE_TRAINING_OPPONENT,
     VALIDATION_MODES,
     ValidationThresholds,
-    validate_checkpoint_results,
+    validate_evaluation_results,
     write_validation_json_report,
     write_validation_markdown_report,
 )
@@ -25,9 +25,7 @@ def _positive_int(value: str) -> int:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description=(
-            "Run automated sanity checks on evaluation results."
-        )
+        description=("Run automated sanity checks on evaluation results.")
     )
 
     parser.add_argument("--input-path", required=True, type=str)
@@ -39,10 +37,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--validation-mode",
-        default=VALIDATION_MODE_CHECKPOINT,
+        default=VALIDATION_MODE_TRAINING_OPPONENT,
         choices=VALIDATION_MODES,
         help=(
-            "Use 'checkpoint' for standard benchmark results, "
+            "Use 'training-opponent' for final-model benchmark results, "
             "'head-to-head' for direct matchups against baselines, "
             "'generalization' for unseen opponent variants, "
             "'stress-test' for learned agents against scripted extremes, "
@@ -69,16 +67,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "required evaluation matchup is missing from the result file."
         ),
     )
-    parser.add_argument(
-        "--checkpoint-episode",
-        type=_positive_int,
-        default=None,
-        help=(
-            "Validate a specific checkpoint episode. Defaults to the "
-            "latest checkpoint available in the result file."
-        ),
-    )
-
     parser.add_argument(
         "--min-adaptive-delta-vs-rule-based-bb",
         type=float,
@@ -241,12 +229,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
     return ValidationThresholds(
-        min_adaptive_delta_vs_rule_based_bb=(
-            args.min_adaptive_delta_vs_rule_based_bb
-        ),
-        max_oracle_underperformance_bb=(
-            args.max_oracle_underperformance_bb
-        ),
+        min_adaptive_delta_vs_rule_based_bb=(args.min_adaptive_delta_vs_rule_based_bb),
+        max_oracle_underperformance_bb=(args.max_oracle_underperformance_bb),
         min_tight_win_rate=args.min_tight_win_rate,
         min_tight_mean_profit_bb=args.min_tight_mean_profit_bb,
         min_classifier_accuracy=args.min_classifier_accuracy,
@@ -259,31 +243,19 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         max_std_across_evaluation_replicates_bb=(
             args.max_std_across_evaluation_replicates_bb
         ),
-        extreme_bb_per_100_threshold=(
-            args.extreme_bb_per_100_threshold
-        ),
-        low_mean_hands_played_threshold=(
-            args.low_mean_hands_played_threshold
-        ),
+        extreme_bb_per_100_threshold=(args.extreme_bb_per_100_threshold),
+        low_mean_hands_played_threshold=(args.low_mean_hands_played_threshold),
         always_raise_adaptive_warning_gap_bb=(
             args.always_raise_adaptive_warning_gap_bb
         ),
-        high_always_raise_mean_profit_bb=(
-            args.high_always_raise_mean_profit_bb
-        ),
+        high_always_raise_mean_profit_bb=(args.high_always_raise_mean_profit_bb),
         high_always_raise_win_rate=args.high_always_raise_win_rate,
-        max_baseline_mirror_abs_profit_bb=(
-            args.max_baseline_mirror_abs_profit_bb
-        ),
-        max_baseline_pair_sum_abs_profit_bb=(
-            args.max_baseline_pair_sum_abs_profit_bb
-        ),
+        max_baseline_mirror_abs_profit_bb=(args.max_baseline_mirror_abs_profit_bb),
+        max_baseline_pair_sum_abs_profit_bb=(args.max_baseline_pair_sum_abs_profit_bb),
         max_cross_play_pair_sum_abs_profit_bb=(
             args.max_cross_play_pair_sum_abs_profit_bb
         ),
-        min_head_to_head_mean_profit_bb=(
-            args.min_head_to_head_mean_profit_bb
-        ),
+        min_head_to_head_mean_profit_bb=(args.min_head_to_head_mean_profit_bb),
         max_adaptive_underperformance_vs_general_bb=(
             args.max_adaptive_underperformance_vs_general_bb
         ),
@@ -298,9 +270,7 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         min_generalization_adaptive_beats_rule_based_variants=(
             args.min_generalization_adaptive_beats_rule_based_variants
         ),
-        max_generalization_oracle_gap_bb=(
-            args.max_generalization_oracle_gap_bb
-        ),
+        max_generalization_oracle_gap_bb=(args.max_generalization_oracle_gap_bb),
         generalization_extreme_aggressive_min_profit_bb=(
             args.generalization_extreme_aggressive_min_profit_bb
         ),
@@ -313,13 +283,12 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
 def main() -> int:
     args = parse_args()
     thresholds = build_thresholds(args)
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         input_path=args.input_path,
         thresholds=thresholds,
         validation_mode=args.validation_mode,
         algorithm_specs=algorithm_specs_from_keys(args.algorithms),
         require_all_algorithms=args.require_all_algorithms,
-        checkpoint_episode=args.checkpoint_episode,
     )
 
     created_paths = []
@@ -345,11 +314,7 @@ def main() -> int:
         print(path)
 
     counts = report.status_counts()
-    print(
-        "Validation status: "
-        f"{'PASS' if report.passed else 'FAIL'} "
-        f"{counts}"
-    )
+    print(f"Validation status: {'PASS' if report.passed else 'FAIL'} {counts}")
 
     return 0 if report.passed else 1
 

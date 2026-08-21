@@ -1,6 +1,7 @@
 METRIC_DESCRIPTIONS = {
-    "checkpoint_episode": "Number of training episodes completed when the checkpoint was saved.",
-    "model_seed": "Random seed used for training a given model checkpoint.",
+    "training_episode": "Number of training episodes completed by the evaluated final model.",
+    "checkpoint_episode": "Number of training episodes completed when a diagnostic checkpoint was saved.",
+    "model_seed": "Random seed used for training a given model.",
     "games": "Number of evaluated games in the group.",
     "total_profit_bb": "Total profit measured in big blinds across all evaluated games.",
     "mean_profit_bb": "Average profit per game, measured in big blinds. Higher is better.",

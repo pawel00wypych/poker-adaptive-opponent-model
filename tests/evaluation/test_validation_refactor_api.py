@@ -13,8 +13,8 @@ from src.evaluation.validation import (
     ValidationCheckResult,
     ValidationReport,
     ValidationThresholds,
-    checkpoint_validation,
-    validate_checkpoint_results,
+    evaluation_validation,
+    validate_evaluation_results,
     validation_checks_to_dataframe,
     write_validation_json_report,
     write_validation_markdown_report,
@@ -36,7 +36,7 @@ def make_validation_check(
         algorithm_name="Monte Carlo",
         agent_name="adaptive_mc",
         opponent_name="calling",
-        checkpoint_episode=1000,
+        training_episode=1000,
         observed_value=1.0,
         threshold=0.0,
         details={"source": "test"},
@@ -59,7 +59,7 @@ def test_validation_package_exports_public_api():
         "ValidationThresholds",
         "ValidationCheckResult",
         "ValidationReport",
-        "validate_checkpoint_results",
+        "validate_evaluation_results",
         "validate_expected_algorithms_present",
         "validate_minimum_seed_coverage",
         "validate_required_matchups_present",
@@ -146,41 +146,43 @@ def test_validation_report_writers_create_markdown_and_json(tmp_path):
     assert payload["checks"][0]["check_name"] == "sample_check"
 
 
-def test_validate_checkpoint_results_rejects_unknown_validation_mode():
+def test_validate_evaluation_results_rejects_unknown_validation_mode():
     with pytest.raises(ValueError, match="Unsupported validation_mode"):
-        validate_checkpoint_results(
+        validate_evaluation_results(
             "results/evaluation/sample.csv",
             validation_mode="unsupported-mode",
         )
 
 
-def test_validate_checkpoint_results_dispatches_head_to_head_mode(
+def test_validate_evaluation_results_dispatches_head_to_head_mode(
     monkeypatch,
     tmp_path,
 ):
     calls = []
 
     monkeypatch.setattr(
-        checkpoint_validation,
-        "load_checkpoint_report_data",
+        evaluation_validation,
+        "load_training_opponent_report_data",
         lambda input_path: pd.DataFrame({"raw": [1]}),
     )
     monkeypatch.setattr(
-        checkpoint_validation,
+        evaluation_validation,
         "aggregate_across_seeds",
         lambda metrics: pd.DataFrame(
             {
                 "aggregated": [1],
                 "agent_name": ["adaptive_mc"],
-                "checkpoint_episode": [1000],
+                "model_source": "final",
+                "training_episode": [1000],
             }
         ),
     )
     monkeypatch.setattr(
-        checkpoint_validation,
+        evaluation_validation,
         "_add_mean_hands_played",
         lambda aggregated, metrics: aggregated,
     )
+
     def fake_head_to_head_validation(
         best_rows,
         thresholds,
@@ -204,22 +206,20 @@ def test_validate_checkpoint_results_dispatches_head_to_head_mode(
         ]
 
     monkeypatch.setattr(
-        checkpoint_validation,
+        evaluation_validation,
         "validate_head_to_head_results_from_best_rows",
         fake_head_to_head_validation,
     )
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         tmp_path / "head_to_head.csv",
         validation_mode=VALIDATION_MODE_HEAD_TO_HEAD,
     )
 
     assert report.validation_mode == VALIDATION_MODE_HEAD_TO_HEAD
-    assert report.checkpoint_episode == 1000
-    assert report.checkpoint_selection == "latest"
-    assert [check.check_name for check in report.checks] == [
-        "head_to_head_delegate"
-    ]
+    assert report.training_episode == 1000
+    assert report.model_selection == "final"
+    assert [check.check_name for check in report.checks] == ["head_to_head_delegate"]
     assert calls[0][0] == "head_to_head"
     assert list(calls[0][1]["agent_name"]) == ["adaptive_mc"]
     assert isinstance(calls[0][2], ValidationThresholds)
@@ -227,33 +227,35 @@ def test_validate_checkpoint_results_dispatches_head_to_head_mode(
     assert list(calls[0][4]["aggregated"]) == [1]
 
 
-def test_validate_checkpoint_results_dispatches_generalization_mode(
+def test_validate_evaluation_results_dispatches_generalization_mode(
     monkeypatch,
     tmp_path,
 ):
     calls = []
 
     monkeypatch.setattr(
-        checkpoint_validation,
-        "load_checkpoint_report_data",
+        evaluation_validation,
+        "load_training_opponent_report_data",
         lambda input_path: pd.DataFrame({"raw": [1]}),
     )
     monkeypatch.setattr(
-        checkpoint_validation,
+        evaluation_validation,
         "aggregate_across_seeds",
         lambda metrics: pd.DataFrame(
             {
                 "aggregated": [1],
                 "agent_name": ["adaptive_mc"],
-                "checkpoint_episode": [1000],
+                "model_source": "final",
+                "training_episode": [1000],
             }
         ),
     )
     monkeypatch.setattr(
-        checkpoint_validation,
+        evaluation_validation,
         "_add_mean_hands_played",
         lambda aggregated, metrics: aggregated,
     )
+
     def fake_generalization_validation(
         best_rows,
         thresholds,
@@ -277,22 +279,20 @@ def test_validate_checkpoint_results_dispatches_generalization_mode(
         ]
 
     monkeypatch.setattr(
-        checkpoint_validation,
+        evaluation_validation,
         "validate_generalization_results_from_best_rows",
         fake_generalization_validation,
     )
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         tmp_path / "generalization.csv",
         validation_mode=VALIDATION_MODE_GENERALIZATION,
     )
 
     assert report.validation_mode == VALIDATION_MODE_GENERALIZATION
-    assert report.checkpoint_episode == 1000
-    assert report.checkpoint_selection == "latest"
-    assert [check.check_name for check in report.checks] == [
-        "generalization_delegate"
-    ]
+    assert report.training_episode == 1000
+    assert report.model_selection == "final"
+    assert [check.check_name for check in report.checks] == ["generalization_delegate"]
     assert calls[0][0] == "generalization"
     assert list(calls[0][1]["agent_name"]) == ["adaptive_mc"]
     assert isinstance(calls[0][2], ValidationThresholds)

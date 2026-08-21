@@ -12,25 +12,21 @@ from src.evaluation.metrics.classifier_metrics import (
     build_classifier_confusion_matrix,
     build_classifier_quality_summary,
     load_classifier_quality_rows,
-    select_classifier_checkpoint_rows,
+    select_final_classifier_rows,
 )
-from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.reporting.experiment_summary import (
     dataframe_records_with_missing_as_none,
     write_dataframe_csv,
     write_dataframe_latex,
 )
 from src.evaluation.reporting.html_utils import write_text
+from src.evaluation.reporting.training_opponent_report import display_agent_name
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 
 
 @dataclass(frozen=True)
 class ClassifierQualityConfig:
-    checkpoint_episode: int | None = None
-
-    def __post_init__(self) -> None:
-        if self.checkpoint_episode is not None and self.checkpoint_episode < 0:
-            raise ValueError("checkpoint_episode must be non-negative")
+    """Configuration reserved for final-model classifier reporting."""
 
 
 @dataclass(frozen=True)
@@ -68,7 +64,7 @@ def build_classifier_quality_overview(
     if rows.empty:
         return {
             "training_runs": [],
-            "checkpoints": [],
+            "final_training_episodes": [],
             "model_seeds": [],
             "algorithms": [],
             "adaptive_agents": [],
@@ -84,8 +80,7 @@ def build_classifier_quality_overview(
         }
 
     classification_opportunities = float(
-        rows["classified_decisions"].sum()
-        + rows["unknown_classifications"].sum()
+        rows["classified_decisions"].sum() + rows["unknown_classifications"].sum()
     )
     unknown_classifications = float(rows["unknown_classifications"].sum())
     final_unknown_predictions = int(rows["final_prediction_unknown"].sum())
@@ -99,9 +94,8 @@ def build_classifier_quality_overview(
         "training_runs": sorted(
             str(value) for value in rows["training_run"].dropna().unique()
         ),
-        "checkpoints": sorted(
-            int(value)
-            for value in rows["checkpoint_episode"].dropna().unique()
+        "final_training_episodes": sorted(
+            int(value) for value in rows["training_episode"].dropna().unique()
         ),
         "model_seeds": sorted(
             int(value) for value in rows["model_seed"].dropna().unique()
@@ -202,10 +196,7 @@ def build_classifier_quality_report(
 ) -> tuple[ClassifierQualityReport, pd.DataFrame, pd.DataFrame]:
     config = config or ClassifierQualityConfig()
     raw_rows = load_classifier_quality_rows(input_path)
-    selected_rows = select_classifier_checkpoint_rows(
-        raw_rows,
-        checkpoint_episode=config.checkpoint_episode,
-    )
+    selected_rows = select_final_classifier_rows(raw_rows)
     summary = build_classifier_quality_summary(selected_rows)
     confusion_matrix = build_classifier_confusion_matrix(selected_rows)
     overview = build_classifier_quality_overview(
@@ -214,10 +205,10 @@ def build_classifier_quality_report(
     )
     findings = generate_classifier_quality_findings(summary, overview)
     methodology = {
-        "checkpoint_selection": (
-            "The requested checkpoint is used when configured; otherwise "
-            "the latest checkpoint is selected independently for each "
-            "training run."
+        "model_selection": (
+            "All rows come from final.pkl. training_episode records the "
+            "completed training budget and is never used to select an "
+            "intermediate checkpoint."
         ),
         "decision_unknown_rate": (
             "unknown_classifications / (classified_decisions + "
@@ -241,9 +232,7 @@ def build_classifier_quality_report(
         overview=overview,
         main_findings=findings,
         quality_summary=dataframe_records_with_missing_as_none(summary),
-        confusion_matrix=dataframe_records_with_missing_as_none(
-            confusion_matrix
-        ),
+        confusion_matrix=dataframe_records_with_missing_as_none(confusion_matrix),
     )
     return report, summary, confusion_matrix
 
@@ -251,7 +240,7 @@ def build_classifier_quality_report(
 def _round_numeric_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
     result = dataframe.copy()
     identifier_columns = {
-        "checkpoint_episode",
+        "training_episode",
         "seeds",
         "games",
         "total_classified_decisions",
@@ -296,15 +285,12 @@ def render_confusion_matrices_markdown(
     confusion_matrix: pd.DataFrame,
 ) -> str:
     if confusion_matrix.empty:
-        return (
-            "No games with a supported reference opponent type were "
-            "available."
-        )
+        return "No games with a supported reference opponent type were available."
 
     sections: list[str] = []
     context_columns = [
         "training_run",
-        "checkpoint_episode",
+        "training_episode",
         "algorithm_name",
         "agent_name",
     ]
@@ -312,13 +298,13 @@ def render_confusion_matrices_markdown(
         context_columns,
         sort=False,
     ):
-        training_run, checkpoint, algorithm_name, agent_name = context_key
+        training_run, training_episode, algorithm_name, agent_name = context_key
         display_name = display_agent_name(str(agent_name))
         sections.extend(
             [
                 (
                     f"### {algorithm_name} — {display_name} "
-                    f"({training_run}, checkpoint {int(checkpoint)})"
+                    f"({training_run}, final episode {int(training_episode)})"
                 ),
                 "",
             ]
@@ -358,8 +344,7 @@ def render_classifier_quality_markdown(
     confusion_matrix: pd.DataFrame,
 ) -> str:
     findings = "\n".join(
-        f"{index + 1}. {finding}"
-        for index, finding in enumerate(report.main_findings)
+        f"{index + 1}. {finding}" for index, finding in enumerate(report.main_findings)
     )
     methodology = "\n".join(
         f"- **{name.replace('_', ' ')}:** {description}"
@@ -413,8 +398,7 @@ def write_classifier_quality_outputs(
 ) -> list[Path]:
     if report_format not in {"markdown", "json", "both", "all"}:
         raise ValueError(
-            "Unsupported report_format. Expected one of: "
-            "markdown, json, both, all."
+            "Unsupported report_format. Expected one of: markdown, json, both, all."
         )
 
     output_dir = Path(output_dir)
@@ -450,9 +434,7 @@ def write_classifier_quality_outputs(
         ("classifier_confusion_matrix.csv", confusion_matrix),
     ]
     for filename, dataframe in csv_exports:
-        created_paths.append(
-            write_dataframe_csv(dataframe, output_dir / filename)
-        )
+        created_paths.append(write_dataframe_csv(dataframe, output_dir / filename))
 
     if export_latex:
         latex_exports = [

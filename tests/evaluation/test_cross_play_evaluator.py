@@ -8,7 +8,6 @@ from src.evaluation.constants import (
     POLICY_GENERAL_MC_AGENT,
     POLICY_GENERAL_Q_LEARNING_AGENT,
 )
-from src.evaluation.runners.checkpoint_evaluator import ModelBundle
 from src.evaluation.runners.cross_play_evaluator import (
     ADAPTIVE_CROSS_PLAY_AGENTS,
     CROSS_PLAY_EVALUATION_FIELDNAMES,
@@ -25,6 +24,7 @@ from src.evaluation.runners.cross_play_evaluator import (
     should_evaluate_cross_play_matchup,
     validate_cross_play_agent,
 )
+from src.evaluation.runners.model_evaluator import ModelBundle
 from src.players.learned.adaptive_player import AdaptivePlayer
 from src.players.learned.fixed_policy_player import FixedPolicyPlayer
 from src.poker.constants import (
@@ -64,7 +64,8 @@ def make_bundle_with_q_paths(tmp_path: Path) -> ModelBundle:
     return ModelBundle(
         training_run_directory=tmp_path / "mc_run",
         seed=42,
-        checkpoint_episode=1000,
+        episode=1000,
+        model_source="final",
         unknown_model_path=Path("mc_unknown.pkl"),
         tight_model_path=Path("mc_tight.pkl"),
         aggressive_model_path=Path("mc_aggressive.pkl"),
@@ -87,10 +88,13 @@ def test_cross_play_agent_category_and_matchup_type():
     assert cross_play_agent_category(ADAPTIVE_MC_AGENT) == "adaptive"
     assert cross_play_agent_category(POLICY_GENERAL_MC_AGENT) == "policy_general"
 
-    assert cross_play_matchup_type(
-        tested_agent_name=ADAPTIVE_MC_AGENT,
-        opponent_agent_name=POLICY_GENERAL_MC_AGENT,
-    ) == "adaptive_vs_policy_general"
+    assert (
+        cross_play_matchup_type(
+            tested_agent_name=ADAPTIVE_MC_AGENT,
+            opponent_agent_name=POLICY_GENERAL_MC_AGENT,
+        )
+        == "adaptive_vs_policy_general"
+    )
 
     with pytest.raises(ValueError, match="Unsupported cross-play agent"):
         validate_cross_play_agent("rule_based")
@@ -111,15 +115,21 @@ def test_self_play_is_skipped_by_default_and_can_be_enabled():
 
 
 def test_duplicate_cross_play_names_get_distinct_registration_name():
-    assert cross_play_opponent_registration_name(
-        tested_agent_name=ADAPTIVE_MC_AGENT,
-        opponent_agent_name=ADAPTIVE_MC_AGENT,
-    ) == "adaptive_mc_opponent"
+    assert (
+        cross_play_opponent_registration_name(
+            tested_agent_name=ADAPTIVE_MC_AGENT,
+            opponent_agent_name=ADAPTIVE_MC_AGENT,
+        )
+        == "adaptive_mc_opponent"
+    )
 
-    assert cross_play_opponent_registration_name(
-        tested_agent_name=ADAPTIVE_MC_AGENT,
-        opponent_agent_name=ADAPTIVE_Q_LEARNING_AGENT,
-    ) == ADAPTIVE_Q_LEARNING_AGENT
+    assert (
+        cross_play_opponent_registration_name(
+            tested_agent_name=ADAPTIVE_MC_AGENT,
+            opponent_agent_name=ADAPTIVE_Q_LEARNING_AGENT,
+        )
+        == ADAPTIVE_Q_LEARNING_AGENT
+    )
 
 
 def test_build_cross_play_q_learning_general_policy(tmp_path, monkeypatch):
@@ -165,19 +175,19 @@ def test_build_cross_play_seed_is_deterministic_and_distinct():
     first = build_cross_play_seed(
         eval_seed_base=700_000,
         model_seed=42,
-        checkpoint_episode=1000,
+        model_episode=1000,
         matchup_game_index=0,
     )
     repeated = build_cross_play_seed(
         eval_seed_base=700_000,
         model_seed=42,
-        checkpoint_episode=1000,
+        model_episode=1000,
         matchup_game_index=0,
     )
     second = build_cross_play_seed(
         eval_seed_base=700_000,
         model_seed=42,
-        checkpoint_episode=1000,
+        model_episode=1000,
         matchup_game_index=1,
     )
 
@@ -209,7 +219,8 @@ def test_evaluate_cross_play_bundle_runs_directed_matchups(tmp_path, monkeypatch
         return {
             "training_run": bundle.training_run_directory.name,
             "model_seed": bundle.seed,
-            "checkpoint_episode": bundle.checkpoint_episode,
+            "model_source": "final",
+            "training_episode": bundle.training_episode,
             "experiment_id": bundle.experiment_id,
             "experiment_name": f"{tested_agent_name}_vs_{opponent_agent_name}",
             "game_id": game_id,
@@ -267,8 +278,7 @@ def test_evaluate_cross_play_bundle_runs_directed_matchups(tmp_path, monkeypatch
     assert len(rows) == 4
     assert len(calls) == 4
     assert all(
-        tested_agent != opponent_agent
-        for tested_agent, opponent_agent, _, _ in calls
+        tested_agent != opponent_agent for tested_agent, opponent_agent, _, _ in calls
     )
     assert calls[0] == (
         ADAPTIVE_MC_AGENT,

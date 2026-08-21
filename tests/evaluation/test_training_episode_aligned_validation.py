@@ -22,18 +22,19 @@ SPEC = ALGORITHM_VALIDATION_SPECS[0]
 def make_row(
     agent_name: str,
     opponent_name: str,
-    checkpoint_episode: int,
+    training_episode: int,
     mean_profit_bb: float,
 ) -> dict[str, object]:
     return {
         "agent_name": agent_name,
         "opponent_name": opponent_name,
-        "checkpoint_episode": checkpoint_episode,
+        "model_source": "final",
+        "training_episode": training_episode,
         "mean_profit_bb": mean_profit_bb,
     }
 
 
-def test_adaptive_rule_based_delta_uses_latest_common_checkpoint():
+def test_adaptive_rule_based_delta_uses_latest_common_training_episode():
     rows = pd.DataFrame(
         [
             make_row(SPEC.adaptive_agent, "calling", 1000, 20.0),
@@ -51,12 +52,12 @@ def test_adaptive_rule_based_delta_uses_latest_common_checkpoint():
     )[0]
 
     assert check.status == STATUS_FAIL
-    assert check.checkpoint_episode == 2000
+    assert check.training_episode == 2000
     assert check.observed_value == -5.0
-    assert check.details["rule_based_checkpoint_episode"] == 2000
+    assert check.details["rule_based_training_episode"] == 2000
 
 
-def test_oracle_gap_skips_rows_without_a_common_checkpoint():
+def test_oracle_gap_skips_rows_without_a_common_training_episode():
     rows = pd.DataFrame(
         [
             make_row(SPEC.adaptive_agent, "tight", 1000, 5.0),
@@ -72,15 +73,15 @@ def test_oracle_gap_skips_rows_without_a_common_checkpoint():
     )[0]
 
     assert check.status == STATUS_SKIPPED
-    assert check.checkpoint_episode is None
-    assert "No common checkpoint_episode" in check.message
-    assert check.details["checkpoints_by_matchup"] == {
+    assert check.training_episode is None
+    assert "No common training_episode" in check.message
+    assert check.details["training_episodes_by_matchup"] == {
         f"{SPEC.oracle_agent} vs tight": [2000],
         f"{SPEC.adaptive_agent} vs tight": [1000],
     }
 
 
-def test_generalization_delta_uses_latest_common_checkpoint():
+def test_generalization_delta_uses_latest_common_training_episode():
     opponent_name = "calling_loose"
     rows = pd.DataFrame(
         [
@@ -104,12 +105,10 @@ def test_generalization_delta_uses_latest_common_checkpoint():
     assert check.status == STATUS_FAIL
     assert check.observed_value == 0.0
     assert check.details["deltas_by_variant"] == {opponent_name: -3.0}
-    assert check.details["checkpoint_episodes_by_variant"] == {
-        opponent_name: 2000
-    }
+    assert check.details["training_episodes_by_variant"] == {opponent_name: 2000}
 
 
-def test_head_to_head_gap_uses_latest_common_checkpoint():
+def test_head_to_head_gap_uses_latest_common_training_episode():
     rows = pd.DataFrame(
         [
             make_row(SPEC.adaptive_agent, "rule_based", 1000, 10.0),
@@ -126,6 +125,6 @@ def test_head_to_head_gap_uses_latest_common_checkpoint():
     )[0]
 
     assert check.status == STATUS_WARNING
-    assert check.checkpoint_episode == 2000
+    assert check.training_episode == 2000
     assert check.observed_value == -3.0
-    assert check.details["general_checkpoint_episode"] == 2000
+    assert check.details["general_training_episode"] == 2000

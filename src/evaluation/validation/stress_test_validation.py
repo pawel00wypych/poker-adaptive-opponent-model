@@ -19,15 +19,15 @@ from src.evaluation.validation.common import (
     STATUS_WARNING,
     ValidationCheckResult,
     ValidationThresholds,
-    _checkpoint_episode,
     _find_row,
-    _find_rows_at_latest_common_checkpoint,
+    _find_rows_at_common_training_episode,
     _format_float,
     _minimum_delta_status,
-    _missing_common_checkpoint_result,
+    _missing_common_training_episode_result,
     _missing_row_result,
     _paired_seed_message,
     _paired_seed_statistics_for_check,
+    _training_episode,
     validate_extreme_bb_per_100,
     validate_minimum_seed_coverage,
     validate_seed_stability,
@@ -78,8 +78,7 @@ def validate_stress_test_profitability(
                     else "RuleBasedPlayer"
                 )
                 check_name = (
-                    f"{spec.algorithm_name}: {role_label} {verb} "
-                    f"{opponent_label}"
+                    f"{spec.algorithm_name}: {role_label} {verb} {opponent_label}"
                 )
                 row = _find_row(best_rows, agent_name, opponent_name)
                 if row is None:
@@ -100,15 +99,13 @@ def validate_stress_test_profitability(
                     ValidationCheckResult(
                         check_name=check_name,
                         status=(
-                            STATUS_PASS
-                            if mean_profit_bb >= threshold
-                            else STATUS_FAIL
+                            STATUS_PASS if mean_profit_bb >= threshold else STATUS_FAIL
                         ),
                         category="stress_test_profitability",
                         algorithm_name=spec.algorithm_name,
                         agent_name=agent_name,
                         opponent_name=opponent_name,
-                        checkpoint_episode=_checkpoint_episode(row),
+                        training_episode=_training_episode(row),
                         observed_value=mean_profit_bb,
                         threshold=threshold,
                         message=(
@@ -139,8 +136,7 @@ def validate_stress_test_always_raise_resilience(
     for spec in _algorithm_specs(best_rows, algorithm_specs):
         for role_label, agent_name in _stress_test_agents(spec):
             check_name = (
-                f"{spec.algorithm_name}: {role_label} resilience "
-                "vs AlwaysRaisePlayer"
+                f"{spec.algorithm_name}: {role_label} resilience vs AlwaysRaisePlayer"
             )
             row = _find_row(best_rows, agent_name, ALWAYS_RAISE_AGENT)
             if row is None:
@@ -164,14 +160,12 @@ def validate_stress_test_always_raise_resilience(
             results.append(
                 ValidationCheckResult(
                     check_name=check_name,
-                    status=(
-                        STATUS_WARNING if catastrophic_loss else STATUS_PASS
-                    ),
+                    status=(STATUS_WARNING if catastrophic_loss else STATUS_PASS),
                     category="stress_test_always_raise",
                     algorithm_name=spec.algorithm_name,
                     agent_name=agent_name,
                     opponent_name=ALWAYS_RAISE_AGENT,
-                    checkpoint_episode=_checkpoint_episode(row),
+                    training_episode=_training_episode(row),
                     observed_value=mean_profit_bb,
                     threshold=thresholds.always_raise_stress_loss_bb,
                     message=(
@@ -215,11 +209,9 @@ def validate_stress_test_adaptive_gap(
                 (spec.adaptive_agent, opponent_name),
                 (spec.general_policy_agent, opponent_name),
             )
-            checkpoint_episode, rows = (
-                _find_rows_at_latest_common_checkpoint(
-                    comparison_rows,
-                    matchups,
-                )
+            training_episode, rows = _find_rows_at_common_training_episode(
+                comparison_rows,
+                matchups,
             )
             adaptive_row, general_row = rows
             if adaptive_row is None:
@@ -244,9 +236,9 @@ def validate_stress_test_adaptive_gap(
                     )
                 )
                 continue
-            if checkpoint_episode is None:
+            if training_episode is None:
                 results.append(
-                    _missing_common_checkpoint_result(
+                    _missing_common_training_episode_result(
                         check_name,
                         "stress_test_adaptive_gap",
                         comparison_rows,
@@ -258,19 +250,17 @@ def validate_stress_test_adaptive_gap(
                 )
                 continue
 
-            paired_statistics, unavailable_result = (
-                _paired_seed_statistics_for_check(
-                    seed_rows,
-                    left_agent_name=spec.adaptive_agent,
-                    right_agent_name=spec.general_policy_agent,
-                    opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
-                    thresholds=thresholds,
-                    check_name=check_name,
-                    category="stress_test_adaptive_gap",
-                    algorithm_name=spec.algorithm_name,
-                    agent_name=spec.adaptive_agent,
-                )
+            paired_statistics, unavailable_result = _paired_seed_statistics_for_check(
+                seed_rows,
+                left_agent_name=spec.adaptive_agent,
+                right_agent_name=spec.general_policy_agent,
+                opponent_name=opponent_name,
+                training_episode=training_episode,
+                thresholds=thresholds,
+                check_name=check_name,
+                category="stress_test_adaptive_gap",
+                algorithm_name=spec.algorithm_name,
+                agent_name=spec.adaptive_agent,
             )
             if unavailable_result is not None:
                 results.append(unavailable_result)
@@ -281,11 +271,7 @@ def validate_stress_test_adaptive_gap(
             threshold = -thresholds.max_adaptive_underperformance_vs_general_bb
             if paired_statistics is None:
                 adaptive_gap = adaptive_profit - general_profit
-                status = (
-                    STATUS_PASS
-                    if adaptive_gap >= threshold
-                    else STATUS_WARNING
-                )
+                status = STATUS_PASS if adaptive_gap >= threshold else STATUS_WARNING
                 message = (
                     "Adaptive minus fixed general mean profit is "
                     f"{_format_float(adaptive_gap)} BB/game."
@@ -310,7 +296,7 @@ def validate_stress_test_adaptive_gap(
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
+                    training_episode=training_episode,
                     observed_value=adaptive_gap,
                     threshold=threshold,
                     sample_size=(
@@ -341,11 +327,7 @@ def validate_stress_test_adaptive_gap(
                         "adaptive_mean_profit_bb": adaptive_profit,
                         "general_mean_profit_bb": general_profit,
                         **(
-                            {
-                                "paired_seed_statistics": (
-                                    paired_statistics.to_details()
-                                )
-                            }
+                            {"paired_seed_statistics": (paired_statistics.to_details())}
                             if paired_statistics is not None
                             else {}
                         ),
@@ -395,7 +377,7 @@ def validate_stress_test_classifier_coverage(
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=_checkpoint_episode(row),
+                    training_episode=_training_episode(row),
                     observed_value=coverage,
                     threshold=thresholds.min_classifier_coverage,
                     message=(
@@ -422,9 +404,7 @@ def validate_stress_test_results_from_best_rows(
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
-    aligned_comparison_rows = (
-        best_rows if comparison_rows is None else comparison_rows
-    )
+    aligned_comparison_rows = best_rows if comparison_rows is None else comparison_rows
     checks: list[ValidationCheckResult] = []
     checks.extend(
         validate_stress_test_profitability(

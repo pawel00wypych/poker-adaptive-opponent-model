@@ -26,15 +26,15 @@ from src.evaluation.validation.common import (
     STATUS_WARNING,
     ValidationCheckResult,
     ValidationThresholds,
-    _checkpoint_episode,
     _find_row,
-    _find_rows_at_latest_common_checkpoint,
+    _find_rows_at_common_training_episode,
     _format_float,
     _maximum_delta_status,
-    _missing_common_checkpoint_result,
+    _missing_common_training_episode_result,
     _missing_row_result,
     _paired_seed_message,
     _paired_seed_statistics_for_check,
+    _training_episode,
     validate_always_raise_outperforms_adaptive,
     validate_always_raise_trivial_exploit,
     validate_extreme_bb_per_100,
@@ -65,11 +65,7 @@ def _existing_generalization_opponents(
     opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
 ) -> tuple[str, ...]:
     available_opponents = set(best_rows["opponent_name"].unique())
-    return tuple(
-        opponent
-        for opponent in opponents
-        if opponent in available_opponents
-    )
+    return tuple(opponent for opponent in opponents if opponent in available_opponents)
 
 
 def _collect_agent_profit_rows(
@@ -106,8 +102,7 @@ def validate_generalization_adaptive_positive_variants(
 
     for spec in _algorithm_specs(best_rows, algorithm_specs):
         check_name = (
-            f"{spec.algorithm_name}: Adaptive positive on "
-            "generalization variants"
+            f"{spec.algorithm_name}: Adaptive positive on generalization variants"
         )
         rows, missing_opponents = _collect_agent_profit_rows(
             best_rows,
@@ -123,10 +118,7 @@ def validate_generalization_adaptive_positive_variants(
                     category="generalization_profitability",
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
-                    message=(
-                        "Missing adaptive rows for all generalization "
-                        "variants."
-                    ),
+                    message=("Missing adaptive rows for all generalization variants."),
                     details={
                         "algorithm": spec.algorithm_name,
                         "adaptive_agent": spec.adaptive_agent,
@@ -204,7 +196,7 @@ def validate_generalization_adaptive_beats_agent(
         inconclusive_variants: list[str] = []
         seed_pairing_failures: list[dict[str, object]] = []
         deltas_by_variant: dict[str, float] = {}
-        checkpoint_episodes_by_variant: dict[str, int] = {}
+        training_episodes_by_variant: dict[str, int] = {}
         paired_statistics_by_variant: dict[str, dict[str, object]] = {}
 
         for opponent_name in opponents:
@@ -212,8 +204,8 @@ def validate_generalization_adaptive_beats_agent(
                 (spec.adaptive_agent, opponent_name),
                 (compared_baseline_agent, opponent_name),
             )
-            checkpoint_episode, rows = (
-                _find_rows_at_latest_common_checkpoint(best_rows, matchups)
+            training_episode, rows = _find_rows_at_common_training_episode(
+                best_rows, matchups
             )
             adaptive_row, baseline_row = rows
 
@@ -235,23 +227,21 @@ def validate_generalization_adaptive_beats_agent(
                 )
                 continue
 
-            if checkpoint_episode is None:
+            if training_episode is None:
                 unaligned_variants.append(opponent_name)
                 continue
 
-            paired_statistics, unavailable_result = (
-                _paired_seed_statistics_for_check(
-                    seed_rows,
-                    left_agent_name=spec.adaptive_agent,
-                    right_agent_name=compared_baseline_agent,
-                    opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
-                    thresholds=thresholds,
-                    check_name=full_check_name,
-                    category=category,
-                    algorithm_name=spec.algorithm_name,
-                    agent_name=spec.adaptive_agent,
-                )
+            paired_statistics, unavailable_result = _paired_seed_statistics_for_check(
+                seed_rows,
+                left_agent_name=spec.adaptive_agent,
+                right_agent_name=compared_baseline_agent,
+                opponent_name=opponent_name,
+                training_episode=training_episode,
+                thresholds=thresholds,
+                check_name=full_check_name,
+                category=category,
+                algorithm_name=spec.algorithm_name,
+                agent_name=spec.adaptive_agent,
             )
             if unavailable_result is not None:
                 seed_pairing_failures.append(
@@ -266,8 +256,7 @@ def validate_generalization_adaptive_beats_agent(
 
             if paired_statistics is None:
                 delta = float(
-                    adaptive_row["mean_profit_bb"]
-                    - baseline_row["mean_profit_bb"]
+                    adaptive_row["mean_profit_bb"] - baseline_row["mean_profit_bb"]
                 )
                 successful = delta >= 0.0
             else:
@@ -281,7 +270,7 @@ def validate_generalization_adaptive_beats_agent(
                     inconclusive_variants.append(opponent_name)
 
             deltas_by_variant[opponent_name] = delta
-            checkpoint_episodes_by_variant[opponent_name] = checkpoint_episode
+            training_episodes_by_variant[opponent_name] = training_episode
 
             if successful:
                 successful_variants.append(opponent_name)
@@ -292,17 +281,12 @@ def validate_generalization_adaptive_beats_agent(
 
         if compared_variants == 0:
             has_pairing_failure = any(
-                failure["status"] == STATUS_FAIL
-                for failure in seed_pairing_failures
+                failure["status"] == STATUS_FAIL for failure in seed_pairing_failures
             )
             results.append(
                 ValidationCheckResult(
                     check_name=full_check_name,
-                    status=(
-                        STATUS_FAIL
-                        if has_pairing_failure
-                        else STATUS_SKIPPED
-                    ),
+                    status=(STATUS_FAIL if has_pairing_failure else STATUS_SKIPPED),
                     category=category,
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
@@ -326,8 +310,7 @@ def validate_generalization_adaptive_beats_agent(
         passed = observed >= min_successful_variants
 
         has_pairing_failure = any(
-            failure["status"] == STATUS_FAIL
-            for failure in seed_pairing_failures
+            failure["status"] == STATUS_FAIL for failure in seed_pairing_failures
         )
         if has_pairing_failure:
             status = STATUS_FAIL
@@ -366,12 +349,8 @@ def validate_generalization_adaptive_beats_agent(
                     "unaligned_variants": unaligned_variants,
                     "seed_pairing_failures": seed_pairing_failures,
                     "deltas_by_variant": deltas_by_variant,
-                    "paired_seed_statistics_by_variant": (
-                        paired_statistics_by_variant
-                    ),
-                    "checkpoint_episodes_by_variant": (
-                        checkpoint_episodes_by_variant
-                    ),
+                    "paired_seed_statistics_by_variant": (paired_statistics_by_variant),
+                    "training_episodes_by_variant": (training_episodes_by_variant),
                 },
             )
         )
@@ -394,13 +373,12 @@ def validate_generalization_oracle_gap(
                 (spec.adaptive_agent, opponent_name),
                 (spec.oracle_agent, opponent_name),
             )
-            checkpoint_episode, rows = (
-                _find_rows_at_latest_common_checkpoint(best_rows, matchups)
+            training_episode, rows = _find_rows_at_common_training_episode(
+                best_rows, matchups
             )
             adaptive_row, oracle_row = rows
             check_name = (
-                f"{spec.algorithm_name}: Generalization oracle gap "
-                f"vs {opponent_name}"
+                f"{spec.algorithm_name}: Generalization oracle gap vs {opponent_name}"
             )
 
             if adaptive_row is None:
@@ -427,9 +405,9 @@ def validate_generalization_oracle_gap(
                 )
                 continue
 
-            if checkpoint_episode is None:
+            if training_episode is None:
                 results.append(
-                    _missing_common_checkpoint_result(
+                    _missing_common_training_episode_result(
                         check_name,
                         "generalization_oracle_gap",
                         best_rows,
@@ -441,19 +419,17 @@ def validate_generalization_oracle_gap(
                 )
                 continue
 
-            paired_statistics, unavailable_result = (
-                _paired_seed_statistics_for_check(
-                    seed_rows,
-                    left_agent_name=spec.oracle_agent,
-                    right_agent_name=spec.adaptive_agent,
-                    opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
-                    thresholds=thresholds,
-                    check_name=check_name,
-                    category="generalization_oracle_gap",
-                    algorithm_name=spec.algorithm_name,
-                    agent_name=spec.adaptive_agent,
-                )
+            paired_statistics, unavailable_result = _paired_seed_statistics_for_check(
+                seed_rows,
+                left_agent_name=spec.oracle_agent,
+                right_agent_name=spec.adaptive_agent,
+                opponent_name=opponent_name,
+                training_episode=training_episode,
+                thresholds=thresholds,
+                check_name=check_name,
+                category="generalization_oracle_gap",
+                algorithm_name=spec.algorithm_name,
+                agent_name=spec.adaptive_agent,
             )
             if unavailable_result is not None:
                 results.append(unavailable_result)
@@ -466,10 +442,7 @@ def validate_generalization_oracle_gap(
                         adaptive_row["mean_profit_bb"],
                     )
                 )
-                large_gap = (
-                    oracle_gap_bb
-                    > thresholds.max_generalization_oracle_gap_bb
-                )
+                large_gap = oracle_gap_bb > thresholds.max_generalization_oracle_gap_bb
                 status = STATUS_WARNING if large_gap else STATUS_PASS
                 message = (
                     "Oracle minus adaptive mean profit is "
@@ -494,7 +467,7 @@ def validate_generalization_oracle_gap(
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
+                    training_episode=training_episode,
                     observed_value=oracle_gap_bb,
                     threshold=thresholds.max_generalization_oracle_gap_bb,
                     sample_size=(
@@ -525,17 +498,11 @@ def validate_generalization_oracle_gap(
                         "adaptive_mean_profit_bb": float(
                             adaptive_row["mean_profit_bb"]
                         ),
-                        "oracle_mean_profit_bb": float(
-                            oracle_row["mean_profit_bb"]
-                        ),
+                        "oracle_mean_profit_bb": float(oracle_row["mean_profit_bb"]),
                         ORACLE_GAP_BB_COLUMN: oracle_gap_bb,
                         "max_oracle_gap_bb": thresholds.max_generalization_oracle_gap_bb,
                         **(
-                            {
-                                "paired_seed_statistics": (
-                                    paired_statistics.to_details()
-                                )
-                            }
+                            {"paired_seed_statistics": (paired_statistics.to_details())}
                             if paired_statistics is not None
                             else {}
                         ),
@@ -601,7 +568,7 @@ def validate_generalization_classifier_quality(
                         algorithm_name=spec.algorithm_name,
                         agent_name=spec.adaptive_agent,
                         opponent_name=opponent_name,
-                        checkpoint_episode=_checkpoint_episode(adaptive_row),
+                        training_episode=_training_episode(adaptive_row),
                         observed_value=value,
                         threshold=threshold,
                         message=(
@@ -630,9 +597,7 @@ def validate_generalization_aggressive_extreme_robustness(
     results: list[ValidationCheckResult] = []
 
     for spec in _algorithm_specs(best_rows, algorithm_specs):
-        check_name = (
-            f"{spec.algorithm_name}: Aggressive extreme robustness check"
-        )
+        check_name = f"{spec.algorithm_name}: Aggressive extreme robustness check"
         row = _find_row(
             best_rows,
             spec.adaptive_agent,
@@ -654,10 +619,8 @@ def validate_generalization_aggressive_extreme_robustness(
         mean_profit_bb = float(row["mean_profit_bb"])
         bust_rate = float(row["bust_rate"])
         robustness_warning = (
-            mean_profit_bb
-            < thresholds.generalization_extreme_aggressive_min_profit_bb
-            or bust_rate
-            > thresholds.generalization_extreme_aggressive_max_bust_rate
+            mean_profit_bb < thresholds.generalization_extreme_aggressive_min_profit_bb
+            or bust_rate > thresholds.generalization_extreme_aggressive_max_bust_rate
         )
 
         results.append(
@@ -668,7 +631,7 @@ def validate_generalization_aggressive_extreme_robustness(
                 algorithm_name=spec.algorithm_name,
                 agent_name=spec.adaptive_agent,
                 opponent_name=OPPONENT_AGGRESSIVE_EXTREME,
-                checkpoint_episode=_checkpoint_episode(row),
+                training_episode=_training_episode(row),
                 observed_value=mean_profit_bb,
                 threshold=thresholds.generalization_extreme_aggressive_min_profit_bb,
                 message=(
@@ -747,7 +710,7 @@ def validate_generalization_matching_specialists(
                 algorithm_name=ALGORITHM_MONTE_CARLO,
                 agent_name=specialist_agent,
                 opponent_name=opponent_name,
-                checkpoint_episode=_checkpoint_episode(row),
+                training_episode=_training_episode(row),
                 observed_value=mean_profit_bb,
                 threshold=thresholds.min_head_to_head_mean_profit_bb,
                 message=(
@@ -779,9 +742,7 @@ def validate_generalization_results_from_best_rows(
 ) -> list[ValidationCheckResult]:
     opponents = _existing_generalization_opponents(best_rows)
     specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
-    aligned_comparison_rows = (
-        best_rows if comparison_rows is None else comparison_rows
-    )
+    aligned_comparison_rows = best_rows if comparison_rows is None else comparison_rows
 
     checks: list[ValidationCheckResult] = []
     checks.extend(
@@ -799,9 +760,7 @@ def validate_generalization_results_from_best_rows(
             min_successful_variants=(
                 thresholds.min_generalization_adaptive_beats_general_variants
             ),
-            check_name=(
-                "Adaptive beats fixed general on generalization variants"
-            ),
+            check_name=("Adaptive beats fixed general on generalization variants"),
             category="generalization_adaptive_delta_vs_general",
             fail_on_underperformance=True,
             opponents=opponents,
@@ -817,9 +776,7 @@ def validate_generalization_results_from_best_rows(
             min_successful_variants=(
                 thresholds.min_generalization_adaptive_beats_rule_based_variants
             ),
-            check_name=(
-                "Adaptive beats rule-based on generalization variants"
-            ),
+            check_name=("Adaptive beats rule-based on generalization variants"),
             category="generalization_adaptive_delta_vs_rule_based",
             fail_on_underperformance=False,
             opponents=opponents,

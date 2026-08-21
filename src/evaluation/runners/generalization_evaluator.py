@@ -35,8 +35,11 @@ from src.evaluation.player_factory import (
     EvaluationAgentLoaders,
     build_evaluation_player,
 )
-from src.evaluation.runners.checkpoint_evaluator import (
-    CHECKPOINT_EVALUATION_FIELDNAMES,
+from src.evaluation.runners.evaluation_seed import (
+    build_paired_evaluation_seed,
+)
+from src.evaluation.runners.model_evaluator import (
+    MODEL_EVALUATION_FIELDNAMES,
     ModelBundle,
     build_result_row,
     get_classifier_metrics,
@@ -49,9 +52,6 @@ from src.evaluation.runners.checkpoint_evaluator import (
     load_q_learning_eval_agent,
     load_sarsa_adaptive_agents,
     load_sarsa_eval_agent,
-)
-from src.evaluation.runners.evaluation_seed import (
-    build_paired_evaluation_seed,
 )
 from src.players.constants import GENERALIZATION_OPPONENTS
 from src.players.generalization.generalization_opponents import (
@@ -99,7 +99,7 @@ GENERALIZATION_METADATA_FIELDNAMES = [
 ]
 
 GENERALIZATION_EVALUATION_FIELDNAMES = [
-    *CHECKPOINT_EVALUATION_FIELDNAMES,
+    *MODEL_EVALUATION_FIELDNAMES,
     *GENERALIZATION_METADATA_FIELDNAMES,
 ]
 
@@ -145,9 +145,7 @@ def build_generalization_opponent(
     opponent_name: str,
     rng: random.Random | None = None,
 ):
-    validate_generalization_opponent(
-        opponent_name
-    )
+    validate_generalization_opponent(opponent_name)
 
     return build_generalization_opponent_player(
         opponent_name=opponent_name,
@@ -182,16 +180,10 @@ def build_generalization_tested_player(
     evaluated on unseen variants, without training variant-specific specialists.
     """
 
-    validate_generalization_agent(
-        tested_agent_name
-    )
-    validate_generalization_opponent(
-        opponent_name
-    )
+    validate_generalization_agent(tested_agent_name)
+    validate_generalization_opponent(opponent_name)
 
-    opponent_family = get_generalization_opponent_base_type(
-        opponent_name
-    )
+    opponent_family = get_generalization_opponent_base_type(opponent_name)
 
     return build_evaluation_player(
         tested_agent_name=tested_agent_name,
@@ -202,6 +194,7 @@ def build_generalization_tested_player(
         unsupported_context="generalization agent",
     )
 
+
 def set_generalization_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -211,13 +204,13 @@ def build_generalization_seed(
     *,
     eval_seed_base: int,
     model_seed: int,
-    checkpoint_episode: int,
+    model_episode: int,
     matchup_game_index: int,
 ) -> int:
     return build_paired_evaluation_seed(
         eval_seed_base=eval_seed_base,
         model_seed=model_seed,
-        checkpoint_episode=checkpoint_episode,
+        model_episode=model_episode,
         matchup_game_index=matchup_game_index,
     )
 
@@ -227,9 +220,7 @@ def add_generalization_metadata(
     *,
     opponent_name: str,
 ) -> dict:
-    opponent_family = get_generalization_opponent_base_type(
-        opponent_name
-    )
+    opponent_family = get_generalization_opponent_base_type(opponent_name)
     seen_during_training = was_generalization_opponent_seen_during_training(
         opponent_name
     )
@@ -242,6 +233,7 @@ def add_generalization_metadata(
         "opponent_family": opponent_family,
         "opponent_variant": "" if seen_during_training else opponent_name,
     }
+
 
 def evaluate_single_generalization_game(
     *,
@@ -256,7 +248,7 @@ def evaluate_single_generalization_game(
     game_seed = build_generalization_seed(
         eval_seed_base=eval_seed_base,
         model_seed=bundle.seed,
-        checkpoint_episode=bundle.checkpoint_episode,
+        model_episode=bundle.model_episode,
         matchup_game_index=matchup_game_index,
     )
 
@@ -265,9 +257,7 @@ def evaluate_single_generalization_game(
     config = setup_config(
         max_round=game_config.max_round,
         initial_stack=game_config.initial_stack,
-        small_blind_amount=(
-            game_config.small_blind_amount
-        ),
+        small_blind_amount=(game_config.small_blind_amount),
     )
 
     tested_player = build_generalization_tested_player(
@@ -296,27 +286,17 @@ def evaluate_single_generalization_game(
         verbose=0,
     )
 
-    hands_played = get_hands_played(
-        tested_player
-    )
+    hands_played = get_hands_played(tested_player)
 
     ended_by_bust = any(
-        player_result["stack"] == 0
-        for player_result in result["players"]
+        player_result["stack"] == 0 for player_result in result["players"]
     )
 
-    ended_by_round_limit = (
-        not ended_by_bust
-        and hands_played >= game_config.max_round
-    )
+    ended_by_round_limit = not ended_by_bust and hands_played >= game_config.max_round
 
-    classifier_metrics = get_classifier_metrics(
-        tested_player
-    )
+    classifier_metrics = get_classifier_metrics(tested_player)
 
-    big_blind = (
-        game_config.small_blind_amount * 2
-    )
+    big_blind = game_config.small_blind_amount * 2
 
     for player_result in result["players"]:
         if player_result["name"] == tested_agent_name:
@@ -332,9 +312,7 @@ def evaluate_single_generalization_game(
                 hands_played=hands_played,
                 big_blind=big_blind,
                 ended_by_bust=ended_by_bust,
-                ended_by_round_limit=(
-                    ended_by_round_limit
-                ),
+                ended_by_round_limit=(ended_by_round_limit),
                 classifier_metrics=classifier_metrics,
             )
 
@@ -343,9 +321,7 @@ def evaluate_single_generalization_game(
                 opponent_name=opponent_name,
             )
 
-    raise RuntimeError(
-        "Tested player result not found in game result."
-    )
+    raise RuntimeError("Tested player result not found in game result.")
 
 
 def evaluate_generalization_bundle(
@@ -359,21 +335,15 @@ def evaluate_generalization_bundle(
     game_id = 0
 
     for tested_agent_name in config.tested_agents:
-        validate_generalization_agent(
-            tested_agent_name
-        )
+        validate_generalization_agent(tested_agent_name)
 
         for opponent_name in config.opponents:
-            validate_generalization_opponent(
-                opponent_name
-            )
+            validate_generalization_opponent(opponent_name)
 
             for matchup_game_index in range(config.games_per_matchup):
                 row = evaluate_single_generalization_game(
                     bundle=bundle,
-                    tested_agent_name=(
-                        tested_agent_name
-                    ),
+                    tested_agent_name=(tested_agent_name),
                     opponent_name=opponent_name,
                     game_id=game_id,
                     matchup_game_index=matchup_game_index,
