@@ -11,7 +11,7 @@ from src.evaluation.constants import (
     ALWAYS_RAISE_AGENT,
     RULE_BASED_AGENT,
 )
-from src.evaluation.metrics.checkpoint_metrics import (
+from src.evaluation.metrics.evaluation_metrics import (
     calculate_grouped_evaluation_metrics,
 )
 
@@ -37,27 +37,15 @@ BASELINE_REPLICATE_CI_UPPER_COLUMN = (
 BASELINE_REPLICATE_CI_MARGIN_COLUMN = (
     "mean_profit_bb_ci_95_margin_across_evaluation_replicates"
 )
-BASELINE_REPLICATE_STD_COLUMN = (
-    "mean_profit_bb_std_across_evaluation_replicates"
-)
-BASELINE_REPLICATE_MIN_COLUMN = (
-    "mean_profit_bb_min_across_evaluation_replicates"
-)
-BASELINE_REPLICATE_MAX_COLUMN = (
-    "mean_profit_bb_max_across_evaluation_replicates"
-)
-BASELINE_REPLICATE_SPREAD_COLUMN = (
-    "mean_profit_bb_evaluation_replicate_spread"
-)
+BASELINE_REPLICATE_STD_COLUMN = "mean_profit_bb_std_across_evaluation_replicates"
+BASELINE_REPLICATE_MIN_COLUMN = "mean_profit_bb_min_across_evaluation_replicates"
+BASELINE_REPLICATE_MAX_COLUMN = "mean_profit_bb_max_across_evaluation_replicates"
+BASELINE_REPLICATE_SPREAD_COLUMN = "mean_profit_bb_evaluation_replicate_spread"
 
 
 def _validated_replicate_ids(values: pd.Series) -> pd.Series:
     numeric = pd.to_numeric(values, errors="coerce")
-    invalid = (
-        numeric.isna()
-        | numeric.lt(0)
-        | numeric.mod(1).ne(0)
-    )
+    invalid = numeric.isna() | numeric.lt(0) | numeric.mod(1).ne(0)
     if invalid.any():
         invalid_values = values[invalid].astype(str).unique().tolist()
         raise ValueError(
@@ -87,16 +75,18 @@ def calculate_baseline_replicate_metrics(
         & df["opponent_name"].isin(BASELINE_AGENT_SET)
     ].copy()
     if baseline_rows.empty:
-        raise ValueError(
-            "No baseline rows with evaluation_replicate_id were found."
-        )
+        raise ValueError("No baseline rows with evaluation_replicate_id were found.")
 
     baseline_rows["evaluation_replicate_id"] = _validated_replicate_ids(
         baseline_rows["evaluation_replicate_id"]
     )
     populated_model_columns = [
         column
-        for column in ("model_seed", "checkpoint_episode")
+        for column in (
+            "model_seed",
+            "training_episode",
+            "checkpoint_episode",
+        )
         if column in baseline_rows.columns and baseline_rows[column].notna().any()
     ]
     if populated_model_columns:
@@ -171,14 +161,15 @@ def aggregate_across_evaluation_replicates(
         index=aggregated.index,
         dtype="float64",
     )
-    standard_errors.loc[valid] = (
-        deviations.loc[valid] / np.sqrt(counts.loc[valid])
-    )
+    standard_errors.loc[valid] = deviations.loc[valid] / np.sqrt(counts.loc[valid])
     margins = pd.Series(np.nan, index=aggregated.index, dtype="float64")
-    margins.loc[valid] = student_t.ppf(
-        0.975,
-        counts.loc[valid] - 1,
-    ) * standard_errors.loc[valid]
+    margins.loc[valid] = (
+        student_t.ppf(
+            0.975,
+            counts.loc[valid] - 1,
+        )
+        * standard_errors.loc[valid]
+    )
 
     aggregated[BASELINE_REPLICATE_STANDARD_ERROR_COLUMN] = standard_errors
     aggregated[BASELINE_REPLICATE_CI_MARGIN_COLUMN] = margins
@@ -188,10 +179,8 @@ def aggregate_across_evaluation_replicates(
         aggregated[BASELINE_REPLICATE_MAX_COLUMN]
         - aggregated[BASELINE_REPLICATE_MIN_COLUMN]
     )
-    aggregated["mean_hands_played"] = (
-        aggregated["total_hands"] / aggregated["games"]
-    )
+    aggregated["mean_hands_played"] = aggregated["total_hands"] / aggregated["games"]
 
-    return aggregated.sort_values(
-        ["opponent_name", "agent_name"]
-    ).reset_index(drop=True)
+    return aggregated.sort_values(["opponent_name", "agent_name"]).reset_index(
+        drop=True
+    )

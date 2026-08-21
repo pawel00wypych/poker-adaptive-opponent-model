@@ -32,7 +32,6 @@ from src.evaluation.metrics.seed_statistics import (
     SEED_SPREAD_COLUMN,
     SEED_STANDARD_ERROR_COLUMN,
 )
-from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.reporting.experiment_summary import (
     dataframe_records_with_missing_as_none,
     load_experiment_summary_data,
@@ -41,16 +40,17 @@ from src.evaluation.reporting.experiment_summary import (
 )
 from src.evaluation.reporting.html_utils import write_text
 from src.evaluation.reporting.plot_utils import ensure_output_dir, save_current_figure
+from src.evaluation.reporting.training_opponent_report import display_agent_name
 
 GROUP_COLUMNS = [
     "training_run",
     "opponent_name",
-    "checkpoint_episode",
+    "training_episode",
 ]
 
 ALGORITHM_METRIC_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "opponent_name",
     "rank",
     "algorithm",
@@ -88,7 +88,7 @@ GLOBAL_RANKING_COLUMNS = [
 
 DELTA_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "opponent_name",
     "algorithm",
     "mean_profit_bb",
@@ -138,7 +138,7 @@ def _round_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
     for column in result.select_dtypes(include="number").columns:
         if column in {
-            "checkpoint_episode",
+            "training_episode",
             "rank",
             "global_rank",
             "positive_matchup_count",
@@ -161,16 +161,6 @@ def _format_signed(value: float | None) -> str:
     if value is None or pd.isna(value):
         return "n/a"
     return f"{value:+.3f}"
-
-
-def _latest_checkpoint_rows(rows: pd.DataFrame) -> pd.DataFrame:
-    if rows.empty or "checkpoint_episode" not in rows.columns:
-        return rows.copy()
-
-    latest = rows.groupby(["training_run", "opponent_name"])[
-        "checkpoint_episode"
-    ].transform("max")
-    return rows[rows["checkpoint_episode"] == latest].copy()
 
 
 def build_algorithm_rows(aggregated: pd.DataFrame) -> pd.DataFrame:
@@ -196,7 +186,7 @@ def add_algorithm_ranking(algorithm_rows: pd.DataFrame) -> pd.DataFrame:
     sort_columns = [
         "training_run",
         "opponent_name",
-        "checkpoint_episode",
+        "training_episode",
         "mean_profit_bb",
         "win_rate",
         "bust_rate",
@@ -211,8 +201,7 @@ def add_algorithm_ranking(algorithm_rows: pd.DataFrame) -> pd.DataFrame:
 
     front_columns = GROUP_COLUMNS + ["rank", "algorithm", "agent_name"]
     remaining_columns = [
-        column for column in result.columns
-        if column not in front_columns
+        column for column in result.columns if column not in front_columns
     ]
     return result[front_columns + remaining_columns]
 
@@ -255,17 +244,15 @@ def add_algorithm_deltas(
         baseline_column_name="rule_based_mean_profit_bb",
     )
 
-    oracle = aggregated[
-        aggregated["agent_name"].isin(ORACLE_AGENT_TO_ALGORITHM)
-    ].copy()
+    oracle = aggregated[aggregated["agent_name"].isin(ORACLE_AGENT_TO_ALGORITHM)].copy()
     if oracle.empty:
         result[ORACLE_GAP_BB_COLUMN] = pd.NA
         return result
 
     oracle["algorithm"] = oracle["agent_name"].map(ORACLE_AGENT_TO_ALGORITHM)
-    oracle_values = oracle[
-        GROUP_COLUMNS + ["algorithm", "mean_profit_bb"]
-    ].rename(columns={"mean_profit_bb": "oracle_mean_profit_bb"})
+    oracle_values = oracle[GROUP_COLUMNS + ["algorithm", "mean_profit_bb"]].rename(
+        columns={"mean_profit_bb": "oracle_mean_profit_bb"}
+    )
 
     result = result.merge(
         oracle_values,
@@ -328,7 +315,7 @@ def build_algorithm_overview(
     if metrics.empty:
         return {
             "training_runs": [],
-            "checkpoints": [],
+            "final_training_episodes": [],
             "seeds": [],
             "opponents": [],
             "algorithms": [],
@@ -338,13 +325,11 @@ def build_algorithm_overview(
 
     return {
         "training_runs": sorted(metrics["training_run"].dropna().unique()),
-        "checkpoints": sorted(
-            int(value)
-            for value in metrics["checkpoint_episode"].dropna().unique()
+        "final_training_episodes": sorted(
+            int(value) for value in metrics["training_episode"].dropna().unique()
         ),
         "seeds": sorted(
-            int(value)
-            for value in metrics["model_seed"].dropna().unique()
+            int(value) for value in metrics["model_seed"].dropna().unique()
         ),
         "opponents": sorted(metrics["opponent_name"].dropna().unique()),
         "algorithms": sorted(
@@ -381,9 +366,7 @@ def generate_algorithm_findings(
             .apply(lambda values: int((values >= 0.0).sum()))
             .sort_values(ascending=False)
         )
-        evaluated = algorithm_by_opponent.groupby("algorithm")[
-            "mean_profit_bb"
-        ].count()
+        evaluated = algorithm_by_opponent.groupby("algorithm")["mean_profit_bb"].count()
         if not positive.empty:
             leader = positive.index[0]
             findings.append(
@@ -429,19 +412,15 @@ def generate_algorithm_findings(
         )
 
     if not algorithm_by_opponent.empty:
-        best_by_opponent = algorithm_by_opponent[
-            algorithm_by_opponent["rank"] == 1
-        ]
+        best_by_opponent = algorithm_by_opponent[algorithm_by_opponent["rank"] == 1]
         if not best_by_opponent.empty:
             winners = [
                 f"{row.opponent_name}: {row.algorithm}"
                 for row in best_by_opponent.sort_values(
-                    ["opponent_name", "checkpoint_episode"]
+                    ["opponent_name", "training_episode"]
                 ).itertuples(index=False)
             ]
-            findings.append(
-                "Best algorithm by opponent: " + "; ".join(winners) + "."
-            )
+            findings.append("Best algorithm by opponent: " + "; ".join(winners) + ".")
 
     return findings
 
@@ -462,7 +441,9 @@ def build_algorithm_comparison(
     algorithm_ranking = add_algorithm_ranking(algorithm_rows)
     algorithm_by_opponent = add_algorithm_deltas(algorithm_ranking, aggregated)
     global_ranking = build_global_algorithm_ranking(algorithm_by_opponent)
-    deltas = algorithm_by_opponent[_existing_columns(algorithm_by_opponent, DELTA_COLUMNS)]
+    deltas = algorithm_by_opponent[
+        _existing_columns(algorithm_by_opponent, DELTA_COLUMNS)
+    ]
 
     overview = build_algorithm_overview(metrics, algorithm_by_opponent)
     main_findings = generate_algorithm_findings(
@@ -495,10 +476,7 @@ def _chart_markdown(chart_paths: list[Path]) -> str:
     if not chart_paths:
         return "No charts generated."
 
-    return "\n\n".join(
-        f"![{path.stem}](charts/{path.name})"
-        for path in chart_paths
-    )
+    return "\n\n".join(f"![{path.stem}](charts/{path.name})" for path in chart_paths)
 
 
 def render_algorithm_comparison_markdown(
@@ -509,8 +487,7 @@ def render_algorithm_comparison_markdown(
     chart_paths: list[Path] | None = None,
 ) -> str:
     findings = "\n".join(
-        f"{index + 1}. {finding}"
-        for index, finding in enumerate(report.main_findings)
+        f"{index + 1}. {finding}" for index, finding in enumerate(report.main_findings)
     )
 
     global_table = global_ranking[
@@ -558,7 +535,7 @@ def render_algorithm_comparison_markdown(
             "",
             _display_table(global_table).to_markdown(index=False),
             "",
-            "## Algorithm ranking by opponent and checkpoint",
+            "## Algorithm ranking by opponent and final training episode",
             "",
             _display_table(opponent_table).to_markdown(index=False),
             "",
@@ -579,9 +556,9 @@ def _truncate_label(value: str, max_length: int) -> str:
 def _sort_algorithm_labels(data: pd.DataFrame) -> pd.DataFrame:
     result = data.copy()
     result["algorithm_order"] = result["algorithm"].map(ALGORITHM_ORDER)
-    return result.sort_values(
-        ["opponent_name", "algorithm_order"]
-    ).reset_index(drop=True)
+    return result.sort_values(["opponent_name", "algorithm_order"]).reset_index(
+        drop=True
+    )
 
 
 def plot_algorithm_mean_profit_by_opponent(
@@ -590,7 +567,7 @@ def plot_algorithm_mean_profit_by_opponent(
     config: AlgorithmComparisonConfig | None = None,
 ) -> Path | None:
     config = config or AlgorithmComparisonConfig()
-    data = _latest_checkpoint_rows(algorithm_by_opponent)
+    data = algorithm_by_opponent.copy()
 
     if data.empty or "mean_profit_bb" not in data.columns:
         return None
@@ -634,7 +611,7 @@ def plot_algorithm_seed_stability_by_opponent(
     config: AlgorithmComparisonConfig | None = None,
 ) -> Path | None:
     config = config or AlgorithmComparisonConfig()
-    data = _latest_checkpoint_rows(algorithm_by_opponent)
+    data = algorithm_by_opponent.copy()
 
     if data.empty or "mean_profit_bb_std_across_seeds" not in data.columns:
         return None
@@ -656,10 +633,7 @@ def plot_algorithm_seed_stability_by_opponent(
         config.max_std_across_seeds_bb,
         linestyle="--",
         linewidth=1,
-        label=(
-            "Warning threshold "
-            f"({config.max_std_across_seeds_bb:.1f} BB/game)"
-        ),
+        label=(f"Warning threshold ({config.max_std_across_seeds_bb:.1f} BB/game)"),
     )
     plt.xticks(x_positions, data["plot_label"], rotation=45, ha="right")
     plt.ylabel("Std across seeds [BB/game]")
@@ -748,16 +722,15 @@ def write_algorithm_comparison_outputs(
 ) -> list[Path]:
     if report_format not in {"markdown", "json", "both", "all"}:
         raise ValueError(
-            "Unsupported report_format. Expected one of: "
-            "markdown, json, both, all."
+            "Unsupported report_format. Expected one of: markdown, json, both, all."
         )
 
     config = config or AlgorithmComparisonConfig()
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    report, global_ranking, algorithm_by_opponent, deltas = (
-        build_algorithm_comparison(input_path, config=config)
+    report, global_ranking, algorithm_by_opponent, deltas = build_algorithm_comparison(
+        input_path, config=config
     )
 
     created_paths: list[Path] = []

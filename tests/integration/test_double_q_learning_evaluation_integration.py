@@ -3,24 +3,30 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from src.evaluation.runners.checkpoint_evaluator import (
-    ModelBundle,
-    build_model_bundle,
-    build_tested_player,
-)
-from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.constants import (
     ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
     POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
     SUPPORTED_TESTED_AGENTS,
 )
 from src.evaluation.reporting.experiment_summary import build_experiment_summary
+from src.evaluation.reporting.training_opponent_report import display_agent_name
 from src.evaluation.runners.generalization_evaluator import (
     SUPPORTED_GENERALIZATION_AGENTS,
     build_generalization_tested_player,
 )
-from src.experiments.evaluation.run_checkpoint_evaluation import parse_args as parse_checkpoint_args
-from src.experiments.evaluation.run_generalization_evaluation import parse_args as parse_generalization_args
+from src.evaluation.runners.learning_curve_evaluator import (
+    build_checkpoint_model_bundle,
+)
+from src.evaluation.runners.model_evaluator import (
+    ModelBundle,
+    build_tested_player,
+)
+from src.experiments.evaluation.run_generalization_evaluation import (
+    parse_args as parse_generalization_args,
+)
+from src.experiments.evaluation.run_training_opponent_evaluation import (
+    parse_args as parse_final_args,
+)
 from src.players.learned.adaptive_player import AdaptivePlayer
 from src.players.learned.fixed_policy_player import FixedPolicyPlayer
 from src.poker.constants import (
@@ -60,19 +66,13 @@ def create_checkpoint_bundle_files(
     ]
 
     for directory_name, prefix in files:
-        checkpoint_directory = (
-            root
-            / f"seed_{seed}"
-            / directory_name
-            / "checkpoints"
-        )
+        checkpoint_directory = root / f"seed_{seed}" / directory_name / "checkpoints"
         checkpoint_directory.mkdir(
             parents=True,
             exist_ok=True,
         )
         checkpoint_path = (
-            checkpoint_directory
-            / f"{prefix}_episodes_{episode}_seed_{seed}.pkl"
+            checkpoint_directory / f"{prefix}_episodes_{episode}_seed_{seed}.pkl"
         )
         checkpoint_path.write_bytes(b"dummy-model")
 
@@ -81,7 +81,8 @@ def make_bundle_with_double_q_learning_paths(tmp_path: Path) -> ModelBundle:
     return ModelBundle(
         training_run_directory=tmp_path / "mc_run",
         seed=42,
-        checkpoint_episode=2000,
+        episode=2000,
+        model_source="final",
         unknown_model_path=Path("mc_unknown.pkl"),
         tight_model_path=Path("mc_tight.pkl"),
         aggressive_model_path=Path("mc_aggressive.pkl"),
@@ -103,7 +104,7 @@ def dummy_agents() -> dict[str, DummyAgent]:
     }
 
 
-def test_build_model_bundle_includes_double_q_learning_paths(tmp_path):
+def test_build_checkpoint_model_bundle_includes_double_q_learning_paths(tmp_path):
     create_checkpoint_bundle_files(
         root=tmp_path / "mc_run",
         seed=42,
@@ -115,7 +116,7 @@ def test_build_model_bundle_includes_double_q_learning_paths(tmp_path):
         episode=2000,
     )
 
-    bundle = build_model_bundle(
+    bundle = build_checkpoint_model_bundle(
         training_run_directory=tmp_path / "mc_run",
         double_q_learning_run_directory=tmp_path / "double_q_learning_run",
         seed=42,
@@ -147,7 +148,7 @@ def test_build_double_q_learning_general_policy_player(tmp_path, monkeypatch):
         return DummyAgent()
 
     monkeypatch.setattr(
-        "src.evaluation.runners.checkpoint_evaluator.load_double_q_learning_eval_agent",
+        "src.evaluation.runners.model_evaluator.load_double_q_learning_eval_agent",
         fake_load_double_q_learning_eval_agent,
     )
 
@@ -165,7 +166,7 @@ def test_build_double_q_learning_general_policy_player(tmp_path, monkeypatch):
 
 def test_build_double_q_learning_adaptive_player(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        "src.evaluation.runners.checkpoint_evaluator.load_double_q_learning_adaptive_agents",
+        "src.evaluation.runners.model_evaluator.load_double_q_learning_adaptive_agents",
         lambda bundle: dummy_agents(),
     )
 
@@ -184,7 +185,8 @@ def test_double_q_learning_agents_require_double_q_learning_run_dir(tmp_path):
     bundle = ModelBundle(
         training_run_directory=tmp_path / "mc_run",
         seed=42,
-        checkpoint_episode=2000,
+        episode=2000,
+        model_source="final",
         unknown_model_path=Path("mc_unknown.pkl"),
         tight_model_path=Path("mc_tight.pkl"),
         aggressive_model_path=Path("mc_aggressive.pkl"),
@@ -244,15 +246,13 @@ def test_build_generalization_double_q_learning_general_policy(tmp_path, monkeyp
     assert loaded_paths == [Path("double_q_unknown.pkl")]
 
 
-def test_checkpoint_cli_accepts_double_q_learning_run_dir():
-    args = parse_checkpoint_args(
+def test_final_model_cli_accepts_double_q_learning_run_dir():
+    args = parse_final_args(
         [
             "--training-run-dir",
             "results/training_runs/mc_run",
             "--double-q-learning-run-dir",
             "results/training_runs/double_q_learning_2000",
-            "--checkpoint-episodes",
-            "2000",
             "--agents",
             "adaptive_mc",
             "adaptive_double_q_learning",
@@ -274,8 +274,6 @@ def test_generalization_cli_accepts_double_q_learning_run_dir():
             "results/training_runs/mc_run",
             "--double-q-learning-run-dir",
             "results/training_runs/double_q_learning_2000",
-            "--checkpoint-episodes",
-            "2000",
             "--agents",
             "adaptive_mc",
             "adaptive_double_q_learning",
@@ -303,7 +301,9 @@ def make_result_row(agent_name: str, profit_bb: float, seed: int) -> dict:
     return {
         "training_run": "sample_run",
         "model_seed": seed,
-        "checkpoint_episode": 2000,
+        "model_source": "final",
+        "training_episode": 2000,
+        "checkpoint_episode": None,
         "experiment_id": f"seed_{seed}_episodes_2000",
         "experiment_name": f"{agent_name}_vs_calling",
         "game_id": seed,
@@ -349,6 +349,5 @@ def test_experiment_summary_accepts_double_q_learning_rows(tmp_path):
 
     assert ADAPTIVE_DOUBLE_Q_LEARNING_AGENT in summary.overview["agents"]
     assert any(
-        row["agent_name"] == ADAPTIVE_DOUBLE_Q_LEARNING_AGENT
-        for row in summary.ranking
+        row["agent_name"] == ADAPTIVE_DOUBLE_Q_LEARNING_AGENT for row in summary.ranking
     )

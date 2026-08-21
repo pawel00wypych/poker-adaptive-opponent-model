@@ -2,7 +2,6 @@ from pathlib import Path
 
 import pytest
 
-from src.evaluation.runners.checkpoint_evaluator import ModelBundle
 from src.evaluation.runners.head_to_head_evaluator import (
     ADAPTIVE_MC_AGENT,
     ALWAYS_CALL_AGENT,
@@ -21,6 +20,7 @@ from src.evaluation.runners.head_to_head_evaluator import (
     validate_head_to_head_opponent,
     write_head_to_head_rows,
 )
+from src.evaluation.runners.model_evaluator import ModelBundle
 from src.experiments.evaluation.run_head_to_head_evaluation import parse_args
 from src.players.baselines.always_call_player import AlwaysCallPlayer
 from src.players.baselines.always_raise_player import AlwaysRaisePlayer
@@ -52,7 +52,8 @@ def sample_bundle(tmp_path: Path) -> ModelBundle:
     return ModelBundle(
         training_run_directory=tmp_path / "run",
         seed=42,
-        checkpoint_episode=2000,
+        episode=2000,
+        model_source="final",
         unknown_model_path=Path("unknown.pkl"),
         tight_model_path=Path("tight.pkl"),
         aggressive_model_path=Path("aggressive.pkl"),
@@ -70,31 +71,25 @@ def dummy_agents() -> dict[str, DummyAgent]:
 
 
 def test_build_head_to_head_opponent_builds_rule_based():
-    player = build_head_to_head_opponent(
-        RULE_BASED_AGENT
-    )
+    player = build_head_to_head_opponent(RULE_BASED_AGENT)
 
     assert isinstance(player, RuleBasedPlayer)
     assert player.player_name == RULE_BASED_AGENT
 
 
 def test_build_head_to_head_opponent_builds_always_raise():
-    player = build_head_to_head_opponent(
-        ALWAYS_RAISE_AGENT
-    )
+    player = build_head_to_head_opponent(ALWAYS_RAISE_AGENT)
 
     assert isinstance(player, AlwaysRaisePlayer)
     assert player.player_name == ALWAYS_RAISE_AGENT
 
 
-
 def test_build_head_to_head_opponent_builds_always_call():
-    player = build_head_to_head_opponent(
-        ALWAYS_CALL_AGENT
-    )
+    player = build_head_to_head_opponent(ALWAYS_CALL_AGENT)
 
     assert isinstance(player, AlwaysCallPlayer)
     assert player.player_name == ALWAYS_CALL_AGENT
+
 
 def test_validate_head_to_head_opponent_rejects_training_opponent():
     with pytest.raises(ValueError):
@@ -143,7 +138,6 @@ def test_build_head_to_head_fixed_general_policy(
     assert player.player_name == POLICY_GENERAL_MC_AGENT
 
 
-
 def test_build_head_to_head_always_call_tested_agent_needs_no_model():
     player = build_head_to_head_tested_player(
         tested_agent_name=ALWAYS_CALL_AGENT,
@@ -163,6 +157,7 @@ def test_build_head_to_head_always_raise_tested_agent_needs_no_model():
     assert isinstance(player, AlwaysRaisePlayer)
     assert player.player_name == ALWAYS_RAISE_AGENT
 
+
 def test_evaluate_head_to_head_bundle_runs_only_learned_matchups(
     tmp_path,
     monkeypatch,
@@ -181,7 +176,8 @@ def test_evaluate_head_to_head_bundle_runs_only_learned_matchups(
         return {
             "training_run": "run",
             "model_seed": 42,
-            "checkpoint_episode": 2000,
+            "model_source": "final",
+            "training_episode": 2000,
             "experiment_id": "seed_42_episodes_2000",
             "experiment_name": (
                 f"{kwargs['tested_agent_name']}_vs_{kwargs['opponent_name']}"
@@ -258,13 +254,13 @@ def test_evaluate_baseline_replicate_runs_without_model_bundle(
             "opponent_name": kwargs["opponent_name"],
             "evaluation_replicate_id": kwargs["evaluation_replicate_id"],
             "model_seed": None,
-            "checkpoint_episode": None,
+            "model_source": "final",
+            "training_episode": None,
             "game_id": kwargs["game_id"],
         }
 
     monkeypatch.setattr(
-        "src.evaluation.runners.head_to_head_evaluator."
-        "evaluate_single_baseline_game",
+        "src.evaluation.runners.head_to_head_evaluator.evaluate_single_baseline_game",
         fake_evaluate_single_baseline_game,
     )
     config = HeadToHeadEvaluationConfig(
@@ -306,8 +302,7 @@ def test_evaluate_baseline_replicates_uses_configured_replicate_count(
         return [{"evaluation_replicate_id": kwargs["evaluation_replicate_id"]}]
 
     monkeypatch.setattr(
-        "src.evaluation.runners.head_to_head_evaluator."
-        "evaluate_baseline_replicate",
+        "src.evaluation.runners.head_to_head_evaluator.evaluate_baseline_replicate",
         fake_evaluate_baseline_replicate,
     )
     config = HeadToHeadEvaluationConfig(
@@ -334,7 +329,8 @@ def test_write_head_to_head_rows_creates_csv(tmp_path):
             {
                 "training_run": "run",
                 "model_seed": 42,
-                "checkpoint_episode": 2000,
+                "model_source": "final",
+                "training_episode": 2000,
                 "experiment_id": "seed_42_episodes_2000",
                 "experiment_name": "policy_general_mc_vs_rule_based",
                 "game_id": 0,
@@ -365,9 +361,7 @@ def test_write_head_to_head_rows_creates_csv(tmp_path):
         ],
     )
 
-    text = output_path.read_text(
-        encoding="utf-8"
-    )
+    text = output_path.read_text(encoding="utf-8")
 
     assert "policy_general_mc_vs_rule_based" in text
     assert "opponent_name" in text
@@ -378,13 +372,11 @@ def test_parse_args_uses_expected_defaults():
         [
             "--training-run-dir",
             "results/training_runs/run",
-            "--checkpoint-episodes",
-            "2000",
         ]
     )
 
     assert args.training_run_dir == "results/training_runs/run"
-    assert args.checkpoint_episodes == [2000]
+    assert not hasattr(args, "checkpoint_episodes")
     assert args.agents == list(DEFAULT_HEAD_TO_HEAD_AGENTS)
     assert args.opponents == list(DEFAULT_HEAD_TO_HEAD_OPPONENTS)
 
@@ -410,7 +402,7 @@ def test_parse_args_accepts_custom_head_to_head_matchups():
     assert args.games == 50
     assert args.evaluation_replicates == 7
     assert args.training_run_dir is None
-    assert args.checkpoint_episodes is None
+    assert not hasattr(args, "checkpoint_episodes")
 
 
 def test_parse_args_rejects_model_seed_for_baseline_only_run():

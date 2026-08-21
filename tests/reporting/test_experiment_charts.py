@@ -18,7 +18,8 @@ def make_summary_table():
         [
             {
                 "training_run": "run",
-                "checkpoint_episode": 2000,
+                "model_source": "final",
+                "training_episode": 2000,
                 "opponent_name": "calling",
                 "agent_name": "adaptive_mc",
                 "seeds": 4,
@@ -29,7 +30,8 @@ def make_summary_table():
             },
             {
                 "training_run": "run",
-                "checkpoint_episode": 2000,
+                "model_source": "final",
+                "training_episode": 2000,
                 "opponent_name": "calling",
                 "agent_name": "rule_based",
                 "seeds": 4,
@@ -40,7 +42,8 @@ def make_summary_table():
             },
             {
                 "training_run": "run",
-                "checkpoint_episode": 1000,
+                "model_source": "final",
+                "training_episode": 1000,
                 "opponent_name": "calling",
                 "agent_name": "adaptive_mc",
                 "seeds": 4,
@@ -65,8 +68,7 @@ def test_add_cross_seed_confidence_interval_uses_seed_std_error():
         ExperimentChartConfig(ci_multiplier=2.0),
     )
     row = result[
-        (result["checkpoint_episode"] == 2000)
-        & (result["agent_name"] == "adaptive_mc")
+        (result["training_episode"] == 2000) & (result["agent_name"] == "adaptive_mc")
     ].iloc[0]
 
     assert row["mean_profit_bb_standard_error_across_seeds"] == 1.0

@@ -19,9 +19,9 @@ from src.evaluation.metrics.oracle_gap import (
     ORACLE_GAP_BB_COLUMN,
     calculate_oracle_gap_bb,
 )
-from src.evaluation.reporting.checkpoint_report import (
+from src.evaluation.reporting.training_opponent_report import (
     aggregate_across_seeds,
-    load_checkpoint_report_data,
+    load_training_opponent_report_data,
 )
 from src.evaluation.validation.baseline_sanity_validation import (
     BASELINE_SANITY_AGENTS,
@@ -37,25 +37,25 @@ from src.evaluation.validation.common import (
     STATUS_PASS,
     STATUS_WARNING,
     VALIDATION_MODE_BASELINE_SANITY,
-    VALIDATION_MODE_CHECKPOINT,
     VALIDATION_MODE_CROSS_PLAY,
     VALIDATION_MODE_GENERALIZATION,
     VALIDATION_MODE_HEAD_TO_HEAD,
     VALIDATION_MODE_STRESS_TEST,
+    VALIDATION_MODE_TRAINING_OPPONENT,
     VALIDATION_MODES,
     ValidationCheckResult,
     ValidationReport,
     ValidationThresholds,
     _add_mean_hands_played,
-    _checkpoint_episode,
     _find_row,
-    _find_rows_at_latest_common_checkpoint,
+    _find_rows_at_common_training_episode,
     _format_float,
     _minimum_delta_status,
-    _missing_common_checkpoint_result,
+    _missing_common_training_episode_result,
     _missing_row_result,
     _paired_seed_message,
     _paired_seed_statistics_for_check,
+    _training_episode,
     validate_always_raise_outperforms_adaptive,
     validate_always_raise_trivial_exploit,
     validate_extreme_bb_per_100,
@@ -88,7 +88,7 @@ def _algorithm_specs(
 
 
 _REQUIRED_ALGORITHM_ROLES_BY_MODE = {
-    VALIDATION_MODE_CHECKPOINT: ("adaptive", "oracle", "policy_general"),
+    VALIDATION_MODE_TRAINING_OPPONENT: ("adaptive", "oracle", "policy_general"),
     VALIDATION_MODE_GENERALIZATION: ("adaptive", "oracle", "policy_general"),
     VALIDATION_MODE_HEAD_TO_HEAD: ("adaptive", "policy_general"),
     VALIDATION_MODE_STRESS_TEST: ("adaptive", "policy_general"),
@@ -97,7 +97,7 @@ _REQUIRED_ALGORITHM_ROLES_BY_MODE = {
 }
 
 _REQUIRED_MATCHUP_OPPONENTS_BY_MODE = {
-    VALIDATION_MODE_CHECKPOINT: TRAINING_OPPONENT_TYPES,
+    VALIDATION_MODE_TRAINING_OPPONENT: TRAINING_OPPONENT_TYPES,
     VALIDATION_MODE_GENERALIZATION: GENERALIZATION_OPPONENTS,
     VALIDATION_MODE_HEAD_TO_HEAD: (
         HEAD_TO_HEAD_RULE_BASED_OPPONENT,
@@ -128,7 +128,7 @@ def validate_expected_algorithms_present(
     expected_specs: Iterable[AlgorithmValidationSpec],
     *,
     fail_when_missing: bool,
-    validation_mode: str = VALIDATION_MODE_CHECKPOINT,
+    validation_mode: str = VALIDATION_MODE_TRAINING_OPPONENT,
 ) -> list[ValidationCheckResult]:
     if validation_mode not in _REQUIRED_ALGORITHM_ROLES_BY_MODE:
         raise ValueError(
@@ -158,12 +158,8 @@ def validate_expected_algorithms_present(
             for role, agent_name in required_agents_by_role.items()
             if agent_name not in available_agents
         ]
-        present_agents = [
-            required_agents_by_role[role] for role in present_roles
-        ]
-        missing_agents = [
-            required_agents_by_role[role] for role in missing_roles
-        ]
+        present_agents = [required_agents_by_role[role] for role in present_roles]
+        missing_agents = [required_agents_by_role[role] for role in missing_roles]
         complete = not missing_agents
         if complete:
             status = STATUS_PASS
@@ -173,14 +169,11 @@ def validate_expected_algorithms_present(
             status = STATUS_WARNING
 
         missing_description = ", ".join(
-            f"{role} ({required_agents_by_role[role]})"
-            for role in missing_roles
+            f"{role} ({required_agents_by_role[role]})" for role in missing_roles
         )
         results.append(
             ValidationCheckResult(
-                check_name=(
-                    f"{spec.algorithm_name}: Algorithm result coverage"
-                ),
+                check_name=(f"{spec.algorithm_name}: Algorithm result coverage"),
                 status=status,
                 category="algorithm_coverage",
                 algorithm_name=spec.algorithm_name,
@@ -214,7 +207,7 @@ def validate_required_matchups_present(
     expected_specs: Iterable[AlgorithmValidationSpec],
     *,
     fail_when_missing: bool,
-    validation_mode: str = VALIDATION_MODE_CHECKPOINT,
+    validation_mode: str = VALIDATION_MODE_TRAINING_OPPONENT,
 ) -> list[ValidationCheckResult]:
     if validation_mode == VALIDATION_MODE_CROSS_PLAY:
         return validate_cross_play_matchup_coverage(
@@ -287,15 +280,12 @@ def validate_required_matchups_present(
         )
         results.append(
             ValidationCheckResult(
-                check_name=(
-                    f"{spec.algorithm_name}: Required matchup coverage"
-                ),
+                check_name=(f"{spec.algorithm_name}: Required matchup coverage"),
                 status=status,
                 category="matchup_coverage",
                 algorithm_name=spec.algorithm_name,
                 message=(
-                    "All required evaluation matchups are present for this "
-                    "algorithm."
+                    "All required evaluation matchups are present for this algorithm."
                     if complete
                     else (
                         f"Missing {len(missing_matchups)} of "
@@ -338,13 +328,12 @@ def validate_adaptive_beats_rule_based(
                 (spec.adaptive_agent, opponent_name),
                 (RULE_BASED_AGENT, opponent_name),
             )
-            checkpoint_episode, rows = (
-                _find_rows_at_latest_common_checkpoint(best_rows, matchups)
+            training_episode, rows = _find_rows_at_common_training_episode(
+                best_rows, matchups
             )
             adaptive_row, rule_based_row = rows
             check_name = (
-                f"{spec.algorithm_name}: Adaptive beats rule-based "
-                f"vs {opponent_name}"
+                f"{spec.algorithm_name}: Adaptive beats rule-based vs {opponent_name}"
             )
 
             if adaptive_row is None:
@@ -371,9 +360,9 @@ def validate_adaptive_beats_rule_based(
                 )
                 continue
 
-            if checkpoint_episode is None:
+            if training_episode is None:
                 results.append(
-                    _missing_common_checkpoint_result(
+                    _missing_common_training_episode_result(
                         check_name,
                         "baseline_delta",
                         best_rows,
@@ -385,19 +374,17 @@ def validate_adaptive_beats_rule_based(
                 )
                 continue
 
-            paired_statistics, unavailable_result = (
-                _paired_seed_statistics_for_check(
-                    seed_rows,
-                    left_agent_name=spec.adaptive_agent,
-                    right_agent_name=RULE_BASED_AGENT,
-                    opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
-                    thresholds=thresholds,
-                    check_name=check_name,
-                    category="baseline_delta",
-                    algorithm_name=spec.algorithm_name,
-                    agent_name=spec.adaptive_agent,
-                )
+            paired_statistics, unavailable_result = _paired_seed_statistics_for_check(
+                seed_rows,
+                left_agent_name=spec.adaptive_agent,
+                right_agent_name=RULE_BASED_AGENT,
+                opponent_name=opponent_name,
+                training_episode=training_episode,
+                thresholds=thresholds,
+                check_name=check_name,
+                category="baseline_delta",
+                algorithm_name=spec.algorithm_name,
+                agent_name=spec.adaptive_agent,
             )
             if unavailable_result is not None:
                 results.append(unavailable_result)
@@ -405,8 +392,7 @@ def validate_adaptive_beats_rule_based(
 
             if paired_statistics is None:
                 delta = float(
-                    adaptive_row["mean_profit_bb"]
-                    - rule_based_row["mean_profit_bb"]
+                    adaptive_row["mean_profit_bb"] - rule_based_row["mean_profit_bb"]
                 )
                 status = (
                     STATUS_PASS
@@ -436,11 +422,9 @@ def validate_adaptive_beats_rule_based(
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
+                    training_episode=training_episode,
                     observed_value=delta,
-                    threshold=(
-                        thresholds.min_adaptive_delta_vs_rule_based_bb
-                    ),
+                    threshold=(thresholds.min_adaptive_delta_vs_rule_based_bb),
                     sample_size=(
                         paired_statistics.common_seed_count
                         if paired_statistics is not None
@@ -471,15 +455,11 @@ def validate_adaptive_beats_rule_based(
                         "rule_based_mean_profit_bb": float(
                             rule_based_row["mean_profit_bb"]
                         ),
-                        "rule_based_checkpoint_episode": _checkpoint_episode(
+                        "rule_based_training_episode": _training_episode(
                             rule_based_row
                         ),
                         **(
-                            {
-                                "paired_seed_statistics": (
-                                    paired_statistics.to_details()
-                                )
-                            }
+                            {"paired_seed_statistics": (paired_statistics.to_details())}
                             if paired_statistics is not None
                             else {}
                         ),
@@ -505,8 +485,8 @@ def validate_oracle_not_worse_than_adaptive(
                 (spec.oracle_agent, opponent_name),
                 (spec.adaptive_agent, opponent_name),
             )
-            checkpoint_episode, rows = (
-                _find_rows_at_latest_common_checkpoint(best_rows, matchups)
+            training_episode, rows = _find_rows_at_common_training_episode(
+                best_rows, matchups
             )
             oracle_row, adaptive_row = rows
             check_name = (
@@ -538,9 +518,9 @@ def validate_oracle_not_worse_than_adaptive(
                 )
                 continue
 
-            if checkpoint_episode is None:
+            if training_episode is None:
                 results.append(
-                    _missing_common_checkpoint_result(
+                    _missing_common_training_episode_result(
                         check_name,
                         "oracle_gap",
                         best_rows,
@@ -552,19 +532,17 @@ def validate_oracle_not_worse_than_adaptive(
                 )
                 continue
 
-            paired_statistics, unavailable_result = (
-                _paired_seed_statistics_for_check(
-                    seed_rows,
-                    left_agent_name=spec.oracle_agent,
-                    right_agent_name=spec.adaptive_agent,
-                    opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
-                    thresholds=thresholds,
-                    check_name=check_name,
-                    category="oracle_gap",
-                    algorithm_name=spec.algorithm_name,
-                    agent_name=spec.oracle_agent,
-                )
+            paired_statistics, unavailable_result = _paired_seed_statistics_for_check(
+                seed_rows,
+                left_agent_name=spec.oracle_agent,
+                right_agent_name=spec.adaptive_agent,
+                opponent_name=opponent_name,
+                training_episode=training_episode,
+                thresholds=thresholds,
+                check_name=check_name,
+                category="oracle_gap",
+                algorithm_name=spec.algorithm_name,
+                agent_name=spec.oracle_agent,
             )
             if unavailable_result is not None:
                 results.append(unavailable_result)
@@ -578,11 +556,7 @@ def validate_oracle_not_worse_than_adaptive(
                         adaptive_row["mean_profit_bb"],
                     )
                 )
-                status = (
-                    STATUS_PASS
-                    if oracle_gap_bb >= threshold
-                    else STATUS_WARNING
-                )
+                status = STATUS_PASS if oracle_gap_bb >= threshold else STATUS_WARNING
                 message = (
                     "Oracle minus adaptive mean profit is "
                     f"{_format_float(oracle_gap_bb)} BB/game."
@@ -607,7 +581,7 @@ def validate_oracle_not_worse_than_adaptive(
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.oracle_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=checkpoint_episode,
+                    training_episode=training_episode,
                     observed_value=oracle_gap_bb,
                     threshold=threshold,
                     sample_size=(
@@ -635,22 +609,14 @@ def validate_oracle_not_worse_than_adaptive(
                         "algorithm": spec.algorithm_name,
                         "oracle_agent": spec.oracle_agent,
                         "adaptive_agent": spec.adaptive_agent,
-                        "oracle_mean_profit_bb": float(
-                            oracle_row["mean_profit_bb"]
-                        ),
+                        "oracle_mean_profit_bb": float(oracle_row["mean_profit_bb"]),
                         "adaptive_mean_profit_bb": float(
                             adaptive_row["mean_profit_bb"]
                         ),
                         ORACLE_GAP_BB_COLUMN: oracle_gap_bb,
-                        "adaptive_checkpoint_episode": _checkpoint_episode(
-                            adaptive_row
-                        ),
+                        "adaptive_training_episode": _training_episode(adaptive_row),
                         **(
-                            {
-                                "paired_seed_statistics": (
-                                    paired_statistics.to_details()
-                                )
-                            }
+                            {"paired_seed_statistics": (paired_statistics.to_details())}
                             if paired_statistics is not None
                             else {}
                         ),
@@ -703,7 +669,7 @@ def validate_tight_exploitation(
                 algorithm_name=spec.algorithm_name,
                 agent_name=spec.adaptive_agent,
                 opponent_name=OPPONENT_TYPE_TIGHT,
-                checkpoint_episode=_checkpoint_episode(adaptive_row),
+                training_episode=_training_episode(adaptive_row),
                 observed_value=mean_profit_bb,
                 threshold=thresholds.min_tight_mean_profit_bb,
                 message=(
@@ -780,7 +746,7 @@ def validate_classifier_quality(
                         algorithm_name=spec.algorithm_name,
                         agent_name=spec.adaptive_agent,
                         opponent_name=opponent_name,
-                        checkpoint_episode=_checkpoint_episode(adaptive_row),
+                        training_episode=_training_episode(adaptive_row),
                         observed_value=value,
                         threshold=threshold,
                         message=(
@@ -814,17 +780,15 @@ def validate_tight_baseline_saturation(
             ALWAYS_RAISE_AGENT,
         )
         matchups = tuple(
-            (agent_name, OPPONENT_TYPE_TIGHT)
-            for agent_name in required_agents
+            (agent_name, OPPONENT_TYPE_TIGHT) for agent_name in required_agents
         )
-        checkpoint_episode, rows = _find_rows_at_latest_common_checkpoint(
+        training_episode, rows = _find_rows_at_common_training_episode(
             best_rows,
             matchups,
         )
         rows_by_agent = dict(zip(required_agents, rows, strict=True))
         check_name = (
-            f"{spec.algorithm_name}: TightPlayer baseline "
-            "saturation sanity check"
+            f"{spec.algorithm_name}: TightPlayer baseline saturation sanity check"
         )
 
         missing = False
@@ -844,9 +808,9 @@ def validate_tight_baseline_saturation(
         if missing:
             continue
 
-        if checkpoint_episode is None:
+        if training_episode is None:
             results.append(
-                _missing_common_checkpoint_result(
+                _missing_common_training_episode_result(
                     check_name,
                     "always_raise_sanity",
                     best_rows,
@@ -891,7 +855,7 @@ def validate_tight_baseline_saturation(
                 algorithm_name=spec.algorithm_name,
                 agent_name=ALWAYS_RAISE_AGENT,
                 opponent_name=OPPONENT_TYPE_TIGHT,
-                checkpoint_episode=checkpoint_episode,
+                training_episode=training_episode,
                 observed_value=float(always_raise_row["mean_profit_bb"]),
                 threshold=thresholds.min_tight_mean_profit_bb,
                 message=(
@@ -915,48 +879,38 @@ def validate_tight_baseline_saturation(
     return results
 
 
-def _select_validation_checkpoint(
+def _select_final_model_rows(
     aggregated: pd.DataFrame,
-    checkpoint_episode: int | None = None,
 ) -> tuple[pd.DataFrame, int, str]:
-    if aggregated.empty or "checkpoint_episode" not in aggregated.columns:
-        raise ValueError("No checkpoint evaluation rows were found.")
+    if aggregated.empty or "training_episode" not in aggregated.columns:
+        raise ValueError("No final-model evaluation rows were found.")
 
-    available_checkpoints = sorted(
-        {
-            int(value)
-            for value in aggregated["checkpoint_episode"].dropna()
-        }
+    available_training_episodes = sorted(
+        {int(value) for value in aggregated["training_episode"].dropna()}
     )
-    if not available_checkpoints:
-        raise ValueError("No checkpoint episodes were found in evaluation data.")
+    if not available_training_episodes:
+        raise ValueError("No training episodes were found in evaluation data.")
 
-    if checkpoint_episode is None:
-        selected_checkpoint = available_checkpoints[-1]
-        selection_strategy = "latest"
-    else:
-        selected_checkpoint = checkpoint_episode
-        selection_strategy = "explicit"
-
-    if selected_checkpoint not in available_checkpoints:
+    if len(available_training_episodes) != 1:
         raise ValueError(
-            f"Checkpoint {selected_checkpoint} is not present in evaluation "
-            f"data. Available checkpoints: {available_checkpoints}."
+            "Final evaluation data must contain exactly one training episode. "
+            "Evaluate checkpoints separately with the learning-curve workflow. "
+            f"Found training episodes: {available_training_episodes}."
         )
 
-    selected_rows = aggregated[
-        aggregated["checkpoint_episode"] == selected_checkpoint
-    ].reset_index(drop=True)
-    return selected_rows, selected_checkpoint, selection_strategy
+    return (
+        aggregated.reset_index(drop=True),
+        available_training_episodes[0],
+        "final",
+    )
 
 
-def validate_checkpoint_results(
+def validate_evaluation_results(
     input_path: str | Path,
     thresholds: ValidationThresholds | None = None,
-    validation_mode: str = VALIDATION_MODE_CHECKPOINT,
+    validation_mode: str = VALIDATION_MODE_TRAINING_OPPONENT,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
     require_all_algorithms: bool = False,
-    checkpoint_episode: int | None = None,
 ) -> ValidationReport:
     if validation_mode not in VALIDATION_MODES:
         raise ValueError(
@@ -967,12 +921,6 @@ def validate_checkpoint_results(
     thresholds = thresholds or ValidationThresholds()
 
     if validation_mode == VALIDATION_MODE_BASELINE_SANITY:
-        if checkpoint_episode is not None:
-            raise ValueError(
-                "checkpoint_episode does not apply to baseline-sanity "
-                "validation; baseline rows use evaluation_replicate_id."
-            )
-
         replicate_metrics = calculate_baseline_replicate_metrics(input_path)
         aggregated_replicates = aggregate_across_evaluation_replicates(
             replicate_metrics
@@ -987,31 +935,27 @@ def validate_checkpoint_results(
             thresholds=thresholds,
             checks=checks,
             validation_mode=validation_mode,
-            checkpoint_episode=None,
-            checkpoint_selection="not_applicable",
+            training_episode=None,
+            model_selection="not_applicable",
         )
 
-    metrics = load_checkpoint_report_data(input_path)
+    metrics = load_training_opponent_report_data(input_path)
     aggregated = aggregate_across_seeds(metrics)
     aggregated = _add_mean_hands_played(aggregated, metrics)
-    validation_rows, selected_checkpoint, checkpoint_selection = (
-        _select_validation_checkpoint(
-            aggregated,
-            checkpoint_episode=checkpoint_episode,
-        )
+    validation_rows, selected_training_episode, model_selection = (
+        _select_final_model_rows(aggregated)
     )
     seed_validation_rows = None
-    if "checkpoint_episode" in metrics.columns:
+    if "training_episode" in metrics.columns:
         seed_validation_rows = metrics[
-            metrics["checkpoint_episode"] == selected_checkpoint
+            metrics["training_episode"] == selected_training_episode
         ].reset_index(drop=True)
     expected_specs = tuple(
         algorithm_specs
         if algorithm_specs is not None
         else (
             ALGORITHM_VALIDATION_SPECS
-            if require_all_algorithms
-            or validation_mode == VALIDATION_MODE_CROSS_PLAY
+            if require_all_algorithms or validation_mode == VALIDATION_MODE_CROSS_PLAY
             else available_algorithm_specs(aggregated)
         )
     )
@@ -1255,6 +1199,6 @@ def validate_checkpoint_results(
         thresholds=thresholds,
         checks=checks,
         validation_mode=validation_mode,
-        checkpoint_episode=selected_checkpoint,
-        checkpoint_selection=checkpoint_selection,
+        training_episode=selected_training_episode,
+        model_selection=model_selection,
     )

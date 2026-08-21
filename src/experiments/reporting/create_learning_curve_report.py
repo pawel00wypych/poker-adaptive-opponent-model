@@ -1,16 +1,16 @@
 import argparse
 
-from src.evaluation.reporting.checkpoint_report import (
-    write_checkpoint_html_report,
-    write_checkpoint_markdown_report,
-)
 from src.evaluation.constants import SUPPORTED_TESTED_AGENTS
+from src.evaluation.reporting.learning_curve_report import (
+    write_learning_curve_html_report,
+    write_learning_curve_markdown_report,
+)
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Create readable checkpoint evaluation reports with plots."
+        description="Create diagnostic learning-curve reports from checkpoints."
     )
 
     parser.add_argument("--input-path", required=True, type=str)
@@ -40,7 +40,7 @@ def main() -> None:
 
     if args.format in {"html", "both"}:
         created_paths.append(
-            write_checkpoint_html_report(
+            write_learning_curve_html_report(
                 input_path=args.input_path,
                 output_dir=args.output_dir,
                 opponent=args.opponent,
@@ -50,7 +50,7 @@ def main() -> None:
 
     if args.format in {"markdown", "both"}:
         created_paths.append(
-            write_checkpoint_markdown_report(
+            write_learning_curve_markdown_report(
                 input_path=args.input_path,
                 output_dir=args.output_dir,
                 opponent=args.opponent,

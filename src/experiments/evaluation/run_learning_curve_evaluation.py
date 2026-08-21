@@ -7,25 +7,26 @@ from concurrent.futures import (
 from pathlib import Path
 from time import perf_counter
 
-from src.evaluation.runners.generalization_evaluator import (
-    DEFAULT_GENERALIZATION_AGENTS,
-    DEFAULT_GENERALIZATION_OPPONENTS,
-    SUPPORTED_GENERALIZATION_AGENTS,
-    SUPPORTED_GENERALIZATION_OPPONENTS,
-    GeneralizationEvaluationConfig,
-    evaluate_generalization_bundle,
-    write_generalization_rows,
+from src.evaluation.constants import (
+    ADAPTIVE_MC_AGENT,
+    POLICY_GENERAL_MC_AGENT,
+    RULE_BASED_AGENT,
+    SUPPORTED_TESTED_AGENTS,
 )
-from src.evaluation.runners.model_evaluator import (
-    discover_final_model_bundles,
+from src.evaluation.runners.learning_curve_evaluator import (
+    LearningCurveEvaluationConfig,
+    discover_checkpoint_model_bundles,
+    evaluate_learning_curve_bundle,
+    write_learning_curve_rows,
 )
+from src.poker.constants import TRAINING_OPPONENT_TYPES
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Run generalization evaluation of trained base-opponent policies "
-            "against unseen opponent variants."
+            "Evaluate selected checkpoints only for diagnostic learning-curve "
+            "analysis. Final benchmark scripts load final.pkl instead."
         )
     )
 
@@ -34,8 +35,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         required=True,
         type=str,
         help=(
-            "Directory created by run_training_suite, for example "
-            "results/training_runs/state_v2_linear_2000_sqrt_visit."
+            "Directory created by run_training_suite, "
+            "for example "
+            "results/training_runs/state_v2_linear_10000."
         ),
     )
 
@@ -70,6 +72,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--checkpoint-episodes",
+        required=True,
+        type=int,
+        nargs="+",
+        help=("Checkpoint episodes to evaluate, e.g. 1000 2500 5000 7500 10000."),
+    )
+
+    parser.add_argument(
         "--seeds",
         type=int,
         nargs="+",
@@ -83,23 +93,25 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--games",
         type=int,
         default=200,
-        help="Games per agent/opponent-variant matchup.",
+        help="Games per matchup.",
     )
 
     parser.add_argument(
         "--agents",
-        choices=sorted(SUPPORTED_GENERALIZATION_AGENTS),
+        choices=sorted(SUPPORTED_TESTED_AGENTS),
         nargs="+",
-        default=list(DEFAULT_GENERALIZATION_AGENTS),
-        help=("Agents/policies to evaluate against unseen opponent variants."),
+        default=[
+            POLICY_GENERAL_MC_AGENT,
+            ADAPTIVE_MC_AGENT,
+            RULE_BASED_AGENT,
+        ],
     )
 
     parser.add_argument(
         "--opponents",
-        choices=sorted(SUPPORTED_GENERALIZATION_OPPONENTS),
+        choices=sorted(TRAINING_OPPONENT_TYPES),
         nargs="+",
-        default=list(DEFAULT_GENERALIZATION_OPPONENTS),
-        help="Unseen opponent variants used for generalization evaluation.",
+        default=list(TRAINING_OPPONENT_TYPES),
     )
 
     parser.add_argument(
@@ -107,7 +119,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=str,
         default=None,
         help=(
-            "Output CSV path. Default: <training-run-dir>/generalization_evaluation.csv"
+            "Output CSV path. Default: <training-run-dir>/learning_curve_evaluation.csv"
         ),
     )
 
@@ -116,15 +128,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=1,
         help=(
-            "Number of model bundles evaluated in parallel. Use 1 for the most predictable run."
+            "Number of model bundles evaluated in parallel. "
+            "Use 1 for the most predictable run."
         ),
     )
 
     parser.add_argument(
         "--eval-seed-base",
         type=int,
-        default=400_000,
-        help="Base seed used to make generalization evaluation reproducible.",
+        default=100_000,
+        help=("Base seed used to make evaluation reproducible."),
     )
 
     parser.add_argument(
@@ -132,8 +145,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=False,
         help=(
-            "Fail when any requested seed/final-model bundle is incomplete. "
-            "By default incomplete bundles are skipped."
+            "Fail when any requested seed/checkpoint bundle "
+            "is incomplete. By default incomplete bundles "
+            "are skipped."
         ),
     )
 
@@ -145,6 +159,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     if args.workers <= 0:
         parser.error("--workers must be greater than zero")
 
+    if any(episode <= 0 for episode in args.checkpoint_episodes):
+        parser.error("All checkpoint episodes must be positive")
+
+    if len(set(args.checkpoint_episodes)) != len(args.checkpoint_episodes):
+        parser.error("--checkpoint-episodes must not contain duplicates")
+
     if args.seeds is not None and len(set(args.seeds)) != len(args.seeds):
         parser.error("--seeds must not contain duplicates")
 
@@ -153,9 +173,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def evaluate_bundle_worker(
     bundle,
-    config: GeneralizationEvaluationConfig,
+    config: LearningCurveEvaluationConfig,
 ) -> list[dict]:
-    return evaluate_generalization_bundle(
+    return evaluate_learning_curve_bundle(
         bundle=bundle,
         config=config,
     )
@@ -166,23 +186,19 @@ def save_summary(
     output_path: Path,
     arguments: argparse.Namespace,
     bundle_count: int,
-    training_episodes: list[int],
     row_count: int,
     duration_seconds: float,
 ) -> None:
     summary_path = output_path.with_suffix(".summary.json")
 
     summary = {
-        "evaluation_type": "generalization",
-        "trained_on": "base_opponents",
-        "seen_during_training": False,
         "output_path": str(output_path),
         "training_run_dir": arguments.training_run_dir,
         "q_learning_run_dir": arguments.q_learning_run_dir,
         "sarsa_run_dir": arguments.sarsa_run_dir,
         "double_q_learning_run_dir": arguments.double_q_learning_run_dir,
-        "model_source": "final",
-        "training_episodes": training_episodes,
+        "checkpoint_episodes": (arguments.checkpoint_episodes),
+        "model_source": "checkpoint",
         "seeds": arguments.seeds,
         "games": arguments.games,
         "agents": arguments.agents,
@@ -214,11 +230,12 @@ def main() -> None:
     output_path = Path(
         args.output_path
         if args.output_path is not None
-        else training_run_dir / "generalization_evaluation.csv"
+        else training_run_dir / "learning_curve_evaluation.csv"
     )
 
-    bundles = discover_final_model_bundles(
+    bundles = discover_checkpoint_model_bundles(
         training_run_directory=training_run_dir,
+        checkpoint_episodes=(args.checkpoint_episodes),
         seeds=args.seeds,
         skip_incomplete=not args.fail_on_incomplete,
         q_learning_run_directory=args.q_learning_run_dir,
@@ -228,10 +245,10 @@ def main() -> None:
 
     if not bundles:
         raise SystemExit(
-            "No complete final model bundles found for the requested seeds."
+            "No complete model bundles found for the requested seeds/checkpoints."
         )
 
-    config = GeneralizationEvaluationConfig(
+    config = LearningCurveEvaluationConfig(
         games_per_matchup=args.games,
         opponents=tuple(args.opponents),
         tested_agents=tuple(args.agents),
@@ -240,13 +257,14 @@ def main() -> None:
     )
 
     print(
-        "Generalization evaluation started\n"
+        "Learning-curve evaluation started\n"
         f"training_run_dir={training_run_dir}\n"
         f"q_learning_run_dir={args.q_learning_run_dir or 'not provided'}\n"
         f"sarsa_run_dir={args.sarsa_run_dir or 'not provided'}\n"
         f"double_q_learning_run_dir={args.double_q_learning_run_dir or 'not provided'}\n"
         f"bundles={len(bundles)}\n"
-        f"training_episodes={sorted({bundle.episode for bundle in bundles})}\n"
+        f"checkpoint_episodes="
+        f"{args.checkpoint_episodes}\n"
         f"seeds={args.seeds or 'auto'}\n"
         f"games_per_matchup={args.games}\n"
         f"agents={args.agents}\n"
@@ -266,7 +284,7 @@ def main() -> None:
         ):
             print(f"[{index}/{len(bundles)}] Evaluating {bundle.experiment_id}")
 
-            rows = evaluate_generalization_bundle(
+            rows = evaluate_learning_curve_bundle(
                 bundle=bundle,
                 config=config,
             )
@@ -292,7 +310,7 @@ def main() -> None:
                 all_rows.extend(rows)
                 print(f"[{completed}/{len(bundles)}] Finished {bundle.experiment_id}")
 
-    write_generalization_rows(
+    write_learning_curve_rows(
         output_path=output_path,
         rows=all_rows,
     )
@@ -303,13 +321,12 @@ def main() -> None:
         output_path=output_path,
         arguments=args,
         bundle_count=len(bundles),
-        training_episodes=sorted({bundle.episode for bundle in bundles}),
         row_count=len(all_rows),
         duration_seconds=duration_seconds,
     )
 
     print(
-        "Generalization evaluation finished\n"
+        "Learning-curve evaluation finished\n"
         f"bundles={len(bundles)}\n"
         f"rows={len(all_rows)}\n"
         f"duration_seconds={duration_seconds:.3f}\n"

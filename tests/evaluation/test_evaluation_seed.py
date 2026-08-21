@@ -1,6 +1,5 @@
 import pytest
 
-from src.evaluation.runners.checkpoint_evaluator import build_game_seed
 from src.evaluation.runners.cross_play_evaluator import (
     build_cross_play_seed,
 )
@@ -14,6 +13,7 @@ from src.evaluation.runners.generalization_evaluator import (
 from src.evaluation.runners.head_to_head_evaluator import (
     build_head_to_head_seed,
 )
+from src.evaluation.runners.model_evaluator import build_game_seed
 from src.evaluation.runners.stress_test_evaluator import (
     build_stress_test_seed,
 )
@@ -23,13 +23,13 @@ def test_build_paired_evaluation_seed_is_deterministic():
     first = build_paired_evaluation_seed(
         eval_seed_base=100_000,
         model_seed=42,
-        checkpoint_episode=5000,
+        model_episode=5000,
         matchup_game_index=7,
     )
     second = build_paired_evaluation_seed(
         eval_seed_base=100_000,
         model_seed=42,
-        checkpoint_episode=5000,
+        model_episode=5000,
         matchup_game_index=7,
     )
 
@@ -53,7 +53,7 @@ def test_all_runner_seed_builders_use_the_shared_pairing_scheme(
     arguments = {
         "eval_seed_base": 100_000,
         "model_seed": 42,
-        "checkpoint_episode": 5000,
+        "model_episode": 5000,
         "matchup_game_index": 7,
     }
 
@@ -67,7 +67,7 @@ def test_all_runner_seed_builders_use_the_shared_pairing_scheme(
     [
         ("eval_seed_base", 100_001),
         ("model_seed", 43),
-        ("checkpoint_episode", 5001),
+        ("model_episode", 5001),
         ("matchup_game_index", 8),
     ],
 )
@@ -78,7 +78,7 @@ def test_build_paired_evaluation_seed_uses_every_component(
     arguments = {
         "eval_seed_base": 100_000,
         "model_seed": 42,
-        "checkpoint_episode": 5000,
+        "model_episode": 5000,
         "matchup_game_index": 7,
     }
     reference = build_paired_evaluation_seed(**arguments)
@@ -94,15 +94,13 @@ def test_build_paired_evaluation_seed_uses_every_component(
 def test_build_paired_evaluation_seed_rejects_invalid_components(
     invalid_value,
 ):
-    expected_exception = (
-        ValueError if invalid_value == -1 else TypeError
-    )
+    expected_exception = ValueError if invalid_value == -1 else TypeError
 
     with pytest.raises(expected_exception):
         build_paired_evaluation_seed(
             eval_seed_base=100_000,
             model_seed=42,
-            checkpoint_episode=5000,
+            model_episode=5000,
             matchup_game_index=invalid_value,
         )
 

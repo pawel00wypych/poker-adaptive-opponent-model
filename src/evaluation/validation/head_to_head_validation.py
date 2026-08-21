@@ -19,15 +19,15 @@ from src.evaluation.validation.common import (
     STATUS_WARNING,
     ValidationCheckResult,
     ValidationThresholds,
-    _checkpoint_episode,
     _find_row,
-    _find_rows_at_latest_common_checkpoint,
+    _find_rows_at_common_training_episode,
     _format_float,
     _minimum_delta_status,
-    _missing_common_checkpoint_result,
+    _missing_common_training_episode_result,
     _missing_row_result,
     _paired_seed_message,
     _paired_seed_statistics_for_check,
+    _training_episode,
     validate_extreme_bb_per_100,
     validate_minimum_seed_coverage,
     validate_seed_stability,
@@ -78,7 +78,7 @@ def _profit_check_result(
         algorithm_name=algorithm_name,
         agent_name=agent_name,
         opponent_name=opponent_name,
-        checkpoint_episode=_checkpoint_episode(row),
+        training_episode=_training_episode(row),
         observed_value=mean_profit_bb,
         threshold=thresholds.min_head_to_head_mean_profit_bb,
         message=(
@@ -122,8 +122,7 @@ def validate_head_to_head_rule_based_performance(
                     agent_name=spec.adaptive_agent,
                     opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
                     check_name=(
-                        f"{spec.algorithm_name}: Adaptive beats "
-                        "RuleBasedPlayer"
+                        f"{spec.algorithm_name}: Adaptive beats RuleBasedPlayer"
                     ),
                     category="head_to_head_rule_based",
                     thresholds=thresholds,
@@ -186,9 +185,7 @@ def validate_head_to_head_specialist_rule_based_performance(
     }
 
     for row in available_rows:
-        details[f"{row['agent_name']}_mean_profit_bb"] = float(
-            row["mean_profit_bb"]
-        )
+        details[f"{row['agent_name']}_mean_profit_bb"] = float(row["mean_profit_bb"])
 
     return [
         ValidationCheckResult(
@@ -198,7 +195,7 @@ def validate_head_to_head_specialist_rule_based_performance(
             algorithm_name=ALGORITHM_MONTE_CARLO,
             agent_name=str(best_row["agent_name"]),
             opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
-            checkpoint_episode=_checkpoint_episode(best_row),
+            training_episode=_training_episode(best_row),
             observed_value=best_profit,
             threshold=thresholds.min_head_to_head_mean_profit_bb,
             message=(
@@ -228,7 +225,7 @@ def validate_adaptive_not_worse_than_general_rule_based(
             (spec.adaptive_agent, HEAD_TO_HEAD_RULE_BASED_OPPONENT),
             (spec.general_policy_agent, HEAD_TO_HEAD_RULE_BASED_OPPONENT),
         )
-        checkpoint_episode, rows = _find_rows_at_latest_common_checkpoint(
+        training_episode, rows = _find_rows_at_common_training_episode(
             best_rows,
             matchups,
         )
@@ -258,9 +255,9 @@ def validate_adaptive_not_worse_than_general_rule_based(
             )
             continue
 
-        if checkpoint_episode is None:
+        if training_episode is None:
             results.append(
-                _missing_common_checkpoint_result(
+                _missing_common_training_episode_result(
                     check_name,
                     "head_to_head_adaptive_gap",
                     best_rows,
@@ -272,19 +269,17 @@ def validate_adaptive_not_worse_than_general_rule_based(
             )
             continue
 
-        paired_statistics, unavailable_result = (
-            _paired_seed_statistics_for_check(
-                seed_rows,
-                left_agent_name=spec.adaptive_agent,
-                right_agent_name=spec.general_policy_agent,
-                opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
-                checkpoint_episode=checkpoint_episode,
-                thresholds=thresholds,
-                check_name=check_name,
-                category="head_to_head_adaptive_gap",
-                algorithm_name=spec.algorithm_name,
-                agent_name=spec.adaptive_agent,
-            )
+        paired_statistics, unavailable_result = _paired_seed_statistics_for_check(
+            seed_rows,
+            left_agent_name=spec.adaptive_agent,
+            right_agent_name=spec.general_policy_agent,
+            opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
+            training_episode=training_episode,
+            thresholds=thresholds,
+            check_name=check_name,
+            category="head_to_head_adaptive_gap",
+            algorithm_name=spec.algorithm_name,
+            agent_name=spec.adaptive_agent,
         )
         if unavailable_result is not None:
             results.append(unavailable_result)
@@ -293,14 +288,9 @@ def validate_adaptive_not_worse_than_general_rule_based(
         threshold = -thresholds.max_adaptive_underperformance_vs_general_bb
         if paired_statistics is None:
             adaptive_gap = float(
-                adaptive_row["mean_profit_bb"]
-                - general_row["mean_profit_bb"]
+                adaptive_row["mean_profit_bb"] - general_row["mean_profit_bb"]
             )
-            status = (
-                STATUS_PASS
-                if adaptive_gap >= threshold
-                else STATUS_WARNING
-            )
+            status = STATUS_PASS if adaptive_gap >= threshold else STATUS_WARNING
             message = (
                 "Adaptive minus fixed general mean profit vs "
                 "RuleBasedPlayer is "
@@ -326,7 +316,7 @@ def validate_adaptive_not_worse_than_general_rule_based(
                 algorithm_name=spec.algorithm_name,
                 agent_name=spec.adaptive_agent,
                 opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
-                checkpoint_episode=checkpoint_episode,
+                training_episode=training_episode,
                 observed_value=adaptive_gap,
                 threshold=threshold,
                 sample_size=(
@@ -356,16 +346,12 @@ def validate_adaptive_not_worse_than_general_rule_based(
                     "general_policy_agent": spec.general_policy_agent,
                     "adaptive_mean_profit_bb": float(adaptive_row["mean_profit_bb"]),
                     "general_mean_profit_bb": float(general_row["mean_profit_bb"]),
-                    "general_checkpoint_episode": checkpoint_episode,
+                    "general_training_episode": training_episode,
                     "max_underperformance_bb": (
                         thresholds.max_adaptive_underperformance_vs_general_bb
                     ),
                     **(
-                        {
-                            "paired_seed_statistics": (
-                                paired_statistics.to_details()
-                            )
-                        }
+                        {"paired_seed_statistics": (paired_statistics.to_details())}
                         if paired_statistics is not None
                         else {}
                     ),
@@ -395,8 +381,7 @@ def validate_head_to_head_ood_classifier_coverage(
                 opponent_name,
             )
             check_name = (
-                f"{spec.algorithm_name}: OOD classifier coverage "
-                f"vs {opponent_name}"
+                f"{spec.algorithm_name}: OOD classifier coverage vs {opponent_name}"
             )
 
             if adaptive_row is None:
@@ -426,7 +411,7 @@ def validate_head_to_head_ood_classifier_coverage(
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=_checkpoint_episode(adaptive_row),
+                    training_episode=_training_episode(adaptive_row),
                     observed_value=coverage,
                     threshold=thresholds.min_classifier_coverage,
                     message=(
@@ -456,15 +441,9 @@ def validate_always_raise_head_to_head_stress_test(
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     specs = _algorithm_specs(best_rows, algorithm_specs)
-    agent_to_algorithm = {
-        spec.adaptive_agent: spec.algorithm_name
-        for spec in specs
-    }
+    agent_to_algorithm = {spec.adaptive_agent: spec.algorithm_name for spec in specs}
     agent_to_algorithm.update(
-        {
-            spec.general_policy_agent: spec.algorithm_name
-            for spec in specs
-        }
+        {spec.general_policy_agent: spec.algorithm_name for spec in specs}
     )
 
     if agents is None:
@@ -524,7 +503,7 @@ def validate_always_raise_head_to_head_stress_test(
                 algorithm_name=algorithm_name,
                 agent_name=agent_name,
                 opponent_name=HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT,
-                checkpoint_episode=_checkpoint_episode(row),
+                training_episode=_training_episode(row),
                 observed_value=mean_profit_bb,
                 threshold=thresholds.always_raise_stress_loss_bb,
                 message=(
@@ -544,6 +523,7 @@ def validate_always_raise_head_to_head_stress_test(
 
     return results
 
+
 def validate_head_to_head_results_from_best_rows(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
@@ -552,9 +532,7 @@ def validate_head_to_head_results_from_best_rows(
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
-    aligned_comparison_rows = (
-        best_rows if comparison_rows is None else comparison_rows
-    )
+    aligned_comparison_rows = best_rows if comparison_rows is None else comparison_rows
 
     checks: list[ValidationCheckResult] = []
     checks.extend(

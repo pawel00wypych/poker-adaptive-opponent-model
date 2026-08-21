@@ -15,13 +15,13 @@ from src.evaluation.validation.common import (
     STATUS_WARNING,
     ValidationCheckResult,
     ValidationThresholds,
-    _checkpoint_episode,
     _find_row,
-    _find_rows_at_latest_common_checkpoint,
+    _find_rows_at_common_training_episode,
     _format_float,
-    _missing_common_checkpoint_result,
+    _missing_common_training_episode_result,
     _missing_row_result,
     _paired_seed_statistics_for_check,
+    _training_episode,
     validate_extreme_bb_per_100,
     validate_minimum_seed_coverage,
     validate_seed_stability,
@@ -31,10 +31,7 @@ from src.evaluation.validation.common import (
 def _required_adaptive_matchups(
     algorithm_specs: Iterable[AlgorithmValidationSpec],
 ) -> tuple[tuple[str, str], ...]:
-    adaptive_agents = tuple(
-        spec.adaptive_agent
-        for spec in algorithm_specs
-    )
+    adaptive_agents = tuple(spec.adaptive_agent for spec in algorithm_specs)
     return tuple(
         (agent_name, opponent_name)
         for agent_name in adaptive_agents
@@ -78,14 +75,11 @@ def validate_cross_play_matchup_coverage(
 
     return [
         ValidationCheckResult(
-            check_name=(
-                "Learned-agent cross-play: Required adaptive matchup coverage"
-            ),
+            check_name=("Learned-agent cross-play: Required adaptive matchup coverage"),
             status=status,
             category="cross_play_matchup_coverage",
             message=(
-                "All required directed adaptive-vs-adaptive matchups are "
-                "present."
+                "All required directed adaptive-vs-adaptive matchups are present."
                 if complete
                 else (
                     f"Missing {len(missing_matchups)} of "
@@ -94,14 +88,8 @@ def validate_cross_play_matchup_coverage(
                 )
             ),
             details={
-                "required_algorithms": [
-                    spec.algorithm_key
-                    for spec in specs
-                ],
-                "required_agents": [
-                    spec.adaptive_agent
-                    for spec in specs
-                ],
+                "required_algorithms": [spec.algorithm_key for spec in specs],
+                "required_agents": [spec.adaptive_agent for spec in specs],
                 "required_matchup_count": len(required_matchups),
                 "present_matchup_count": (
                     len(required_matchups) - len(missing_matchups)
@@ -202,15 +190,12 @@ def validate_cross_play_pair_reciprocity(
             (second_agent, first_agent),
         )
         if not required and not any(
-            matchup in available_matchups
-            for matchup in matchups
+            matchup in available_matchups for matchup in matchups
         ):
             continue
 
-        check_name = (
-            f"Cross-play reciprocity for {first_label} and {second_label}"
-        )
-        checkpoint_episode, rows = _find_rows_at_latest_common_checkpoint(
+        check_name = f"Cross-play reciprocity for {first_label} and {second_label}"
+        training_episode, rows = _find_rows_at_common_training_episode(
             comparison_rows,
             matchups,
         )
@@ -238,9 +223,9 @@ def validate_cross_play_pair_reciprocity(
                 )
             )
             continue
-        if checkpoint_episode is None:
+        if training_episode is None:
             results.append(
-                _missing_common_checkpoint_result(
+                _missing_common_training_episode_result(
                     check_name,
                     "cross_play_pair_reciprocity",
                     comparison_rows,
@@ -253,21 +238,19 @@ def validate_cross_play_pair_reciprocity(
             continue
 
         threshold = thresholds.max_cross_play_pair_sum_abs_profit_bb
-        paired_statistics, unavailable_result = (
-            _paired_seed_statistics_for_check(
-                seed_rows,
-                left_agent_name=first_agent,
-                right_agent_name=second_agent,
-                opponent_name=second_agent,
-                right_opponent_name=first_agent,
-                operation=PAIRED_SEED_OPERATION_SUM,
-                checkpoint_episode=checkpoint_episode,
-                thresholds=thresholds,
-                check_name=check_name,
-                category="cross_play_pair_reciprocity",
-                algorithm_name=algorithm_name,
-                agent_name=first_agent,
-            )
+        paired_statistics, unavailable_result = _paired_seed_statistics_for_check(
+            seed_rows,
+            left_agent_name=first_agent,
+            right_agent_name=second_agent,
+            opponent_name=second_agent,
+            right_opponent_name=first_agent,
+            operation=PAIRED_SEED_OPERATION_SUM,
+            training_episode=training_episode,
+            thresholds=thresholds,
+            check_name=check_name,
+            category="cross_play_pair_reciprocity",
+            algorithm_name=algorithm_name,
+            agent_name=first_agent,
         )
         if unavailable_result is not None:
             results.append(unavailable_result)
@@ -277,11 +260,7 @@ def validate_cross_play_pair_reciprocity(
         second_profit = float(second_row["mean_profit_bb"])
         if paired_statistics is None:
             pair_sum = first_profit + second_profit
-            status = (
-                STATUS_PASS
-                if abs(pair_sum) <= threshold
-                else STATUS_WARNING
-            )
+            status = STATUS_PASS if abs(pair_sum) <= threshold else STATUS_WARNING
             message = (
                 "Opposite-direction mean profits sum to "
                 f"{_format_float(pair_sum)} BB/game."
@@ -294,9 +273,7 @@ def validate_cross_play_pair_reciprocity(
                 paired_statistics.ci_lower >= -threshold
                 and paired_statistics.ci_upper <= threshold
             )
-            status = (
-                STATUS_PASS if interval_within_bounds else STATUS_WARNING
-            )
+            status = STATUS_PASS if interval_within_bounds else STATUS_WARNING
             message = (
                 "Opposite-direction per-seed profit sums have mean "
                 f"{_format_float(pair_sum)} BB/game across "
@@ -315,7 +292,7 @@ def validate_cross_play_pair_reciprocity(
                 algorithm_name=algorithm_name,
                 agent_name=first_agent,
                 opponent_name=second_agent,
-                checkpoint_episode=checkpoint_episode,
+                training_episode=training_episode,
                 observed_value=absolute_pair_sum,
                 threshold=threshold,
                 sample_size=(
@@ -349,11 +326,7 @@ def validate_cross_play_pair_reciprocity(
                     "max_absolute_pair_sum_bb": threshold,
                     "required_matchup": required,
                     **(
-                        {
-                            "paired_seed_statistics": (
-                                paired_statistics.to_details()
-                            )
-                        }
+                        {"paired_seed_statistics": (paired_statistics.to_details())}
                         if paired_statistics is not None
                         else {}
                     ),
@@ -411,7 +384,7 @@ def validate_cross_play_classifier_coverage(
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
                     opponent_name=opponent_spec.adaptive_agent,
-                    checkpoint_episode=_checkpoint_episode(row),
+                    training_episode=_training_episode(row),
                     observed_value=coverage,
                     threshold=thresholds.min_classifier_coverage,
                     message=(
@@ -438,9 +411,7 @@ def validate_cross_play_results_from_best_rows(
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     specs = tuple(algorithm_specs)
-    aligned_comparison_rows = (
-        best_rows if comparison_rows is None else comparison_rows
-    )
+    aligned_comparison_rows = best_rows if comparison_rows is None else comparison_rows
     checks: list[ValidationCheckResult] = []
     checks.extend(validate_cross_play_matchup_coverage(best_rows, specs))
     checks.extend(

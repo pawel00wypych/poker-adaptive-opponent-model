@@ -26,18 +26,18 @@ from src.evaluation.player_factory import (
     build_evaluation_player,
     build_scripted_evaluation_player,
 )
-from src.evaluation.runners.checkpoint_evaluator import (
-    CHECKPOINT_EVALUATION_FIELDNAMES,
+from src.evaluation.runners.evaluation_seed import (
+    build_baseline_evaluation_seed,
+    build_paired_evaluation_seed,
+)
+from src.evaluation.runners.model_evaluator import (
+    MODEL_EVALUATION_FIELDNAMES,
     ModelBundle,
     build_result_row,
     get_classifier_metrics,
     get_hands_played,
     load_adaptive_agents,
     load_eval_agent,
-)
-from src.evaluation.runners.evaluation_seed import (
-    build_baseline_evaluation_seed,
-    build_paired_evaluation_seed,
 )
 
 HEAD_TO_HEAD_RULE_BASED_OPPONENT = RULE_BASED_AGENT
@@ -92,7 +92,7 @@ class HeadToHeadEvaluationConfig:
     """
     Configuration for direct learned-policy vs handcrafted-baseline matchups.
 
-    This evaluator is intentionally separate from checkpoint evaluation against
+    This evaluator is intentionally separate from final-model evaluation against
     training opponents. Opponents such as rule_based and always_raise are
     out-of-distribution for the adaptive classifier, so adaptive players are
     built without an expected_opponent_type.
@@ -135,9 +135,7 @@ def validate_head_to_head_opponent(
 def build_head_to_head_opponent(
     opponent_name: str,
 ):
-    validate_head_to_head_opponent(
-        opponent_name
-    )
+    validate_head_to_head_opponent(opponent_name)
 
     return build_scripted_evaluation_player(
         opponent_name,
@@ -164,9 +162,7 @@ def build_head_to_head_tested_player(
     rule_based/always_raise because these labels are not part of the classifier.
     """
 
-    validate_head_to_head_agent(
-        tested_agent_name
-    )
+    validate_head_to_head_agent(tested_agent_name)
 
     if tested_agent_name in BASELINE_ONLY_AGENT_SET:
         return build_scripted_evaluation_player(
@@ -208,6 +204,7 @@ def learned_tested_agents(
         if agent_name not in BASELINE_ONLY_AGENT_SET
     )
 
+
 def set_head_to_head_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -217,13 +214,13 @@ def build_head_to_head_seed(
     *,
     eval_seed_base: int,
     model_seed: int,
-    checkpoint_episode: int,
+    model_episode: int,
     matchup_game_index: int,
 ) -> int:
     return build_paired_evaluation_seed(
         eval_seed_base=eval_seed_base,
         model_seed=model_seed,
-        checkpoint_episode=checkpoint_episode,
+        model_episode=model_episode,
         matchup_game_index=matchup_game_index,
     )
 
@@ -239,14 +236,12 @@ def evaluate_single_head_to_head_game(
     eval_seed_base: int,
 ) -> dict:
     if tested_agent_name in BASELINE_ONLY_AGENT_SET:
-        raise ValueError(
-            "Baseline-only agents must use evaluate_single_baseline_game"
-        )
+        raise ValueError("Baseline-only agents must use evaluate_single_baseline_game")
 
     game_seed = build_head_to_head_seed(
         eval_seed_base=eval_seed_base,
         model_seed=bundle.seed,
-        checkpoint_episode=bundle.checkpoint_episode,
+        model_episode=bundle.model_episode,
         matchup_game_index=matchup_game_index,
     )
 
@@ -255,9 +250,7 @@ def evaluate_single_head_to_head_game(
     config = setup_config(
         max_round=game_config.max_round,
         initial_stack=game_config.initial_stack,
-        small_blind_amount=(
-            game_config.small_blind_amount
-        ),
+        small_blind_amount=(game_config.small_blind_amount),
     )
 
     tested_player = build_head_to_head_tested_player(
@@ -265,9 +258,7 @@ def evaluate_single_head_to_head_game(
         bundle=bundle,
     )
 
-    opponent = build_head_to_head_opponent(
-        opponent_name
-    )
+    opponent = build_head_to_head_opponent(opponent_name)
 
     config.register_player(
         name=tested_agent_name,
@@ -284,27 +275,17 @@ def evaluate_single_head_to_head_game(
         verbose=0,
     )
 
-    hands_played = get_hands_played(
-        tested_player
-    )
+    hands_played = get_hands_played(tested_player)
 
     ended_by_bust = any(
-        player_result["stack"] == 0
-        for player_result in result["players"]
+        player_result["stack"] == 0 for player_result in result["players"]
     )
 
-    ended_by_round_limit = (
-        not ended_by_bust
-        and hands_played >= game_config.max_round
-    )
+    ended_by_round_limit = not ended_by_bust and hands_played >= game_config.max_round
 
-    classifier_metrics = get_classifier_metrics(
-        tested_player
-    )
+    classifier_metrics = get_classifier_metrics(tested_player)
 
-    big_blind = (
-        game_config.small_blind_amount * 2
-    )
+    big_blind = game_config.small_blind_amount * 2
 
     for player_result in result["players"]:
         if player_result["name"] == tested_agent_name:
@@ -320,15 +301,11 @@ def evaluate_single_head_to_head_game(
                 hands_played=hands_played,
                 big_blind=big_blind,
                 ended_by_bust=ended_by_bust,
-                ended_by_round_limit=(
-                    ended_by_round_limit
-                ),
+                ended_by_round_limit=(ended_by_round_limit),
                 classifier_metrics=classifier_metrics,
             )
 
-    raise RuntimeError(
-        "Tested player result not found in game result."
-    )
+    raise RuntimeError("Tested player result not found in game result.")
 
 
 def evaluate_head_to_head_bundle(
@@ -341,24 +318,16 @@ def evaluate_head_to_head_bundle(
 
     game_id = 0
 
-    for tested_agent_name in learned_tested_agents(
-        config.tested_agents
-    ):
-        validate_head_to_head_agent(
-            tested_agent_name
-        )
+    for tested_agent_name in learned_tested_agents(config.tested_agents):
+        validate_head_to_head_agent(tested_agent_name)
 
         for opponent_name in config.opponents:
-            validate_head_to_head_opponent(
-                opponent_name
-            )
+            validate_head_to_head_opponent(opponent_name)
 
             for matchup_game_index in range(config.games_per_matchup):
                 row = evaluate_single_head_to_head_game(
                     bundle=bundle,
-                    tested_agent_name=(
-                        tested_agent_name
-                    ),
+                    tested_agent_name=(tested_agent_name),
                     opponent_name=opponent_name,
                     game_id=game_id,
                     matchup_game_index=matchup_game_index,
@@ -422,13 +391,9 @@ def evaluate_single_baseline_game(
     result = start_poker(config, verbose=0)
     hands_played = get_hands_played(tested_player)
     ended_by_bust = any(
-        player_result["stack"] == 0
-        for player_result in result["players"]
+        player_result["stack"] == 0 for player_result in result["players"]
     )
-    ended_by_round_limit = (
-        not ended_by_bust
-        and hands_played >= game_config.max_round
-    )
+    ended_by_round_limit = not ended_by_bust and hands_played >= game_config.max_round
     classifier_metrics = get_classifier_metrics(tested_player)
     big_blind = game_config.small_blind_amount * 2
 
@@ -451,9 +416,7 @@ def evaluate_single_baseline_game(
                 classifier_metrics=classifier_metrics,
             )
 
-    raise RuntimeError(
-        "Tested baseline result not found in game result."
-    )
+    raise RuntimeError("Tested baseline result not found in game result.")
 
 
 def evaluate_baseline_replicate(
@@ -465,9 +428,7 @@ def evaluate_baseline_replicate(
     rows: list[dict] = []
     tested_agents = baseline_tested_agents(config.tested_agents)
     games_per_replicate = (
-        len(tested_agents)
-        * len(config.opponents)
-        * config.games_per_matchup
+        len(tested_agents) * len(config.opponents) * config.games_per_matchup
     )
     game_id = evaluation_replicate_id * games_per_replicate
 
@@ -529,7 +490,7 @@ def write_head_to_head_rows(
     ) as file:
         writer = csv.DictWriter(
             file,
-            fieldnames=CHECKPOINT_EVALUATION_FIELDNAMES,
+            fieldnames=MODEL_EVALUATION_FIELDNAMES,
         )
         writer.writeheader()
         writer.writerows(rows)

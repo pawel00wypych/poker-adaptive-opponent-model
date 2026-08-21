@@ -29,7 +29,7 @@ class PairedSeedStatistics:
     opponent_name: str
     right_opponent_name: str
     operation: str
-    checkpoint_episode: int | None
+    training_episode: int | None
     left_seed_count: int
     right_seed_count: int
     common_seeds: tuple[object, ...]
@@ -60,11 +60,7 @@ class PairedSeedStatistics:
         return self.mean_value
 
     def to_details(self) -> dict[str, object]:
-        operator = (
-            "-"
-            if self.operation == PAIRED_SEED_OPERATION_DIFFERENCE
-            else "+"
-        )
+        operator = "-" if self.operation == PAIRED_SEED_OPERATION_DIFFERENCE else "+"
         details: dict[str, object] = {
             "comparison": (
                 f"{self.left_agent_name} vs {self.opponent_name} "
@@ -76,7 +72,7 @@ class PairedSeedStatistics:
             "right_agent_name": self.right_agent_name,
             "left_opponent_name": self.opponent_name,
             "right_opponent_name": self.right_opponent_name,
-            "checkpoint_episode": self.checkpoint_episode,
+            "training_episode": self.training_episode,
             "left_seed_count": self.left_seed_count,
             "right_seed_count": self.right_seed_count,
             "common_seed_count": self.common_seed_count,
@@ -84,8 +80,7 @@ class PairedSeedStatistics:
             "left_only_seeds": list(self.left_only_seeds),
             "right_only_seeds": list(self.right_only_seeds),
             "paired_values_by_seed": {
-                str(seed): delta
-                for seed, delta in self.paired_values_by_seed.items()
+                str(seed): delta for seed, delta in self.paired_values_by_seed.items()
             },
             "mean_value": self.mean_value,
             "standard_deviation": self.standard_deviation,
@@ -124,16 +119,14 @@ def _agent_seed_values(
     *,
     agent_name: str,
     opponent_name: str,
-    checkpoint_episode: int | None,
+    training_episode: int | None,
 ) -> pd.Series:
     matching = seed_rows[
         (seed_rows["agent_name"] == agent_name)
         & (seed_rows["opponent_name"] == opponent_name)
     ]
-    if checkpoint_episode is not None:
-        matching = matching[
-            matching["checkpoint_episode"] == checkpoint_episode
-        ]
+    if training_episode is not None:
+        matching = matching[matching["training_episode"] == training_episode]
 
     duplicated = matching.loc[
         matching["model_seed"].duplicated(keep=False),
@@ -142,7 +135,8 @@ def _agent_seed_values(
     if not duplicated.empty:
         duplicate_seeds = _sorted_seed_values(set(duplicated.tolist()))
         raise PairedSeedStatisticsError(
-            "Expected one seed-level row per agent, opponent, and checkpoint; "
+            "Expected one seed-level row per agent, opponent, and final "
+            "training episode; "
             f"found duplicate model_seed values for {agent_name} vs "
             f"{opponent_name}: {list(duplicate_seeds)}."
         )
@@ -172,7 +166,7 @@ def calculate_paired_seed_statistics(
     right_agent_name: str,
     opponent_name: str,
     right_opponent_name: str | None = None,
-    checkpoint_episode: int | None = None,
+    training_episode: int | None = None,
     operation: str = PAIRED_SEED_OPERATION_DIFFERENCE,
 ) -> PairedSeedStatistics:
     """Calculate a Student-t CI for a per-seed difference or sum."""
@@ -180,7 +174,7 @@ def calculate_paired_seed_statistics(
     required_columns = {
         "agent_name",
         "opponent_name",
-        "checkpoint_episode",
+        "training_episode",
         "model_seed",
         "mean_profit_bb",
     }
@@ -203,13 +197,13 @@ def calculate_paired_seed_statistics(
         seed_rows,
         agent_name=left_agent_name,
         opponent_name=opponent_name,
-        checkpoint_episode=checkpoint_episode,
+        training_episode=training_episode,
     )
     right_values = _agent_seed_values(
         seed_rows,
         agent_name=right_agent_name,
         opponent_name=compared_right_opponent,
-        checkpoint_episode=checkpoint_episode,
+        training_episode=training_episode,
     )
 
     left_seeds = set(left_values.index.tolist())
@@ -229,11 +223,7 @@ def calculate_paired_seed_statistics(
         }
 
     delta_values = np.asarray(list(deltas_by_seed.values()), dtype="float64")
-    mean_delta = (
-        float(np.mean(delta_values))
-        if delta_values.size
-        else None
-    )
+    mean_delta = float(np.mean(delta_values)) if delta_values.size else None
     standard_deviation: float | None = None
     standard_error: float | None = None
     ci_lower: float | None = None
@@ -241,9 +231,7 @@ def calculate_paired_seed_statistics(
 
     if delta_values.size >= 2:
         standard_deviation = float(np.std(delta_values, ddof=1))
-        standard_error = float(
-            standard_deviation / np.sqrt(delta_values.size)
-        )
+        standard_error = float(standard_deviation / np.sqrt(delta_values.size))
         critical_value = float(
             student_t.ppf(
                 (1.0 + SEED_CONFIDENCE_LEVEL) / 2.0,
@@ -260,7 +248,7 @@ def calculate_paired_seed_statistics(
         opponent_name=opponent_name,
         right_opponent_name=compared_right_opponent,
         operation=operation,
-        checkpoint_episode=checkpoint_episode,
+        training_episode=training_episode,
         left_seed_count=len(left_seeds),
         right_seed_count=len(right_seeds),
         common_seeds=common_seeds,

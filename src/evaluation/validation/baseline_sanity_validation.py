@@ -21,10 +21,10 @@ from src.evaluation.validation.common import (
     STATUS_WARNING,
     ValidationCheckResult,
     ValidationThresholds,
-    _checkpoint_episode,
     _find_row,
     _format_float,
     _missing_row_result,
+    _training_episode,
     validate_extreme_bb_per_100,
 )
 
@@ -58,8 +58,7 @@ def validate_baseline_matchup_coverage(
     missing_matchups = [
         matchup
         for matchup in required_matchups
-        if (matchup["agent_name"], matchup["opponent_name"])
-        not in available_matchups
+        if (matchup["agent_name"], matchup["opponent_name"]) not in available_matchups
     ]
     complete = not missing_matchups
 
@@ -117,14 +116,12 @@ def validate_baseline_mirror_neutrality(
             ValidationCheckResult(
                 check_name=check_name,
                 status=(
-                    STATUS_PASS
-                    if absolute_profit <= threshold
-                    else STATUS_WARNING
+                    STATUS_PASS if absolute_profit <= threshold else STATUS_WARNING
                 ),
                 category="baseline_mirror_neutrality",
                 agent_name=agent_name,
                 opponent_name=agent_name,
-                checkpoint_episode=_checkpoint_episode(row),
+                training_episode=_training_episode(row),
                 observed_value=absolute_profit,
                 threshold=threshold,
                 message=(
@@ -150,9 +147,7 @@ def validate_baseline_pair_reciprocity(
     results: list[ValidationCheckResult] = []
 
     for first_agent, second_agent in combinations(BASELINE_SANITY_AGENTS, 2):
-        check_name = (
-            f"Baseline pair reciprocity for {first_agent} and {second_agent}"
-        )
+        check_name = f"Baseline pair reciprocity for {first_agent} and {second_agent}"
         first_direction = replicate_rows[
             (replicate_rows["agent_name"] == first_agent)
             & (replicate_rows["opponent_name"] == second_agent)
@@ -206,14 +201,14 @@ def validate_baseline_pair_reciprocity(
                     ),
                     details={
                         "first_direction_replicate_ids": sorted(
-                            first_direction[
-                                "evaluation_replicate_id"
-                            ].astype(int).tolist()
+                            first_direction["evaluation_replicate_id"]
+                            .astype(int)
+                            .tolist()
                         ),
                         "second_direction_replicate_ids": sorted(
-                            second_direction[
-                                "evaluation_replicate_id"
-                            ].astype(int).tolist()
+                            second_direction["evaluation_replicate_id"]
+                            .astype(int)
+                            .tolist()
                         ),
                     },
                 )
@@ -221,8 +216,7 @@ def validate_baseline_pair_reciprocity(
             continue
 
         paired["pair_sum_bb"] = (
-            paired["first_direction_profit_bb"]
-            + paired["second_direction_profit_bb"]
+            paired["first_direction_profit_bb"] + paired["second_direction_profit_bb"]
         )
         pair_sum = float(paired["pair_sum_bb"].mean())
         absolute_pair_sum = abs(pair_sum)
@@ -243,9 +237,7 @@ def validate_baseline_pair_reciprocity(
             ValidationCheckResult(
                 check_name=check_name,
                 status=(
-                    STATUS_PASS
-                    if absolute_pair_sum <= threshold
-                    else STATUS_WARNING
+                    STATUS_PASS if absolute_pair_sum <= threshold else STATUS_WARNING
                 ),
                 category="baseline_pair_reciprocity",
                 agent_name=first_agent,
@@ -264,9 +256,9 @@ def validate_baseline_pair_reciprocity(
                 details={
                     "first_agent": first_agent,
                     "second_agent": second_agent,
-                    "common_evaluation_replicate_ids": paired[
-                        "evaluation_replicate_id"
-                    ].astype(int).tolist(),
+                    "common_evaluation_replicate_ids": paired["evaluation_replicate_id"]
+                    .astype(int)
+                    .tolist(),
                     "paired_sum_mean_profit_bb": pair_sum,
                     "absolute_paired_sum_mean_profit_bb": absolute_pair_sum,
                     "paired_sum_std_profit_bb": (
@@ -286,9 +278,7 @@ def validate_minimum_evaluation_replicate_coverage(
 ) -> list[ValidationCheckResult]:
     minimum_replicates = thresholds.min_evaluation_replicates_per_matchup
     if minimum_replicates < 1:
-        raise ValueError(
-            "min_evaluation_replicates_per_matchup must be at least 1"
-        )
+        raise ValueError("min_evaluation_replicates_per_matchup must be at least 1")
 
     results: list[ValidationCheckResult] = []
     for _, row in aggregated_rows.iterrows():
@@ -320,9 +310,7 @@ def validate_minimum_evaluation_replicate_coverage(
                 ),
                 details={
                     "evaluation_replicate_count": replicate_count,
-                    "min_evaluation_replicates_per_matchup": (
-                        minimum_replicates
-                    ),
+                    "min_evaluation_replicates_per_matchup": (minimum_replicates),
                 },
             )
         )
@@ -402,8 +390,7 @@ def validate_baseline_extreme_results(
                 continue
 
             check_name = (
-                f"Baseline extreme result for {tested_agent} "
-                f"vs {opponent_name}"
+                f"Baseline extreme result for {tested_agent} vs {opponent_name}"
             )
             row = _find_row(best_rows, tested_agent, opponent_name)
             if row is None:
@@ -420,8 +407,7 @@ def validate_baseline_extreme_results(
             mean_profit_bb = float(row["mean_profit_bb"])
             win_rate = float(row["win_rate"])
             suspicious = (
-                mean_profit_bb
-                >= thresholds.high_always_raise_mean_profit_bb
+                mean_profit_bb >= thresholds.high_always_raise_mean_profit_bb
                 and win_rate >= thresholds.high_always_raise_win_rate
             )
             results.append(
@@ -431,7 +417,7 @@ def validate_baseline_extreme_results(
                     category="baseline_extreme_result",
                     agent_name=tested_agent,
                     opponent_name=opponent_name,
-                    checkpoint_episode=_checkpoint_episode(row),
+                    training_episode=_training_episode(row),
                     observed_value=mean_profit_bb,
                     threshold=thresholds.high_always_raise_mean_profit_bb,
                     message=(
@@ -469,9 +455,7 @@ def validate_baseline_sanity_results_from_best_rows(
         )
     )
     checks.extend(validate_baseline_extreme_results(best_rows, thresholds))
-    checks.extend(
-        validate_minimum_evaluation_replicate_coverage(best_rows, thresholds)
-    )
+    checks.extend(validate_minimum_evaluation_replicate_coverage(best_rows, thresholds))
     checks.extend(validate_simulation_stability(best_rows, thresholds))
     checks.extend(validate_extreme_bb_per_100(best_rows, thresholds))
     return checks

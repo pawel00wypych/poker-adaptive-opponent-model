@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from src.evaluation.runners.checkpoint_evaluator import (
+from src.evaluation.constants import SUPPORTED_TESTED_AGENTS
+from src.evaluation.runners.model_evaluator import (
     ModelBundle,
     build_tested_player,
 )
-from src.evaluation.constants import SUPPORTED_TESTED_AGENTS
 from src.players.baselines.always_raise_player import AlwaysRaisePlayer
 
 
@@ -212,17 +212,18 @@ def test_always_raise_player_tracks_completed_rounds():
     assert player.hand_start_stack == 120
 
 
-def test_always_raise_is_supported_checkpoint_baseline():
+def test_always_raise_is_supported_evaluation_baseline():
     assert "always_raise" in SUPPORTED_TESTED_AGENTS
 
 
-def test_checkpoint_evaluator_builds_always_raise_player(
+def test_model_evaluator_builds_always_raise_player(
     tmp_path,
 ):
     bundle = ModelBundle(
         training_run_directory=tmp_path / "run",
         seed=42,
-        checkpoint_episode=2000,
+        episode=2000,
+        model_source="final",
         unknown_model_path=Path("unknown.pkl"),
         tight_model_path=Path("tight.pkl"),
         aggressive_model_path=Path("aggressive.pkl"),

@@ -105,25 +105,16 @@ def calculate_grouped_evaluation_metrics(
         .reset_index()
     )
 
-    grouped["bb_per_100"] = (
-        grouped["total_profit_bb"]
-        / grouped["total_hands"]
-        * 100
-    )
+    grouped["bb_per_100"] = grouped["total_profit_bb"] / grouped["total_hands"] * 100
 
-    grouped["standard_error"] = (
-        grouped["std_profit_bb"]
-        / np.sqrt(grouped["games"])
-    )
+    grouped["standard_error"] = grouped["std_profit_bb"] / np.sqrt(grouped["games"])
 
     grouped["ci_95_lower"] = (
-        grouped["mean_profit_bb"]
-        - 1.96 * grouped["standard_error"]
+        grouped["mean_profit_bb"] - 1.96 * grouped["standard_error"]
     )
 
     grouped["ci_95_upper"] = (
-        grouped["mean_profit_bb"]
-        + 1.96 * grouped["standard_error"]
+        grouped["mean_profit_bb"] + 1.96 * grouped["standard_error"]
     )
 
     total_evaluated = (
@@ -133,20 +124,17 @@ def calculate_grouped_evaluation_metrics(
 
     grouped["global_classifier_accuracy"] = np.where(
         total_evaluated > 0,
-        grouped["total_correct_classifications"]
-        / total_evaluated,
+        grouped["total_correct_classifications"] / total_evaluated,
         0.0,
     )
 
     total_predictions = (
-        grouped["total_classified_decisions"]
-        + grouped["total_unknown_classifications"]
+        grouped["total_classified_decisions"] + grouped["total_unknown_classifications"]
     )
 
     grouped["global_classifier_coverage"] = np.where(
         total_predictions > 0,
-        grouped["total_classified_decisions"]
-        / total_predictions,
+        grouped["total_classified_decisions"] / total_predictions,
         0.0,
     )
 
@@ -167,19 +155,35 @@ def calculate_grouped_evaluation_metrics(
     return grouped
 
 
-def calculate_checkpoint_metrics(
+def calculate_final_model_metrics(
     results_csv_path: str,
 ) -> pd.DataFrame:
-    df = pd.read_csv(
-        results_csv_path
-    )
+    df = pd.read_csv(results_csv_path)
+
+    if "model_source" not in df.columns:
+        raise ValueError("Evaluation data is missing model_source.")
+    invalid_sources = set(df["model_source"].dropna()) - {"final"}
+    if invalid_sources:
+        raise ValueError(
+            "Final evaluation data contains non-final model sources: "
+            f"{sorted(invalid_sources)}."
+        )
+    df = df[df["model_source"] == "final"].copy()
+    if df.empty:
+        raise ValueError("Evaluation data contains no final-model rows.")
+    if "training_episode" not in df.columns:
+        raise ValueError("Evaluation data is missing training_episode.")
+    if df["training_episode"].isna().any():
+        raise ValueError("Final model rows must contain training_episode metadata.")
+    if "checkpoint_episode" in df.columns and df["checkpoint_episode"].notna().any():
+        raise ValueError("Final evaluation data must not contain checkpoint episodes.")
 
     return calculate_grouped_evaluation_metrics(
         df,
         [
             "training_run",
             "model_seed",
-            "checkpoint_episode",
+            "training_episode",
             "experiment_name",
             "agent_name",
             "opponent_name",

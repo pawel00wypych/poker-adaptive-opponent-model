@@ -7,9 +7,9 @@ from src.evaluation.validation import (
     STATUS_WARNING,
     VALIDATION_MODE_BASELINE_SANITY,
     VALIDATION_MODE_STRESS_TEST,
-    validate_checkpoint_results,
+    validate_evaluation_results,
 )
-from src.experiments.validation.validate_checkpoint_evaluation import (
+from src.experiments.validation.validate_evaluation_results import (
     build_thresholds,
     parse_args,
 )
@@ -46,9 +46,7 @@ def write_sample_stress_test_csv(path):
                 profit_by_seed=profit_by_seed,
                 win_rate=70.0 if max(profit_by_seed) >= 0.0 else 5.0,
                 bust_rate=(
-                    95.0
-                    if opponent_name == "always_raise" and is_adaptive
-                    else 10.0
+                    95.0 if opponent_name == "always_raise" and is_adaptive else 10.0
                 ),
                 classifier_accuracy=0.0,
                 classifier_coverage=90.0 if is_adaptive else 0.0,
@@ -80,7 +78,8 @@ def write_sample_baseline_sanity_csv(path):
                 {
                     "training_run": None,
                     "model_seed": None,
-                    "checkpoint_episode": None,
+                    "model_source": "final",
+                    "training_episode": None,
                     "evaluation_replicate_id": replicate_id,
                     "experiment_id": f"evaluation_replicate_{replicate_id}",
                     "experiment_name": f"{agent_name}_vs_{opponent_name}",
@@ -120,7 +119,7 @@ def test_stress_test_mode_runs_dedicated_checks_and_coverage(tmp_path):
     csv_path = tmp_path / "stress_test.csv"
     write_sample_stress_test_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_STRESS_TEST,
         algorithm_specs=(SPEC,),
@@ -129,38 +128,33 @@ def test_stress_test_mode_runs_dedicated_checks_and_coverage(tmp_path):
     checks_by_name = {check.check_name: check for check in report.checks}
 
     assert report.validation_mode == VALIDATION_MODE_STRESS_TEST
-    assert checks_by_name[
-        "Monte Carlo: Algorithm result coverage"
-    ].status == STATUS_PASS
-    assert checks_by_name[
-        "Monte Carlo: Required matchup coverage"
-    ].details["required_matchup_count"] == 6
     assert (
-        checks_by_name[
-            "Monte Carlo: Adaptive exploits AlwaysCallPlayer"
-        ].status
+        checks_by_name["Monte Carlo: Algorithm result coverage"].status == STATUS_PASS
+    )
+    assert (
+        checks_by_name["Monte Carlo: Required matchup coverage"].details[
+            "required_matchup_count"
+        ]
+        == 6
+    )
+    assert (
+        checks_by_name["Monte Carlo: Adaptive exploits AlwaysCallPlayer"].status
         == STATUS_PASS
     )
     assert (
-        checks_by_name[
-            "Monte Carlo: Fixed general policy beats RuleBasedPlayer"
-        ].status
+        checks_by_name["Monte Carlo: Fixed general policy beats RuleBasedPlayer"].status
         == STATUS_PASS
     )
     assert (
-        checks_by_name[
-            "Monte Carlo: Adaptive resilience vs AlwaysRaisePlayer"
-        ].status
+        checks_by_name["Monte Carlo: Adaptive resilience vs AlwaysRaisePlayer"].status
         == STATUS_WARNING
     )
     assert (
         "Monte Carlo: Adaptive not significantly worse than fixed general "
-        "vs always_raise"
-        in checks_by_name
+        "vs always_raise" in checks_by_name
     )
     assert (
-        "Monte Carlo: Stress-test classifier coverage vs always_call"
-        in checks_by_name
+        "Monte Carlo: Stress-test classifier coverage vs always_call" in checks_by_name
     )
 
 
@@ -176,16 +170,14 @@ def test_stress_test_mode_fails_required_matchup_coverage(tmp_path):
     ]
     rows.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_STRESS_TEST,
         algorithm_specs=(SPEC,),
         require_all_algorithms=True,
     )
     coverage = next(
-        check
-        for check in report.checks
-        if check.category == "matchup_coverage"
+        check for check in report.checks if check.category == "matchup_coverage"
     )
 
     assert coverage.status == STATUS_FAIL
@@ -199,14 +191,13 @@ def test_stress_test_mode_fails_when_learned_agent_cannot_exploit_always_call(
     csv_path = tmp_path / "stress_test.csv"
     write_sample_stress_test_csv(csv_path)
     rows = pd.read_csv(csv_path)
-    mask = (
-        (rows["agent_name"] == SPEC.adaptive_agent)
-        & (rows["opponent_name"] == "always_call")
+    mask = (rows["agent_name"] == SPEC.adaptive_agent) & (
+        rows["opponent_name"] == "always_call"
     )
     rows.loc[mask, "profit_bb"] = -2.0
     rows.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_STRESS_TEST,
         algorithm_specs=(SPEC,),
@@ -214,8 +205,7 @@ def test_stress_test_mode_fails_when_learned_agent_cannot_exploit_always_call(
     check = next(
         check
         for check in report.checks
-        if check.check_name
-        == "Monte Carlo: Adaptive exploits AlwaysCallPlayer"
+        if check.check_name == "Monte Carlo: Adaptive exploits AlwaysCallPlayer"
     )
 
     assert check.status == STATUS_FAIL
@@ -226,7 +216,7 @@ def test_baseline_sanity_mode_validates_complete_matrix(tmp_path):
     csv_path = tmp_path / "baseline_sanity.csv"
     write_sample_baseline_sanity_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_BASELINE_SANITY,
     )
@@ -238,8 +228,8 @@ def test_baseline_sanity_mode_validates_complete_matrix(tmp_path):
     )
 
     assert report.validation_mode == VALIDATION_MODE_BASELINE_SANITY
-    assert report.checkpoint_episode is None
-    assert report.checkpoint_selection == "not_applicable"
+    assert report.training_episode is None
+    assert report.model_selection == "not_applicable"
     assert coverage.status == STATUS_PASS
     assert coverage.details["required_matchup_count"] == 9
     assert categories.count("baseline_mirror_neutrality") == 3
@@ -263,7 +253,7 @@ def test_baseline_sanity_mode_fails_when_a_matchup_is_missing(tmp_path):
     ]
     rows.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_BASELINE_SANITY,
     )
@@ -282,14 +272,13 @@ def test_baseline_sanity_warns_for_non_neutral_mirror(tmp_path):
     csv_path = tmp_path / "baseline_sanity.csv"
     write_sample_baseline_sanity_csv(csv_path)
     rows = pd.read_csv(csv_path)
-    mask = (
-        (rows["agent_name"] == "always_call")
-        & (rows["opponent_name"] == "always_call")
+    mask = (rows["agent_name"] == "always_call") & (
+        rows["opponent_name"] == "always_call"
     )
     rows.loc[mask, "profit_bb"] = 3.0
     rows.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_BASELINE_SANITY,
     )
@@ -308,14 +297,13 @@ def test_baseline_sanity_warns_for_non_reciprocal_pair(tmp_path):
     csv_path = tmp_path / "baseline_sanity.csv"
     write_sample_baseline_sanity_csv(csv_path)
     rows = pd.read_csv(csv_path)
-    mask = (
-        (rows["agent_name"] == "always_call")
-        & (rows["opponent_name"] == "always_raise")
+    mask = (rows["agent_name"] == "always_call") & (
+        rows["opponent_name"] == "always_raise"
     )
     rows.loc[mask, "profit_bb"] = 5.0
     rows.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_BASELINE_SANITY,
     )
@@ -381,7 +369,7 @@ def test_baseline_sanity_rejects_legacy_model_seed_rows(tmp_path):
     pd.DataFrame(rows).to_csv(csv_path, index=False)
 
     try:
-        validate_checkpoint_results(
+        validate_evaluation_results(
             csv_path,
             validation_mode=VALIDATION_MODE_BASELINE_SANITY,
         )

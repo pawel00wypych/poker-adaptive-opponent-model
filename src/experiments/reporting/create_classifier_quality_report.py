@@ -19,15 +19,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--input-path", required=True, type=str)
     parser.add_argument("--output-dir", required=True, type=str)
     parser.add_argument(
-        "--checkpoint-episode",
-        type=int,
-        default=None,
-        help=(
-            "Checkpoint to analyse. By default, the latest checkpoint from "
-            "each training run is used."
-        ),
-    )
-    parser.add_argument(
         "--format",
         default="all",
         choices=["markdown", "json", "both", "all"],
@@ -46,9 +37,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def build_config(args: argparse.Namespace) -> ClassifierQualityConfig:
-    return ClassifierQualityConfig(
-        checkpoint_episode=args.checkpoint_episode,
-    )
+    return ClassifierQualityConfig()
 
 
 def main() -> None:

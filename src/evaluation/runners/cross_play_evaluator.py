@@ -25,8 +25,11 @@ from src.evaluation.player_factory import (
     EvaluationAgentLoaders,
     build_evaluation_player,
 )
-from src.evaluation.runners.checkpoint_evaluator import (
-    CHECKPOINT_EVALUATION_FIELDNAMES,
+from src.evaluation.runners.evaluation_seed import (
+    build_paired_evaluation_seed,
+)
+from src.evaluation.runners.model_evaluator import (
+    MODEL_EVALUATION_FIELDNAMES,
     ModelBundle,
     build_result_row,
     get_classifier_metrics,
@@ -39,9 +42,6 @@ from src.evaluation.runners.checkpoint_evaluator import (
     load_q_learning_eval_agent,
     load_sarsa_adaptive_agents,
     load_sarsa_eval_agent,
-)
-from src.evaluation.runners.evaluation_seed import (
-    build_paired_evaluation_seed,
 )
 
 CROSS_PLAY_EVALUATION_TYPE = "cross_play"
@@ -75,7 +75,7 @@ CROSS_PLAY_METADATA_FIELDNAMES = [
 ]
 
 CROSS_PLAY_EVALUATION_FIELDNAMES = [
-    *CHECKPOINT_EVALUATION_FIELDNAMES,
+    *MODEL_EVALUATION_FIELDNAMES,
     *CROSS_PLAY_METADATA_FIELDNAMES,
 ]
 
@@ -128,9 +128,7 @@ def cross_play_matchup_type(
 def validate_cross_play_agent(
     agent_name: str,
 ) -> None:
-    cross_play_agent_category(
-        agent_name
-    )
+    cross_play_agent_category(agent_name)
 
 
 def should_evaluate_cross_play_matchup(
@@ -174,9 +172,7 @@ def build_cross_play_player(
     agent_name: str,
     bundle: ModelBundle,
 ):
-    validate_cross_play_agent(
-        agent_name
-    )
+    validate_cross_play_agent(agent_name)
 
     return build_evaluation_player(
         tested_agent_name=agent_name,
@@ -197,13 +193,13 @@ def build_cross_play_seed(
     *,
     eval_seed_base: int,
     model_seed: int,
-    checkpoint_episode: int,
+    model_episode: int,
     matchup_game_index: int,
 ) -> int:
     return build_paired_evaluation_seed(
         eval_seed_base=eval_seed_base,
         model_seed=model_seed,
-        checkpoint_episode=checkpoint_episode,
+        model_episode=model_episode,
         matchup_game_index=matchup_game_index,
     )
 
@@ -217,12 +213,8 @@ def add_cross_play_metadata(
     return {
         **row,
         "evaluation_type": CROSS_PLAY_EVALUATION_TYPE,
-        "agent_category": cross_play_agent_category(
-            tested_agent_name
-        ),
-        "opponent_agent_category": cross_play_agent_category(
-            opponent_agent_name
-        ),
+        "agent_category": cross_play_agent_category(tested_agent_name),
+        "opponent_agent_category": cross_play_agent_category(opponent_agent_name),
         "cross_play_matchup_type": cross_play_matchup_type(
             tested_agent_name=tested_agent_name,
             opponent_agent_name=opponent_agent_name,
@@ -251,7 +243,7 @@ def evaluate_single_cross_play_game(
     game_seed = build_cross_play_seed(
         eval_seed_base=eval_seed_base,
         model_seed=bundle.seed,
-        checkpoint_episode=bundle.checkpoint_episode,
+        model_episode=bundle.model_episode,
         matchup_game_index=matchup_game_index,
     )
 
@@ -288,23 +280,15 @@ def evaluate_single_cross_play_game(
         verbose=0,
     )
 
-    hands_played = get_hands_played(
-        tested_player
-    )
+    hands_played = get_hands_played(tested_player)
 
     ended_by_bust = any(
-        player_result["stack"] == 0
-        for player_result in result["players"]
+        player_result["stack"] == 0 for player_result in result["players"]
     )
 
-    ended_by_round_limit = (
-        not ended_by_bust
-        and hands_played >= game_config.max_round
-    )
+    ended_by_round_limit = not ended_by_bust and hands_played >= game_config.max_round
 
-    classifier_metrics = get_classifier_metrics(
-        tested_player
-    )
+    classifier_metrics = get_classifier_metrics(tested_player)
 
     big_blind = game_config.small_blind_amount * 2
 
@@ -332,9 +316,7 @@ def evaluate_single_cross_play_game(
                 opponent_agent_name=opponent_agent_name,
             )
 
-    raise RuntimeError(
-        "Tested cross-play player result not found in game result."
-    )
+    raise RuntimeError("Tested cross-play player result not found in game result.")
 
 
 def evaluate_cross_play_bundle(
@@ -348,14 +330,10 @@ def evaluate_cross_play_bundle(
     game_id = 0
 
     for tested_agent_name in config.tested_agents:
-        validate_cross_play_agent(
-            tested_agent_name
-        )
+        validate_cross_play_agent(tested_agent_name)
 
         for opponent_agent_name in config.opponent_agents:
-            validate_cross_play_agent(
-                opponent_agent_name
-            )
+            validate_cross_play_agent(opponent_agent_name)
 
             if not should_evaluate_cross_play_matchup(
                 tested_agent_name=tested_agent_name,
