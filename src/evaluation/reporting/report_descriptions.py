@@ -4,6 +4,11 @@ METRIC_DESCRIPTIONS = {
     "games": "Number of evaluated games in the group.",
     "total_profit_bb": "Total profit measured in big blinds across all evaluated games.",
     "mean_profit_bb": "Average profit per game, measured in big blinds. Higher is better.",
+    "oracle_gap_bb": (
+        "Oracle mean profit minus adaptive mean profit, measured in big "
+        "blinds per game. Positive values indicate adaptive "
+        "underperformance relative to Oracle."
+    ),
     "std_profit_bb": "Standard deviation of per-game profit in big blinds. Higher values mean less stable results.",
     "bb_per_100": "Profit normalized to 100 played hands. Higher is better.",
     "win_rate": "Percentage of evaluated games won by the tested agent.",

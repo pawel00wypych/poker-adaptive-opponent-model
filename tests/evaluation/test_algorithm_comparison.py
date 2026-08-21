@@ -8,6 +8,7 @@ from src.evaluation.algorithm_metadata import (
     ALGORITHM_Q_LEARNING,
     ALGORITHM_SARSA,
 )
+from src.evaluation.metrics.oracle_gap import ORACLE_GAP_BB_COLUMN
 from src.evaluation.metrics.seed_statistics import (
     SEED_CI_LOWER_COLUMN,
     SEED_CI_UPPER_COLUMN,
@@ -217,8 +218,9 @@ def test_algorithm_ranking_and_deltas_are_computed_per_opponent():
     assert q_row["rank"] == 1
     assert q_row["delta_vs_monte_carlo"] == 2.0
     assert q_row["delta_vs_rule_based"] == 11.0
-    assert q_row["delta_vs_oracle"] == -3.0
-    assert mc_row["delta_vs_oracle"] == -4.0
+    assert q_row[ORACLE_GAP_BB_COLUMN] == 3.0
+    assert mc_row[ORACLE_GAP_BB_COLUMN] == 4.0
+    assert "delta_vs_oracle" not in with_deltas.columns
     assert mc_row["delta_vs_monte_carlo"] == 0.0
 
 
@@ -254,6 +256,8 @@ def test_build_algorithm_comparison_from_raw_results_csv(tmp_path):
     assert len(global_ranking) == 4
     assert len(algorithm_by_opponent) == 8
     assert "delta_vs_monte_carlo" in deltas.columns
+    assert ORACLE_GAP_BB_COLUMN in deltas.columns
+    assert "delta_vs_oracle" not in deltas.columns
     assert SEED_STANDARD_ERROR_COLUMN in algorithm_by_opponent.columns
     assert SEED_CI_LOWER_COLUMN in algorithm_by_opponent.columns
     assert SEED_CI_UPPER_COLUMN in algorithm_by_opponent.columns
@@ -302,6 +306,8 @@ def test_write_algorithm_comparison_outputs_creates_all_formats_and_charts(tmp_p
     assert "source_raw_games" in markdown
     assert "algorithm_summary_rows" in markdown
     assert "delta_vs_monte_carlo" in markdown
+    assert "Oracle mean profit minus adaptive mean profit" in markdown
+    assert ORACLE_GAP_BB_COLUMN in markdown
 
     data = json.loads((output_dir / "algorithm_comparison.json").read_text(encoding="utf-8"))
     assert data["overview"]["algorithm_summary_rows"] == 8
@@ -310,6 +316,8 @@ def test_write_algorithm_comparison_outputs_creates_all_formats_and_charts(tmp_p
     algorithm_csv = pd.read_csv(output_dir / "algorithm_by_opponent.csv")
     assert SEED_STANDARD_ERROR_COLUMN in algorithm_csv.columns
     assert SEED_CI_LOWER_COLUMN in algorithm_csv.columns
+    assert ORACLE_GAP_BB_COLUMN in algorithm_csv.columns
+    assert "delta_vs_oracle" not in algorithm_csv.columns
 
 
 def test_parse_args_supports_algorithm_comparison_options():

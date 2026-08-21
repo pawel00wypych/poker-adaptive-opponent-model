@@ -19,6 +19,10 @@ from src.evaluation.algorithm_metadata import (
     ORACLE_AGENT_TO_ALGORITHM,
 )
 from src.evaluation.constants import RULE_BASED_AGENT
+from src.evaluation.metrics.oracle_gap import (
+    ORACLE_GAP_BB_COLUMN,
+    calculate_oracle_gap_bb,
+)
 from src.evaluation.metrics.seed_statistics import (
     SEED_CI_LOWER_COLUMN,
     SEED_CI_MARGIN_COLUMN,
@@ -65,7 +69,7 @@ ALGORITHM_METRIC_COLUMNS = [
     "bust_rate",
     "delta_vs_monte_carlo",
     "delta_vs_rule_based",
-    "delta_vs_oracle",
+    ORACLE_GAP_BB_COLUMN,
 ]
 
 GLOBAL_RANKING_COLUMNS = [
@@ -90,7 +94,7 @@ DELTA_COLUMNS = [
     "mean_profit_bb",
     "delta_vs_monte_carlo",
     "delta_vs_rule_based",
-    "delta_vs_oracle",
+    ORACLE_GAP_BB_COLUMN,
 ]
 
 MEAN_PROFIT_BY_OPPONENT_CHART = "algorithm_mean_profit_by_opponent.png"
@@ -255,7 +259,7 @@ def add_algorithm_deltas(
         aggregated["agent_name"].isin(ORACLE_AGENT_TO_ALGORITHM)
     ].copy()
     if oracle.empty:
-        result["delta_vs_oracle"] = pd.NA
+        result[ORACLE_GAP_BB_COLUMN] = pd.NA
         return result
 
     oracle["algorithm"] = oracle["agent_name"].map(ORACLE_AGENT_TO_ALGORITHM)
@@ -268,8 +272,9 @@ def add_algorithm_deltas(
         on=GROUP_COLUMNS + ["algorithm"],
         how="left",
     )
-    result["delta_vs_oracle"] = (
-        result["mean_profit_bb"] - result["oracle_mean_profit_bb"]
+    result[ORACLE_GAP_BB_COLUMN] = calculate_oracle_gap_bb(
+        result["oracle_mean_profit_bb"],
+        result["mean_profit_bb"],
     )
     return result.drop(columns=["oracle_mean_profit_bb"])
 
@@ -524,6 +529,11 @@ def render_algorithm_comparison_markdown(
                 "This report compares adaptive tabular reinforcement-learning "
                 "algorithms evaluated in the same poker environment."
             ),
+            (
+                "`oracle_gap_bb` is defined as Oracle mean profit minus "
+                "adaptive mean profit; a positive value means that the "
+                "adaptive agent loses performance relative to Oracle."
+            ),
             "",
             "Compared algorithms:",
             "",
@@ -552,7 +562,7 @@ def render_algorithm_comparison_markdown(
             "",
             _display_table(opponent_table).to_markdown(index=False),
             "",
-            "## Delta vs baselines",
+            "## Baseline deltas and Oracle gap",
             "",
             _display_table(delta_table).to_markdown(index=False),
             "",
