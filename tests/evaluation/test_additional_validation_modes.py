@@ -73,14 +73,45 @@ def write_sample_baseline_sanity_csv(path):
     }
 
     for (agent_name, opponent_name), mean_profit in mean_profits.items():
-        add_group(
-            rows,
-            agent=agent_name,
-            opponent=opponent_name,
-            profit_by_seed=(mean_profit - 0.1, mean_profit + 0.1),
-            win_rate=60.0 if mean_profit > 0.0 else 40.0,
-            bust_rate=10.0,
-        )
+        for replicate_id, profit_bb in enumerate(
+            (mean_profit - 0.1, mean_profit + 0.1)
+        ):
+            rows.append(
+                {
+                    "training_run": None,
+                    "model_seed": None,
+                    "checkpoint_episode": None,
+                    "evaluation_replicate_id": replicate_id,
+                    "experiment_id": f"evaluation_replicate_{replicate_id}",
+                    "experiment_name": f"{agent_name}_vs_{opponent_name}",
+                    "game_id": replicate_id,
+                    "matchup_game_index": 0,
+                    "evaluation_seed": 300_000 + replicate_id,
+                    "agent_name": agent_name,
+                    "opponent_name": opponent_name,
+                    "final_stack": 200,
+                    "initial_stack": 200,
+                    "profit": 0,
+                    "profit_bb": profit_bb,
+                    "hands_played": 20,
+                    "won_game": int(profit_bb > 0.0),
+                    "busted": 0,
+                    "ended_by_bust": 0,
+                    "ended_by_round_limit": 1,
+                    "classified_decisions": 0,
+                    "correct_classifications": 0,
+                    "incorrect_classifications": 0,
+                    "unknown_classifications": 0,
+                    "classifier_accuracy": 0.0,
+                    "classifier_coverage": 0.0,
+                    "policy_switches": 0,
+                    "first_classification_hand": None,
+                    "first_correct_classification_hand": None,
+                    "first_classification_action_count": None,
+                    "first_correct_classification_action_count": None,
+                    "final_predicted_type": "",
+                }
+            )
 
     pd.DataFrame(rows).to_csv(path, index=False)
 
@@ -207,12 +238,17 @@ def test_baseline_sanity_mode_validates_complete_matrix(tmp_path):
     )
 
     assert report.validation_mode == VALIDATION_MODE_BASELINE_SANITY
+    assert report.checkpoint_episode is None
+    assert report.checkpoint_selection == "not_applicable"
     assert coverage.status == STATUS_PASS
     assert coverage.details["required_matchup_count"] == 9
     assert categories.count("baseline_mirror_neutrality") == 3
     assert categories.count("baseline_pair_reciprocity") == 3
     assert categories.count("baseline_extreme_result") == 4
-    assert categories.count("seed_coverage") == 9
+    assert categories.count("evaluation_replicate_coverage") == 9
+    assert categories.count("simulation_stability") == 9
+    assert "seed_coverage" not in categories
+    assert "seed_stability" not in categories
 
 
 def test_baseline_sanity_mode_fails_when_a_matchup_is_missing(tmp_path):
@@ -291,7 +327,7 @@ def test_baseline_sanity_warns_for_non_reciprocal_pair(tmp_path):
     )
 
     assert check.status == STATUS_WARNING
-    assert check.observed_value == 10.2
+    assert abs(check.observed_value - 10.2) < 1e-12
 
 
 def test_cli_accepts_new_modes_and_baseline_thresholds():
@@ -307,6 +343,10 @@ def test_cli_accepts_new_modes_and_baseline_thresholds():
             "1.5",
             "--max-baseline-pair-sum-abs-profit-bb",
             "2.5",
+            "--min-evaluation-replicates-per-matchup",
+            "3",
+            "--max-std-across-evaluation-replicates-bb",
+            "4.5",
         ]
     )
     thresholds = build_thresholds(args)
@@ -325,3 +365,27 @@ def test_cli_accepts_new_modes_and_baseline_thresholds():
     assert stress_args.validation_mode == VALIDATION_MODE_STRESS_TEST
     assert thresholds.max_baseline_mirror_abs_profit_bb == 1.5
     assert thresholds.max_baseline_pair_sum_abs_profit_bb == 2.5
+    assert thresholds.min_evaluation_replicates_per_matchup == 3
+    assert thresholds.max_std_across_evaluation_replicates_bb == 4.5
+
+
+def test_baseline_sanity_rejects_legacy_model_seed_rows(tmp_path):
+    csv_path = tmp_path / "legacy_baseline_sanity.csv"
+    rows = []
+    add_group(
+        rows,
+        agent="always_call",
+        opponent="always_call",
+        profit_by_seed=(0.0, 0.1),
+    )
+    pd.DataFrame(rows).to_csv(csv_path, index=False)
+
+    try:
+        validate_checkpoint_results(
+            csv_path,
+            validation_mode=VALIDATION_MODE_BASELINE_SANITY,
+        )
+    except ValueError as error:
+        assert "evaluation_replicate_id" in str(error)
+    else:
+        raise AssertionError("Legacy model-seed baseline rows were accepted")

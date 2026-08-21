@@ -11,6 +11,10 @@ from src.evaluation.algorithm_metadata import (
     available_algorithm_specs,
 )
 from src.evaluation.constants import ALWAYS_RAISE_AGENT, RULE_BASED_AGENT
+from src.evaluation.metrics.baseline_metrics import (
+    aggregate_across_evaluation_replicates,
+    calculate_baseline_replicate_metrics,
+)
 from src.evaluation.reporting.checkpoint_report import (
     aggregate_across_seeds,
     load_checkpoint_report_data,
@@ -954,6 +958,32 @@ def validate_checkpoint_results(
         )
 
     thresholds = thresholds or ValidationThresholds()
+
+    if validation_mode == VALIDATION_MODE_BASELINE_SANITY:
+        if checkpoint_episode is not None:
+            raise ValueError(
+                "checkpoint_episode does not apply to baseline-sanity "
+                "validation; baseline rows use evaluation_replicate_id."
+            )
+
+        replicate_metrics = calculate_baseline_replicate_metrics(input_path)
+        aggregated_replicates = aggregate_across_evaluation_replicates(
+            replicate_metrics
+        )
+        checks = validate_baseline_sanity_results_from_best_rows(
+            aggregated_replicates,
+            thresholds,
+            replicate_rows=replicate_metrics,
+        )
+        return ValidationReport(
+            input_path=str(input_path),
+            thresholds=thresholds,
+            checks=checks,
+            validation_mode=validation_mode,
+            checkpoint_episode=None,
+            checkpoint_selection="not_applicable",
+        )
+
     metrics = load_checkpoint_report_data(input_path)
     aggregated = aggregate_across_seeds(metrics)
     aggregated = _add_mean_hands_played(aggregated, metrics)
@@ -979,13 +1009,7 @@ def validate_checkpoint_results(
         )
     )
 
-    if validation_mode == VALIDATION_MODE_BASELINE_SANITY:
-        checks = validate_baseline_sanity_results_from_best_rows(
-            validation_rows,
-            thresholds,
-            comparison_rows=validation_rows,
-        )
-    elif validation_mode == VALIDATION_MODE_CROSS_PLAY:
+    if validation_mode == VALIDATION_MODE_CROSS_PLAY:
         checks = []
         if require_all_algorithms or algorithm_specs is not None:
             checks.extend(

@@ -746,12 +746,13 @@ def build_game_seed(
 
 def build_result_row(
     *,
-    bundle: ModelBundle,
+    bundle: ModelBundle | None,
     tested_agent_name: str,
     opponent_name: str,
     game_id: int,
     matchup_game_index: int,
     evaluation_seed: int,
+    evaluation_replicate_id: int | None = None,
     final_stack: int,
     initial_stack: int,
     hands_played: int,
@@ -768,15 +769,38 @@ def build_result_row(
     profit = final_stack - initial_stack
     profit_bb = profit / big_blind
 
+    if bundle is None and evaluation_replicate_id is None:
+        raise ValueError(
+            "evaluation_replicate_id is required when bundle is not provided"
+        )
+    if bundle is not None and evaluation_replicate_id is not None:
+        raise ValueError(
+            "evaluation_replicate_id must be empty for trained model bundles"
+        )
+
+    training_run = (
+        bundle.training_run_directory.name
+        if bundle is not None
+        else None
+    )
+    model_seed = bundle.seed if bundle is not None else None
+    checkpoint_episode = (
+        bundle.checkpoint_episode
+        if bundle is not None
+        else None
+    )
+    experiment_id = (
+        bundle.experiment_id
+        if bundle is not None
+        else f"evaluation_replicate_{evaluation_replicate_id}"
+    )
+
     return {
-        "training_run": (
-            bundle.training_run_directory.name
-        ),
-        "model_seed": bundle.seed,
-        "checkpoint_episode": (
-            bundle.checkpoint_episode
-        ),
-        "experiment_id": bundle.experiment_id,
+        "training_run": training_run,
+        "model_seed": model_seed,
+        "checkpoint_episode": checkpoint_episode,
+        "evaluation_replicate_id": evaluation_replicate_id,
+        "experiment_id": experiment_id,
         "experiment_name": (
             f"{tested_agent_name}_vs_{opponent_name}"
         ),
@@ -940,6 +964,7 @@ CHECKPOINT_EVALUATION_FIELDNAMES = [
     "training_run",
     "model_seed",
     "checkpoint_episode",
+    "evaluation_replicate_id",
     "experiment_id",
     "experiment_name",
     "game_id",

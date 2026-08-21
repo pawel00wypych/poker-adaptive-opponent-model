@@ -353,10 +353,79 @@ def test_build_result_row_calculates_profit_fields(
     assert row["ended_by_round_limit"] == 0
     assert row["model_seed"] == 42
     assert row["checkpoint_episode"] == 5000
+    assert row["evaluation_replicate_id"] is None
     assert row["game_id"] == 3
     assert row["matchup_game_index"] == 1
     assert row["evaluation_seed"] == 123_456
     assert row["final_predicted_type"] == "calling"
+
+
+def test_build_result_row_uses_replicate_metadata_for_untrained_baseline():
+    row = build_result_row(
+        bundle=None,
+        tested_agent_name="always_call",
+        opponent_name="rule_based",
+        game_id=3,
+        matchup_game_index=1,
+        evaluation_seed=123_456,
+        evaluation_replicate_id=7,
+        final_stack=250,
+        initial_stack=200,
+        hands_played=20,
+        big_blind=10,
+        ended_by_bust=False,
+        ended_by_round_limit=True,
+        classifier_metrics={
+            "classified_decisions": 0,
+            "correct_classifications": 0,
+            "incorrect_classifications": 0,
+            "unknown_classifications": 0,
+            "classifier_accuracy": 0.0,
+            "classifier_coverage": 0.0,
+            "policy_switches": 0,
+            "first_classification_hand": None,
+            "first_correct_classification_hand": None,
+            "first_classification_action_count": None,
+            "first_correct_classification_action_count": None,
+            "final_predicted_type": "",
+        },
+    )
+
+    assert row["training_run"] is None
+    assert row["model_seed"] is None
+    assert row["checkpoint_episode"] is None
+    assert row["evaluation_replicate_id"] == 7
+    assert row["experiment_id"] == "evaluation_replicate_7"
+
+
+def test_build_result_row_rejects_replicate_id_for_trained_model(tmp_path):
+    bundle = ModelBundle(
+        training_run_directory=tmp_path / "run",
+        seed=42,
+        checkpoint_episode=5000,
+        unknown_model_path=Path("unknown.pkl"),
+        tight_model_path=Path("tight.pkl"),
+        aggressive_model_path=Path("aggressive.pkl"),
+        calling_model_path=Path("calling.pkl"),
+    )
+
+    with pytest.raises(ValueError, match="trained model bundles"):
+        build_result_row(
+            bundle=bundle,
+            tested_agent_name="adaptive_mc",
+            opponent_name="calling",
+            game_id=3,
+            matchup_game_index=1,
+            evaluation_seed=123_456,
+            evaluation_replicate_id=7,
+            final_stack=250,
+            initial_stack=200,
+            hands_played=20,
+            big_blind=10,
+            ended_by_bust=False,
+            ended_by_round_limit=True,
+            classifier_metrics={},
+        )
 
 
 def test_evaluate_bundle_restarts_game_index_for_each_matchup(

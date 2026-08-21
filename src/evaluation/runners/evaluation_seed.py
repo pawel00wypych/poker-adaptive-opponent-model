@@ -3,6 +3,26 @@ from numbers import Integral
 import numpy as np
 
 
+def _build_seed(components: dict[str, int]) -> int:
+    for name, value in components.items():
+        if isinstance(value, bool) or not isinstance(value, Integral):
+            raise TypeError(f"{name} must be an integer")
+
+        if value < 0:
+            raise ValueError(f"{name} must be non-negative")
+
+    seed_sequence = np.random.SeedSequence(
+        [int(value) for value in components.values()]
+    )
+
+    return int(
+        seed_sequence.generate_state(
+            1,
+            dtype=np.uint32,
+        )[0]
+    )
+
+
 def build_paired_evaluation_seed(
     *,
     eval_seed_base: int,
@@ -23,20 +43,26 @@ def build_paired_evaluation_seed(
         "matchup_game_index": matchup_game_index,
     }
 
-    for name, value in components.items():
-        if isinstance(value, bool) or not isinstance(value, Integral):
-            raise TypeError(f"{name} must be an integer")
+    return _build_seed(components)
 
-        if value < 0:
-            raise ValueError(f"{name} must be non-negative")
 
-    seed_sequence = np.random.SeedSequence(
-        [int(value) for value in components.values()]
-    )
+def build_baseline_evaluation_seed(
+    *,
+    eval_seed_base: int,
+    evaluation_replicate_id: int,
+    matchup_game_index: int,
+) -> int:
+    """Build a model-independent seed for a baseline-only game.
 
-    return int(
-        seed_sequence.generate_state(
-            1,
-            dtype=np.uint32,
-        )[0]
+    Agent and opponent names are omitted deliberately. Corresponding games in
+    every baseline matchup therefore use common random numbers and can be
+    compared by evaluation replicate without pretending that the replicate is
+    a training seed.
+    """
+    return _build_seed(
+        {
+            "eval_seed_base": eval_seed_base,
+            "evaluation_replicate_id": evaluation_replicate_id,
+            "matchup_game_index": matchup_game_index,
+        }
     )

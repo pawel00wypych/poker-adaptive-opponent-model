@@ -16,7 +16,11 @@ from src.evaluation.runners.head_to_head_evaluator import (
     SUPPORTED_HEAD_TO_HEAD_AGENTS,
     SUPPORTED_HEAD_TO_HEAD_OPPONENTS,
     HeadToHeadEvaluationConfig,
+    baseline_tested_agents,
+    evaluate_baseline_replicate,
+    evaluate_baseline_replicates,
     evaluate_head_to_head_bundle,
+    learned_tested_agents,
     write_head_to_head_rows,
 )
 
@@ -31,21 +35,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     parser.add_argument(
         "--training-run-dir",
-        required=True,
         type=str,
+        default=None,
         help=(
-            "Directory created by run_training_suite, for example "
+            "Required only for learned agents. Directory created by "
+            "run_training_suite, for example "
             "results/training_runs/state_v2_linear_2000_sqrt_visit."
         ),
     )
 
     parser.add_argument(
         "--checkpoint-episodes",
-        required=True,
         type=int,
         nargs="+",
+        default=None,
         help=(
-            "Checkpoint episodes to evaluate, e.g. 2000 or 1000 2000."
+            "Required only for learned agents. Checkpoint episodes to "
+            "evaluate, e.g. 2000 or 1000 2000."
         ),
     )
 
@@ -55,7 +61,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         nargs="+",
         default=None,
         help=(
-            "Seeds to evaluate. When omitted, all seed_* directories are discovered."
+            "Training/model seeds to evaluate for learned agents. When "
+            "omitted, all seed_* directories are discovered."
         ),
     )
 
@@ -64,6 +71,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=200,
         help="Games per direct matchup.",
+    )
+
+    parser.add_argument(
+        "--evaluation-replicates",
+        type=int,
+        default=5,
+        help=(
+            "Independent card/simulation replicates for baseline-only "
+            "matchups. These are not training seeds."
+        ),
     )
 
     parser.add_argument(
@@ -89,7 +106,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=str,
         default=None,
         help=(
-            "Output CSV path. Default: <training-run-dir>/head_to_head_evaluation.csv"
+            "Output CSV path. Default: <training-run-dir>/"
+            "head_to_head_evaluation.csv when learned agents are selected, "
+            "otherwise results/evaluation/head_to_head_evaluation.csv."
         ),
     )
 
@@ -98,7 +117,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=1,
         help=(
-            "Number of model bundles evaluated in parallel. Use 1 for the most predictable run."
+            "Number of model bundles or evaluation replicates run in "
+            "parallel. Use 1 for the most predictable run."
         ),
     )
 
@@ -141,16 +161,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "--workers must be greater than zero"
         )
 
-    if any(
-        episode <= 0
-        for episode in args.checkpoint_episodes
+    if args.evaluation_replicates <= 0:
+        parser.error(
+            "--evaluation-replicates must be greater than zero"
+        )
+
+    if args.eval_seed_base < 0:
+        parser.error("--eval-seed-base must be non-negative")
+
+    if (
+        args.checkpoint_episodes is not None
+        and any(episode <= 0 for episode in args.checkpoint_episodes)
     ):
         parser.error(
             "All checkpoint episodes must be positive"
         )
 
-    if len(set(args.checkpoint_episodes)) != len(
-        args.checkpoint_episodes
+    if (
+        args.checkpoint_episodes is not None
+        and len(set(args.checkpoint_episodes))
+        != len(args.checkpoint_episodes)
     ):
         parser.error(
             "--checkpoint-episodes must not contain duplicates"
@@ -164,6 +194,37 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "--seeds must not contain duplicates"
         )
 
+    if args.seeds is not None and any(seed < 0 for seed in args.seeds):
+        parser.error("All model seeds must be non-negative")
+
+    learned_agents = learned_tested_agents(args.agents)
+    if learned_agents:
+        if args.training_run_dir is None:
+            parser.error(
+                "--training-run-dir is required when learned agents are selected"
+            )
+        if args.checkpoint_episodes is None:
+            parser.error(
+                "--checkpoint-episodes is required when learned agents are selected"
+            )
+    else:
+        model_only_options = []
+        if args.training_run_dir is not None:
+            model_only_options.append("--training-run-dir")
+        if args.checkpoint_episodes is not None:
+            model_only_options.append("--checkpoint-episodes")
+        if args.seeds is not None:
+            model_only_options.append("--seeds")
+        if args.use_final_models:
+            model_only_options.append("--use-final-models")
+        if args.fail_on_incomplete:
+            model_only_options.append("--fail-on-incomplete")
+        if model_only_options:
+            parser.error(
+                f"{', '.join(model_only_options)} apply only to learned "
+                "agents. Baseline-only runs use --evaluation-replicates."
+            )
+
     return args
 
 
@@ -173,6 +234,16 @@ def evaluate_bundle_worker(
 ) -> list[dict]:
     return evaluate_head_to_head_bundle(
         bundle=bundle,
+        config=config,
+    )
+
+
+def evaluate_baseline_replicate_worker(
+    evaluation_replicate_id: int,
+    config: HeadToHeadEvaluationConfig,
+) -> list[dict]:
+    return evaluate_baseline_replicate(
+        evaluation_replicate_id=evaluation_replicate_id,
         config=config,
     )
 
@@ -194,8 +265,13 @@ def save_summary(
         "output_path": str(output_path),
         "training_run_dir": arguments.training_run_dir,
         "checkpoint_episodes": arguments.checkpoint_episodes,
-        "seeds": arguments.seeds,
+        "model_seeds": arguments.seeds,
         "games": arguments.games,
+        "evaluation_replicates": (
+            arguments.evaluation_replicates
+            if baseline_tested_agents(arguments.agents)
+            else None
+        ),
         "agents": arguments.agents,
         "opponents": arguments.opponents,
         "workers": arguments.workers,
@@ -221,28 +297,37 @@ def save_summary(
 def main() -> None:
     args = parse_args()
 
-    training_run_dir = Path(
-        args.training_run_dir
+    learned_agents = learned_tested_agents(args.agents)
+    baseline_agents = baseline_tested_agents(args.agents)
+    training_run_dir = (
+        Path(args.training_run_dir)
+        if args.training_run_dir is not None
+        else None
     )
 
     output_path = Path(
         args.output_path
         if args.output_path is not None
-        else training_run_dir
-        / "head_to_head_evaluation.csv"
+        else (
+            training_run_dir / "head_to_head_evaluation.csv"
+            if training_run_dir is not None
+            else Path("results/evaluation/head_to_head_evaluation.csv")
+        )
     )
 
-    bundles = discover_model_bundles(
-        training_run_directory=training_run_dir,
-        checkpoint_episodes=(
-            args.checkpoint_episodes
-        ),
-        seeds=args.seeds,
-        use_final_models=args.use_final_models,
-        skip_incomplete=not args.fail_on_incomplete,
-    )
+    bundles = []
+    if learned_agents:
+        assert training_run_dir is not None
+        assert args.checkpoint_episodes is not None
+        bundles = discover_model_bundles(
+            training_run_directory=training_run_dir,
+            checkpoint_episodes=args.checkpoint_episodes,
+            seeds=args.seeds,
+            use_final_models=args.use_final_models,
+            skip_incomplete=not args.fail_on_incomplete,
+        )
 
-    if not bundles:
+    if learned_agents and not bundles:
         raise SystemExit(
             "No complete model bundles found for the requested seeds/checkpoints."
         )
@@ -253,14 +338,16 @@ def main() -> None:
         tested_agents=tuple(args.agents),
         eval_seed_base=args.eval_seed_base,
         output_path=output_path,
+        evaluation_replicates=args.evaluation_replicates,
     )
 
     print(
         "Direct head-to-head evaluation started\n"
-        f"training_run_dir={training_run_dir}\n"
+        f"training_run_dir={training_run_dir or 'not_applicable'}\n"
         f"bundles={len(bundles)}\n"
-        f"checkpoint_episodes={args.checkpoint_episodes}\n"
-        f"seeds={args.seeds or 'auto'}\n"
+        f"checkpoint_episodes={args.checkpoint_episodes or 'not_applicable'}\n"
+        f"model_seeds={args.seeds or ('auto' if learned_agents else 'not_applicable')}\n"
+        f"evaluation_replicates={args.evaluation_replicates if baseline_agents else 'not_applicable'}\n"
         f"games_per_matchup={args.games}\n"
         f"agents={args.agents}\n"
         f"opponents={args.opponents}\n"
@@ -300,19 +387,46 @@ def main() -> None:
                 for bundle in bundles
             }
 
-            completed = 0
-
-            for future in as_completed(
-                future_to_bundle
+            for completed, future in enumerate(
+                as_completed(future_to_bundle),
+                start=1,
             ):
                 bundle = future_to_bundle[future]
                 rows = future.result()
                 all_rows.extend(rows)
-                completed += 1
 
                 print(
                     f"[{completed}/{len(bundles)}] Finished {bundle.experiment_id}"
                 )
+
+    if baseline_agents:
+        if args.workers == 1:
+            all_rows.extend(
+                evaluate_baseline_replicates(config=config)
+            )
+        else:
+            with ProcessPoolExecutor(max_workers=args.workers) as executor:
+                future_to_replicate = {
+                    executor.submit(
+                        evaluate_baseline_replicate_worker,
+                        evaluation_replicate_id,
+                        config,
+                    ): evaluation_replicate_id
+                    for evaluation_replicate_id in range(
+                        args.evaluation_replicates
+                    )
+                }
+                for completed, future in enumerate(
+                    as_completed(future_to_replicate),
+                    start=1,
+                ):
+                    replicate_id = future_to_replicate[future]
+                    all_rows.extend(future.result())
+                    print(
+                        f"[{completed}/{args.evaluation_replicates}] "
+                        "Finished evaluation replicate "
+                        f"{replicate_id}"
+                    )
 
     write_head_to_head_rows(
         output_path=output_path,
