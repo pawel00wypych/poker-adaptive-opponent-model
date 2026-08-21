@@ -14,6 +14,10 @@ from src.evaluation.constants import (
     ORACLE_AGENTS,
     RULE_BASED_AGENT,
 )
+from src.evaluation.metrics.oracle_gap import (
+    ORACLE_GAP_BB_COLUMN,
+    calculate_oracle_gap_bb,
+)
 from src.evaluation.metrics.seed_statistics import (
     SEED_CI_LOWER_COLUMN,
     SEED_CI_UPPER_COLUMN,
@@ -79,7 +83,7 @@ SUMMARY_TABLE_COLUMNS = [
     "win_rate",
     "bust_rate",
     "delta_vs_rule_based",
-    "delta_vs_oracle",
+    ORACLE_GAP_BB_COLUMN,
     "quality_status",
     "quality_reason",
 ]
@@ -91,7 +95,7 @@ DELTA_TABLE_COLUMNS = [
     "agent_name",
     "mean_profit_bb",
     "delta_vs_rule_based",
-    "delta_vs_oracle",
+    ORACLE_GAP_BB_COLUMN,
 ]
 
 QUALITY_TABLE_COLUMNS = [
@@ -291,8 +295,9 @@ def add_baseline_deltas(ranking: pd.DataFrame) -> pd.DataFrame:
         on=SUMMARY_GROUP_COLUMNS + ["oracle_agent_name"],
         how="left",
     )
-    result["delta_vs_oracle"] = (
-        result["mean_profit_bb"] - result["oracle_mean_profit_bb"]
+    result[ORACLE_GAP_BB_COLUMN] = calculate_oracle_gap_bb(
+        result["oracle_mean_profit_bb"],
+        result["mean_profit_bb"],
     )
     return result.drop(
         columns=["oracle_agent_name", "oracle_mean_profit_bb"]
@@ -460,11 +465,11 @@ def _adaptive_rule_based_findings(summary_table: pd.DataFrame) -> list[str]:
 
 
 def _oracle_gap_findings(summary_table: pd.DataFrame) -> list[str]:
-    if "delta_vs_oracle" not in summary_table.columns:
+    if ORACLE_GAP_BB_COLUMN not in summary_table.columns:
         return []
 
     comparable = summary_table[
-        summary_table["delta_vs_oracle"].notna()
+        summary_table[ORACLE_GAP_BB_COLUMN].notna()
     ]
 
     if comparable.empty:
@@ -478,9 +483,9 @@ def _oracle_gap_findings(summary_table: pd.DataFrame) -> list[str]:
         if adaptive_rows.empty:
             continue
 
-        avg_gap = float(adaptive_rows["delta_vs_oracle"].mean())
+        avg_gap = float(adaptive_rows[ORACLE_GAP_BB_COLUMN].mean())
         findings.append(
-            "Average delta vs oracle for "
+            "Average Oracle gap (Oracle - adaptive) for "
             f"Adaptive {algorithm_name} is "
             f"{_format_signed(avg_gap)} BB/game."
         )
@@ -688,6 +693,11 @@ def render_experiment_summary_markdown(
                 "This report summarizes checkpoint evaluation results "
                 "across agents, opponents, checkpoints, and seeds."
             ),
+            (
+                "`oracle_gap_bb` is defined as Oracle mean profit minus "
+                "adaptive mean profit; a positive value means that the "
+                "adaptive agent loses performance relative to Oracle."
+            ),
             "",
             "## Overview",
             "",
@@ -705,7 +715,7 @@ def render_experiment_summary_markdown(
             "",
             _display_table(ranking_table).to_markdown(index=False),
             "",
-            "## Delta vs baselines",
+            "## Baseline deltas and Oracle gap",
             "",
             _display_table(delta_table).to_markdown(index=False),
             "",

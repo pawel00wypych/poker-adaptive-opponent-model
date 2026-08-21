@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from src.evaluation.algorithm_metadata import ALGORITHM_VALIDATION_SPECS
+from src.evaluation.metrics.oracle_gap import ORACLE_GAP_BB_COLUMN
 from src.evaluation.validation import (
     STATUS_FAIL,
     STATUS_PASS,
@@ -184,6 +185,7 @@ def test_oracle_check_exports_zero_width_ci_for_constant_seed_deltas():
 
     assert check.status == STATUS_PASS
     assert check.observed_value == 2.0
+    assert check.details[ORACLE_GAP_BB_COLUMN] == 2.0
     assert check.standard_error == 0.0
     assert check.ci_lower == 2.0
     assert check.ci_upper == 2.0

@@ -15,6 +15,10 @@ from src.evaluation.metrics.baseline_metrics import (
     aggregate_across_evaluation_replicates,
     calculate_baseline_replicate_metrics,
 )
+from src.evaluation.metrics.oracle_gap import (
+    ORACLE_GAP_BB_COLUMN,
+    calculate_oracle_gap_bb,
+)
 from src.evaluation.reporting.checkpoint_report import (
     aggregate_across_seeds,
     load_checkpoint_report_data,
@@ -568,21 +572,23 @@ def validate_oracle_not_worse_than_adaptive(
 
             threshold = -thresholds.max_oracle_underperformance_bb
             if paired_statistics is None:
-                oracle_gap = float(
-                    oracle_row["mean_profit_bb"]
-                    - adaptive_row["mean_profit_bb"]
+                oracle_gap_bb = float(
+                    calculate_oracle_gap_bb(
+                        oracle_row["mean_profit_bb"],
+                        adaptive_row["mean_profit_bb"],
+                    )
                 )
                 status = (
                     STATUS_PASS
-                    if oracle_gap >= threshold
+                    if oracle_gap_bb >= threshold
                     else STATUS_WARNING
                 )
                 message = (
                     "Oracle minus adaptive mean profit is "
-                    f"{_format_float(oracle_gap)} BB/game."
+                    f"{_format_float(oracle_gap_bb)} BB/game."
                 )
             else:
-                oracle_gap = float(paired_statistics.mean_delta)
+                oracle_gap_bb = float(paired_statistics.mean_delta)
                 status = _minimum_delta_status(
                     paired_statistics,
                     threshold,
@@ -602,7 +608,7 @@ def validate_oracle_not_worse_than_adaptive(
                     agent_name=spec.oracle_agent,
                     opponent_name=opponent_name,
                     checkpoint_episode=checkpoint_episode,
-                    observed_value=oracle_gap,
+                    observed_value=oracle_gap_bb,
                     threshold=threshold,
                     sample_size=(
                         paired_statistics.common_seed_count
@@ -635,6 +641,7 @@ def validate_oracle_not_worse_than_adaptive(
                         "adaptive_mean_profit_bb": float(
                             adaptive_row["mean_profit_bb"]
                         ),
+                        ORACLE_GAP_BB_COLUMN: oracle_gap_bb,
                         "adaptive_checkpoint_episode": _checkpoint_episode(
                             adaptive_row
                         ),

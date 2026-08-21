@@ -2,6 +2,7 @@ import json
 
 import pandas as pd
 
+from src.evaluation.metrics.oracle_gap import ORACLE_GAP_BB_COLUMN
 from src.evaluation.metrics.seed_statistics import (
     SEED_CI_LOWER_COLUMN,
     SEED_CI_UPPER_COLUMN,
@@ -259,7 +260,8 @@ def test_add_baseline_deltas_calculates_rule_based_and_oracle_gap():
     adaptive = result[result["agent_name"] == "adaptive_mc"].iloc[0]
 
     assert adaptive["delta_vs_rule_based"] == 19.0
-    assert adaptive["delta_vs_oracle"] == -2.0
+    assert adaptive[ORACLE_GAP_BB_COLUMN] == 2.0
+    assert "delta_vs_oracle" not in result.columns
 
 
 def test_add_quality_flags_marks_ok_warning_and_fail():
@@ -303,7 +305,8 @@ def test_build_experiment_summary_creates_ranking_deltas_and_findings(tmp_path):
 
     assert report.overview["summary_rows"] == len(ranking)
     assert "delta_vs_rule_based" in ranking.columns
-    assert "delta_vs_oracle" in deltas.columns
+    assert ORACLE_GAP_BB_COLUMN in deltas.columns
+    assert "delta_vs_oracle" not in deltas.columns
     assert "quality_status" in quality_flags.columns
     assert SEED_STANDARD_ERROR_COLUMN in ranking.columns
     assert SEED_CI_LOWER_COLUMN in ranking.columns
@@ -321,7 +324,7 @@ def test_build_experiment_summary_creates_ranking_deltas_and_findings(tmp_path):
             for finding in report.main_findings
         )
         assert any(
-            f"Average delta vs oracle for Adaptive {algorithm_name}"
+            f"Average Oracle gap (Oracle - adaptive) for Adaptive {algorithm_name}"
             in finding
             for finding in report.main_findings
         )
@@ -357,8 +360,13 @@ def test_write_experiment_summary_outputs_creates_markdown_json_csv_and_latex(tm
     ranking_csv = pd.read_csv(output_dir / "agent_ranking.csv")
     assert SEED_STANDARD_ERROR_COLUMN in ranking_csv.columns
     assert SEED_CI_LOWER_COLUMN in ranking_csv.columns
+    assert ORACLE_GAP_BB_COLUMN in ranking_csv.columns
+    assert "delta_vs_oracle" not in ranking_csv.columns
 
-    markdown = (output_dir / "experiment_summary.md").read_text(encoding="utf-8")
+    markdown = (output_dir / "experiment_summary.md").read_text(
+        encoding="utf-8"
+    )
+    assert "Oracle mean profit minus adaptive mean profit" in markdown
     assert "## Charts" in markdown
     assert "charts/mean_profit_ci_by_opponent.png" in markdown
 
