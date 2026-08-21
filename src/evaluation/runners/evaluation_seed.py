@@ -27,19 +27,19 @@ def build_paired_evaluation_seed(
     *,
     eval_seed_base: int,
     model_seed: int,
-    checkpoint_episode: int,
+    model_episode: int,
     matchup_game_index: int,
 ) -> int:
     """Build a reproducible seed shared by corresponding matchup games.
 
     Agent and opponent names are deliberately not part of the seed. This gives
-    every matchup for the same model seed and checkpoint the same sequence of
-    evaluation seeds, enabling common-random-number comparisons.
+    every matchup for the same model seed and model episode the same sequence
+    of evaluation seeds, enabling common-random-number comparisons.
     """
     components = {
         "eval_seed_base": eval_seed_base,
         "model_seed": model_seed,
-        "checkpoint_episode": checkpoint_episode,
+        "model_episode": model_episode,
         "matchup_game_index": matchup_game_index,
     }
 

@@ -26,16 +26,16 @@ from src.evaluation.metrics.seed_statistics import (
     SEED_SPREAD_COLUMN,
     SEED_STANDARD_ERROR_COLUMN,
 )
-from src.evaluation.reporting.checkpoint_report import (
-    aggregate_across_seeds,
-    display_agent_name,
-    load_checkpoint_report_data,
-)
 from src.evaluation.reporting.experiment_charts import (
     ExperimentChartConfig,
     create_experiment_summary_charts,
 )
 from src.evaluation.reporting.html_utils import write_text
+from src.evaluation.reporting.training_opponent_report import (
+    aggregate_across_seeds,
+    display_agent_name,
+    load_training_opponent_report_data,
+)
 from src.poker.constants import OPPONENT_TYPE_TIGHT
 
 QUALITY_OK = "OK"
@@ -51,13 +51,13 @@ QUALITY_STATUSES = (
 SUMMARY_GROUP_COLUMNS = [
     "training_run",
     "opponent_name",
-    "checkpoint_episode",
+    "training_episode",
 ]
 
 RANKING_SORT_COLUMNS = [
     "training_run",
     "opponent_name",
-    "checkpoint_episode",
+    "training_episode",
     "mean_profit_bb",
     "win_rate",
     "bust_rate",
@@ -66,7 +66,7 @@ RANKING_SORT_COLUMNS = [
 
 SUMMARY_TABLE_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "opponent_name",
     "rank",
     "agent_name",
@@ -90,7 +90,7 @@ SUMMARY_TABLE_COLUMNS = [
 
 DELTA_TABLE_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "opponent_name",
     "agent_name",
     "mean_profit_bb",
@@ -100,7 +100,7 @@ DELTA_TABLE_COLUMNS = [
 
 QUALITY_TABLE_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "opponent_name",
     "agent_name",
     "quality_status",
@@ -149,7 +149,7 @@ def _round_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
     numeric_columns = result.select_dtypes(include="number").columns
 
     for column in numeric_columns:
-        if column in {"checkpoint_episode", "rank", "games", "seeds"}:
+        if column in {"training_episode", "rank", "games", "seeds"}:
             continue
         result[column] = result[column].round(3)
 
@@ -187,7 +187,7 @@ def _add_mean_hands_played(
         "training_run",
         "agent_name",
         "opponent_name",
-        "checkpoint_episode",
+        "training_episode",
         "total_hands",
         "games",
     }
@@ -198,9 +198,7 @@ def _add_mean_hands_played(
         return result
 
     working = metrics.copy()
-    working["mean_hands_played"] = (
-        working["total_hands"] / working["games"]
-    )
+    working["mean_hands_played"] = working["total_hands"] / working["games"]
 
     hand_means = (
         working.groupby(
@@ -208,7 +206,7 @@ def _add_mean_hands_played(
                 "training_run",
                 "agent_name",
                 "opponent_name",
-                "checkpoint_episode",
+                "training_episode",
             ]
         )["mean_hands_played"]
         .mean()
@@ -221,7 +219,7 @@ def _add_mean_hands_played(
             "training_run",
             "agent_name",
             "opponent_name",
-            "checkpoint_episode",
+            "training_episode",
         ],
         how="left",
     )
@@ -230,7 +228,7 @@ def _add_mean_hands_played(
 def load_experiment_summary_data(
     input_path: str | Path,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    metrics = load_checkpoint_report_data(input_path)
+    metrics = load_training_opponent_report_data(input_path)
     aggregated = aggregate_across_seeds(metrics)
     aggregated = _add_mean_hands_played(aggregated, metrics)
     return metrics, aggregated
@@ -247,14 +245,11 @@ def build_agent_ranking(aggregated: pd.DataFrame) -> pd.DataFrame:
         ascending=[True, True, True, False, False, True, True],
     ).reset_index(drop=True)
 
-    result["rank"] = (
-        result.groupby(SUMMARY_GROUP_COLUMNS).cumcount() + 1
-    )
+    result["rank"] = result.groupby(SUMMARY_GROUP_COLUMNS).cumcount() + 1
 
     front_columns = SUMMARY_GROUP_COLUMNS + ["rank", "agent_name"]
     remaining_columns = [
-        column for column in result.columns
-        if column not in front_columns
+        column for column in result.columns if column not in front_columns
     ]
     return result[front_columns + remaining_columns]
 
@@ -262,11 +257,9 @@ def build_agent_ranking(aggregated: pd.DataFrame) -> pd.DataFrame:
 def add_baseline_deltas(ranking: pd.DataFrame) -> pd.DataFrame:
     result = ranking.copy()
 
-    rule_based = result[
-        result["agent_name"] == RULE_BASED_AGENT
-    ][SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]].rename(
-        columns={"mean_profit_bb": "rule_based_mean_profit_bb"}
-    )
+    rule_based = result[result["agent_name"] == RULE_BASED_AGENT][
+        SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]
+    ].rename(columns={"mean_profit_bb": "rule_based_mean_profit_bb"})
 
     result = result.merge(
         rule_based,
@@ -278,18 +271,16 @@ def add_baseline_deltas(ranking: pd.DataFrame) -> pd.DataFrame:
     )
     result = result.drop(columns=["rule_based_mean_profit_bb"])
 
-    oracle = result[
-        result["agent_name"].isin(ORACLE_AGENTS)
-    ][SUMMARY_GROUP_COLUMNS + ["agent_name", "mean_profit_bb"]].rename(
+    oracle = result[result["agent_name"].isin(ORACLE_AGENTS)][
+        SUMMARY_GROUP_COLUMNS + ["agent_name", "mean_profit_bb"]
+    ].rename(
         columns={
             "agent_name": "oracle_agent_name",
             "mean_profit_bb": "oracle_mean_profit_bb",
         }
     )
 
-    result["oracle_agent_name"] = result["agent_name"].map(
-        AGENT_TO_ORACLE_AGENT
-    )
+    result["oracle_agent_name"] = result["agent_name"].map(AGENT_TO_ORACLE_AGENT)
     result = result.merge(
         oracle,
         on=SUMMARY_GROUP_COLUMNS + ["oracle_agent_name"],
@@ -299,9 +290,7 @@ def add_baseline_deltas(ranking: pd.DataFrame) -> pd.DataFrame:
         result["oracle_mean_profit_bb"],
         result["mean_profit_bb"],
     )
-    return result.drop(
-        columns=["oracle_agent_name", "oracle_mean_profit_bb"]
-    )
+    return result.drop(columns=["oracle_agent_name", "oracle_mean_profit_bb"])
 
 
 def _quality_status_and_reason(
@@ -309,9 +298,7 @@ def _quality_status_and_reason(
     thresholds: SummaryThresholds,
 ) -> tuple[str, str]:
     mean_profit_bb = float(row.get("mean_profit_bb", 0.0))
-    std_across_seeds = float(
-        row.get("mean_profit_bb_std_across_seeds", 0.0)
-    )
+    std_across_seeds = float(row.get("mean_profit_bb_std_across_seeds", 0.0))
     win_rate = float(row.get("win_rate", 0.0))
     agent_name = str(row.get("agent_name", ""))
 
@@ -332,9 +319,7 @@ def _quality_status_and_reason(
 
     if win_rate < thresholds.min_warning_win_rate:
         warnings.append(
-            "Low win rate "
-            f"({win_rate:.3f}% < "
-            f"{thresholds.min_warning_win_rate:.3f}%)."
+            f"Low win rate ({win_rate:.3f}% < {thresholds.min_warning_win_rate:.3f}%)."
         )
 
     if (
@@ -376,7 +361,7 @@ def build_overview(
     if metrics.empty:
         return {
             "training_runs": [],
-            "checkpoints": [],
+            "final_training_episodes": [],
             "seeds": [],
             "opponents": [],
             "agents": [],
@@ -386,19 +371,15 @@ def build_overview(
 
     return {
         "training_runs": sorted(metrics["training_run"].dropna().unique()),
-        "checkpoints": sorted(
-            int(value)
-            for value in metrics["checkpoint_episode"].dropna().unique()
+        "final_training_episodes": sorted(
+            int(value) for value in metrics["training_episode"].dropna().unique()
         ),
         "seeds": sorted(
-            int(value)
-            for value in metrics["model_seed"].dropna().unique()
+            int(value) for value in metrics["model_seed"].dropna().unique()
         ),
         "opponents": sorted(metrics["opponent_name"].dropna().unique()),
         "agents": sorted(metrics["agent_name"].dropna().unique()),
-        "raw_games": int(metrics["games"].sum())
-        if "games" in metrics.columns
-        else 0,
+        "raw_games": int(metrics["games"].sum()) if "games" in metrics.columns else 0,
         "summary_rows": len(summary_table),
     }
 
@@ -423,24 +404,18 @@ def _average_mean_profit(summary_table: pd.DataFrame) -> pd.DataFrame:
 
 
 def _adaptive_rule_based_findings(summary_table: pd.DataFrame) -> list[str]:
-    rule_based_rows = summary_table[
-        summary_table["agent_name"] == RULE_BASED_AGENT
-    ]
+    rule_based_rows = summary_table[summary_table["agent_name"] == RULE_BASED_AGENT]
 
     if rule_based_rows.empty:
         return []
 
     findings: list[str] = []
     for adaptive_agent, algorithm_name in ADAPTIVE_AGENT_TO_ALGORITHM.items():
-        adaptive_rows = summary_table[
-            summary_table["agent_name"] == adaptive_agent
-        ]
+        adaptive_rows = summary_table[summary_table["agent_name"] == adaptive_agent]
         if adaptive_rows.empty:
             continue
 
-        merged = adaptive_rows[
-            SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]
-        ].merge(
+        merged = adaptive_rows[SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]].merge(
             rule_based_rows[SUMMARY_GROUP_COLUMNS + ["mean_profit_bb"]],
             on=SUMMARY_GROUP_COLUMNS,
             suffixes=("_adaptive", "_rule_based"),
@@ -449,8 +424,7 @@ def _adaptive_rule_based_findings(summary_table: pd.DataFrame) -> list[str]:
             continue
 
         merged["delta"] = (
-            merged["mean_profit_bb_adaptive"]
-            - merged["mean_profit_bb_rule_based"]
+            merged["mean_profit_bb_adaptive"] - merged["mean_profit_bb_rule_based"]
         )
         wins = int((merged["delta"] > 0).sum())
         total = len(merged)
@@ -468,18 +442,14 @@ def _oracle_gap_findings(summary_table: pd.DataFrame) -> list[str]:
     if ORACLE_GAP_BB_COLUMN not in summary_table.columns:
         return []
 
-    comparable = summary_table[
-        summary_table[ORACLE_GAP_BB_COLUMN].notna()
-    ]
+    comparable = summary_table[summary_table[ORACLE_GAP_BB_COLUMN].notna()]
 
     if comparable.empty:
         return []
 
     findings: list[str] = []
     for adaptive_agent, algorithm_name in ADAPTIVE_AGENT_TO_ALGORITHM.items():
-        adaptive_rows = comparable[
-            comparable["agent_name"] == adaptive_agent
-        ]
+        adaptive_rows = comparable[comparable["agent_name"] == adaptive_agent]
         if adaptive_rows.empty:
             continue
 
@@ -549,9 +519,7 @@ def _tight_saturation_finding(
     summary_table: pd.DataFrame,
     thresholds: SummaryThresholds,
 ) -> str | None:
-    tight_rows = summary_table[
-        summary_table["opponent_name"] == OPPONENT_TYPE_TIGHT
-    ]
+    tight_rows = summary_table[summary_table["opponent_name"] == OPPONENT_TYPE_TIGHT]
 
     if len(tight_rows) < 2:
         return None
@@ -598,12 +566,8 @@ def generate_main_findings(
         if finding is not None:
             findings.append(finding)
 
-    failures = summary_table[
-        summary_table["quality_status"] == QUALITY_FAIL
-    ]
-    warnings = summary_table[
-        summary_table["quality_status"] == QUALITY_WARNING
-    ]
+    failures = summary_table[summary_table["quality_status"] == QUALITY_FAIL]
+    warnings = summary_table[summary_table["quality_status"] == QUALITY_WARNING]
 
     findings.append(
         "Traffic-light summary: "
@@ -646,10 +610,7 @@ def build_experiment_summary(
 
 
 def _overview_markdown(overview: dict[str, object]) -> str:
-    rows = [
-        {"field": key, "value": value}
-        for key, value in overview.items()
-    ]
+    rows = [{"field": key, "value": value} for key, value in overview.items()]
     return pd.DataFrame(rows).to_markdown(index=False)
 
 
@@ -657,10 +618,7 @@ def _chart_markdown(chart_paths: list[Path]) -> str:
     if not chart_paths:
         return "No charts generated."
 
-    return "\n\n".join(
-        f"![{path.stem}](charts/{path.name})"
-        for path in chart_paths
-    )
+    return "\n\n".join(f"![{path.stem}](charts/{path.name})" for path in chart_paths)
 
 
 def render_experiment_summary_markdown(
@@ -670,19 +628,14 @@ def render_experiment_summary_markdown(
     quality_flags: pd.DataFrame,
     chart_paths: list[Path] | None = None,
 ) -> str:
-    ranking_table = ranking[
-        _existing_columns(ranking, SUMMARY_TABLE_COLUMNS)
-    ]
-    delta_table = deltas[
-        _existing_columns(deltas, DELTA_TABLE_COLUMNS)
-    ]
+    ranking_table = ranking[_existing_columns(ranking, SUMMARY_TABLE_COLUMNS)]
+    delta_table = deltas[_existing_columns(deltas, DELTA_TABLE_COLUMNS)]
     quality_table = quality_flags[
         _existing_columns(quality_flags, QUALITY_TABLE_COLUMNS)
     ]
 
     findings = "\n".join(
-        f"{index + 1}. {finding}"
-        for index, finding in enumerate(report.main_findings)
+        f"{index + 1}. {finding}" for index, finding in enumerate(report.main_findings)
     )
 
     return "\n".join(
@@ -690,8 +643,8 @@ def render_experiment_summary_markdown(
             "# Experiment summary",
             "",
             (
-                "This report summarizes checkpoint evaluation results "
-                "across agents, opponents, checkpoints, and seeds."
+                "This report summarizes final-model evaluation results "
+                "across agents, opponents, training runs, and seeds."
             ),
             (
                 "`oracle_gap_bb` is defined as Oracle mean profit minus "
@@ -711,7 +664,7 @@ def render_experiment_summary_markdown(
             "",
             _chart_markdown(chart_paths or []),
             "",
-            "## Agent ranking by opponent and checkpoint",
+            "## Agent ranking by opponent and final training episode",
             "",
             _display_table(ranking_table).to_markdown(index=False),
             "",
@@ -763,8 +716,7 @@ def write_experiment_summary_outputs(
 ) -> list[Path]:
     if report_format not in {"markdown", "json", "both", "all"}:
         raise ValueError(
-            "Unsupported report_format. Expected one of: "
-            "markdown, json, both, all."
+            "Unsupported report_format. Expected one of: markdown, json, both, all."
         )
 
     output_dir = Path(output_dir)
@@ -815,9 +767,7 @@ def write_experiment_summary_outputs(
     ]
 
     for filename, df in csv_exports:
-        created_paths.append(
-            write_dataframe_csv(df, output_dir / filename)
-        )
+        created_paths.append(write_dataframe_csv(df, output_dir / filename))
 
     if export_latex:
         latex_exports = [
@@ -826,8 +776,6 @@ def write_experiment_summary_outputs(
             ("quality_flags.tex", quality_flags),
         ]
         for filename, df in latex_exports:
-            created_paths.append(
-                write_dataframe_latex(df, output_dir / filename)
-            )
+            created_paths.append(write_dataframe_latex(df, output_dir / filename))
 
     return created_paths

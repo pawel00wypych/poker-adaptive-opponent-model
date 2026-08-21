@@ -7,7 +7,7 @@ from src.evaluation.metrics.classifier_metrics import (
     build_classifier_confusion_matrix,
     build_classifier_quality_summary,
     load_classifier_quality_rows,
-    select_classifier_checkpoint_rows,
+    select_final_classifier_rows,
 )
 from src.evaluation.reporting.classifier_quality import (
     ClassifierQualityConfig,
@@ -22,7 +22,7 @@ def make_classifier_row(
     agent,
     opponent,
     prediction,
-    checkpoint=2000,
+    training_episode=2000,
     seed=1,
     classified=0,
     correct=0,
@@ -32,7 +32,8 @@ def make_classifier_row(
     return {
         "training_run": "run",
         "model_seed": seed,
-        "checkpoint_episode": checkpoint,
+        "model_source": "final",
+        "training_episode": training_episode,
         "game_id": game_id,
         "agent_name": agent,
         "opponent_name": opponent,
@@ -46,16 +47,6 @@ def make_classifier_row(
 
 def write_classifier_results(path):
     rows = [
-        make_classifier_row(
-            game_id=0,
-            agent="adaptive_mc",
-            opponent="calling_extreme",
-            prediction="tight",
-            checkpoint=1000,
-            classified=10,
-            correct=0,
-            incorrect=10,
-        ),
         make_classifier_row(
             game_id=1,
             agent="adaptive_mc",
@@ -136,8 +127,7 @@ def write_classifier_results(path):
 
 def _summary_row(summary, agent, opponent):
     return summary[
-        (summary["agent_name"] == agent)
-        & (summary["opponent_name"] == opponent)
+        (summary["agent_name"] == agent) & (summary["opponent_name"] == opponent)
     ].iloc[0]
 
 
@@ -156,7 +146,7 @@ def test_quality_summary_uses_all_algorithms_and_pooled_unknown_rate(
     write_classifier_results(input_path)
 
     rows = load_classifier_quality_rows(input_path)
-    selected = select_classifier_checkpoint_rows(rows)
+    selected = select_final_classifier_rows(rows)
     summary = build_classifier_quality_summary(selected)
 
     assert set(summary["agent_name"]) == {
@@ -171,7 +161,7 @@ def test_quality_summary_uses_all_algorithms_and_pooled_unknown_rate(
         "SARSA",
         "Double Q-learning",
     }
-    assert set(selected["checkpoint_episode"]) == {2000}
+    assert set(selected["training_episode"]) == {2000}
 
     calling = _summary_row(summary, "adaptive_mc", "calling_extreme")
     assert calling["opponent_family"] == "calling"
@@ -205,9 +195,7 @@ def test_confusion_matrix_maps_variants_and_counts_unknown_final_prediction(
 ):
     input_path = tmp_path / "results.csv"
     write_classifier_results(input_path)
-    rows = select_classifier_checkpoint_rows(
-        load_classifier_quality_rows(input_path)
-    )
+    rows = select_final_classifier_rows(load_classifier_quality_rows(input_path))
 
     matrix = build_classifier_confusion_matrix(rows)
 
@@ -246,26 +234,18 @@ def test_confusion_matrix_maps_variants_and_counts_unknown_final_prediction(
     assert "always_raise" not in set(matrix["actual_opponent_type"])
 
 
-def test_report_uses_explicit_checkpoint_and_rejects_unknown_checkpoint(
+def test_report_uses_all_final_model_rows_without_episode_selection(
     tmp_path,
 ):
     input_path = tmp_path / "results.csv"
     write_classifier_results(input_path)
 
-    report, summary, matrix = build_classifier_quality_report(
-        input_path,
-        config=ClassifierQualityConfig(checkpoint_episode=1000),
-    )
+    report, summary, matrix = build_classifier_quality_report(input_path)
 
-    assert report.overview["checkpoints"] == [1000]
-    assert set(summary["checkpoint_episode"]) == {1000}
-    assert set(matrix["checkpoint_episode"]) == {1000}
-
-    with pytest.raises(ValueError, match="Checkpoint 3000 is not present"):
-        build_classifier_quality_report(
-            input_path,
-            config=ClassifierQualityConfig(checkpoint_episode=3000),
-        )
+    assert report.overview["final_training_episodes"] == [2000]
+    assert set(summary["training_episode"]) == {2000}
+    assert set(matrix["training_episode"]) == {2000}
+    assert "model_selection" in report.methodology
 
 
 def test_classifier_quality_outputs_are_complete_and_json_uses_null(
@@ -291,9 +271,7 @@ def test_classifier_quality_outputs_are_complete_and_json_uses_null(
         "classifier_confusion_matrix.tex",
     }
 
-    json_text = (output_dir / "classifier_quality.json").read_text(
-        encoding="utf-8"
-    )
+    json_text = (output_dir / "classifier_quality.json").read_text(encoding="utf-8")
     payload = json.loads(json_text)
     assert "NaN" not in json_text
     sarsa = next(
@@ -304,9 +282,7 @@ def test_classifier_quality_outputs_are_complete_and_json_uses_null(
     assert sarsa["unknown_rate"] is None
     assert payload["overview"]["games_excluded_from_confusion_matrix"] == 1
 
-    markdown = (output_dir / "classifier_quality.md").read_text(
-        encoding="utf-8"
-    )
+    markdown = (output_dir / "classifier_quality.md").read_text(encoding="utf-8")
     assert "# Classifier quality report" in markdown
     assert "decision unknown rate" in markdown
     assert "## Final-prediction confusion matrices" in markdown
@@ -314,8 +290,7 @@ def test_classifier_quality_outputs_are_complete_and_json_uses_null(
 
 
 def test_classifier_quality_config_and_input_validation(tmp_path):
-    with pytest.raises(ValueError, match="checkpoint_episode"):
-        ClassifierQualityConfig(checkpoint_episode=-1)
+    assert ClassifierQualityConfig().__dict__ == {}
 
     input_path = tmp_path / "missing_column.csv"
     pd.DataFrame(
@@ -323,7 +298,8 @@ def test_classifier_quality_config_and_input_validation(tmp_path):
             {
                 "training_run": "run",
                 "model_seed": 1,
-                "checkpoint_episode": 1000,
+                "model_source": "final",
+                "training_episode": 1000,
                 "agent_name": "adaptive_mc",
                 "opponent_name": "calling",
             }

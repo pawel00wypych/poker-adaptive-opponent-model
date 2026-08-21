@@ -12,7 +12,7 @@ from src.evaluation.validation import (
     ValidationThresholds,
     render_validation_markdown,
     validate_adaptive_beats_rule_based,
-    validate_checkpoint_results,
+    validate_evaluation_results,
     validate_oracle_not_worse_than_adaptive,
 )
 from src.evaluation.validation.common import ValidationReport
@@ -23,7 +23,7 @@ from src.evaluation.validation.head_to_head_validation import (
     validate_adaptive_not_worse_than_general_rule_based,
 )
 from tests.evaluation.test_experiment_validation import (
-    write_sample_checkpoint_csv,
+    write_sample_final_model_csv,
 )
 
 SPEC = ALGORITHM_VALIDATION_SPECS[0]
@@ -38,7 +38,8 @@ def aggregate_row(
     return {
         "agent_name": agent_name,
         "opponent_name": opponent_name,
-        "checkpoint_episode": 1000,
+        "model_source": "final",
+        "training_episode": 1000,
         "mean_profit_bb": mean_profit_bb,
     }
 
@@ -332,18 +333,19 @@ def test_validation_markdown_includes_paired_statistical_columns():
     assert "ci_upper" in markdown
 
 
-def test_checkpoint_validation_pipeline_uses_selected_seed_level_rows(
+def test_evaluation_validation_pipeline_uses_selected_seed_level_rows(
     tmp_path,
 ):
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
 
-    report = validate_checkpoint_results(csv_path)
+    report = validate_evaluation_results(csv_path)
 
     paired_checks = [
         check
         for check in report.checks
-        if check.category in {
+        if check.category
+        in {
             "baseline_delta",
             "oracle_gap",
             "always_raise_sanity",

@@ -16,17 +16,17 @@ from src.evaluation.metrics.seed_statistics import (
     SEED_SPREAD_COLUMN,
     SEED_STANDARD_ERROR_COLUMN,
 )
-from src.evaluation.reporting.checkpoint_report import (
-    aggregate_across_seeds,
-    display_agent_name,
-    load_checkpoint_report_data,
-)
 from src.evaluation.reporting.experiment_summary import (
     dataframe_records_with_missing_as_none,
     write_dataframe_csv,
     write_dataframe_latex,
 )
 from src.evaluation.reporting.html_utils import write_text
+from src.evaluation.reporting.training_opponent_report import (
+    aggregate_across_seeds,
+    display_agent_name,
+    load_training_opponent_report_data,
+)
 
 RANKING_STABILITY_HIGH = "high"
 RANKING_STABILITY_MODERATE = "moderate"
@@ -36,7 +36,7 @@ RANKING_STABILITY_INSUFFICIENT = "insufficient_data"
 RANKING_CONTEXT_COLUMNS = [
     "training_run",
     "opponent_name",
-    "checkpoint_episode",
+    "training_episode",
 ]
 
 RANKING_SEED_COLUMNS = [
@@ -48,12 +48,12 @@ SEED_SUMMARY_GROUP_COLUMNS = [
     "training_run",
     "agent_name",
     "opponent_name",
-    "checkpoint_episode",
+    "training_episode",
 ]
 
 SEED_PERFORMANCE_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "opponent_name",
     "model_seed",
     "agent_name",
@@ -69,7 +69,7 @@ SEED_PERFORMANCE_COLUMNS = [
 
 SEED_RANKING_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "opponent_name",
     "model_seed",
     "rank",
@@ -81,7 +81,7 @@ SEED_RANKING_COLUMNS = [
 
 SEED_STABILITY_SUMMARY_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "opponent_name",
     "agent_name",
     "seeds",
@@ -110,7 +110,7 @@ SEED_STABILITY_SUMMARY_COLUMNS = [
 
 RANKING_STABILITY_COLUMNS = [
     "training_run",
-    "checkpoint_episode",
+    "training_episode",
     "opponent_name",
     "seed_count",
     "complete_seed_count",
@@ -125,16 +125,11 @@ RANKING_STABILITY_COLUMNS = [
 
 @dataclass(frozen=True)
 class SeedStabilityConfig:
-    checkpoint_episode: int | None = None
     min_complete_seeds_for_ranking: int = 2
 
     def __post_init__(self) -> None:
-        if self.checkpoint_episode is not None and self.checkpoint_episode < 0:
-            raise ValueError("checkpoint_episode must be non-negative")
         if self.min_complete_seeds_for_ranking < 2:
-            raise ValueError(
-                "min_complete_seeds_for_ranking must be at least 2"
-            )
+            raise ValueError("min_complete_seeds_for_ranking must be at least 2")
 
 
 @dataclass(frozen=True)
@@ -168,39 +163,15 @@ def _existing_columns(
     return [column for column in columns if column in dataframe.columns]
 
 
-def select_checkpoint_rows(
-    metrics: pd.DataFrame,
-    checkpoint_episode: int | None = None,
-) -> pd.DataFrame:
-    """Select one explicit checkpoint or the latest checkpoint per run."""
+def select_final_model_rows(metrics: pd.DataFrame) -> pd.DataFrame:
+    """Return all final-model metrics without checkpoint-based selection."""
     if metrics.empty:
         return metrics.copy()
 
-    if checkpoint_episode is not None:
-        selected = metrics[
-            metrics["checkpoint_episode"] == checkpoint_episode
-        ].copy()
-        if selected.empty:
-            available = sorted(
-                int(value)
-                for value in metrics["checkpoint_episode"].unique()
-            )
-            raise ValueError(
-                f"Checkpoint {checkpoint_episode} is not present. "
-                f"Available checkpoints: {available}."
-            )
-    else:
-        latest = metrics.groupby("training_run")[
-            "checkpoint_episode"
-        ].transform("max")
-        selected = metrics[
-            metrics["checkpoint_episode"] == latest
-        ].copy()
-
-    return selected.sort_values(
+    return metrics.sort_values(
         [
             "training_run",
-            "checkpoint_episode",
+            "training_episode",
             "opponent_name",
             "model_seed",
             "agent_name",
@@ -212,7 +183,7 @@ def build_seed_performance(metrics: pd.DataFrame) -> pd.DataFrame:
     """Add per-seed agent rankings and ranking-completeness markers."""
     required_columns = {
         "training_run",
-        "checkpoint_episode",
+        "training_episode",
         "opponent_name",
         "model_seed",
         "agent_name",
@@ -221,8 +192,7 @@ def build_seed_performance(metrics: pd.DataFrame) -> pd.DataFrame:
     missing_columns = sorted(required_columns.difference(metrics.columns))
     if missing_columns:
         raise ValueError(
-            "Cannot build seed performance without columns: "
-            f"{missing_columns}."
+            f"Cannot build seed performance without columns: {missing_columns}."
         )
 
     if metrics.empty:
@@ -255,14 +225,14 @@ def build_seed_performance(metrics: pd.DataFrame) -> pd.DataFrame:
         dropna=False,
     )["agent_name"].transform("nunique")
     evaluated_agent_count = seed_groups["agent_name"].transform("nunique")
-    result["ranking_complete"] = evaluated_agent_count.eq(
-        expected_agent_count
-    )
+    result["ranking_complete"] = evaluated_agent_count.eq(expected_agent_count)
 
     columns = _existing_columns(result, SEED_PERFORMANCE_COLUMNS)
-    return result[columns].sort_values(
-        [*RANKING_SEED_COLUMNS, "rank", "agent_name"]
-    ).reset_index(drop=True)
+    return (
+        result[columns]
+        .sort_values([*RANKING_SEED_COLUMNS, "rank", "agent_name"])
+        .reset_index(drop=True)
+    )
 
 
 def build_seed_rankings(seed_performance: pd.DataFrame) -> pd.DataFrame:
@@ -316,9 +286,7 @@ def build_seed_stability_summary(
         how="left",
     )
 
-    complete_rankings = seed_performance[
-        seed_performance["ranking_complete"]
-    ]
+    complete_rankings = seed_performance[seed_performance["ranking_complete"]]
     if complete_rankings.empty:
         rank_summary = pd.DataFrame(
             columns=[
@@ -365,16 +333,20 @@ def build_seed_stability_summary(
             )
 
     columns = _existing_columns(summary, SEED_STABILITY_SUMMARY_COLUMNS)
-    return summary[columns].sort_values(
-        [
-            "training_run",
-            "checkpoint_episode",
-            "opponent_name",
-            "mean_profit_bb",
-            "agent_name",
-        ],
-        ascending=[True, True, True, False, True],
-    ).reset_index(drop=True)
+    return (
+        summary[columns]
+        .sort_values(
+            [
+                "training_run",
+                "training_episode",
+                "opponent_name",
+                "mean_profit_bb",
+                "agent_name",
+            ],
+            ascending=[True, True, True, False, True],
+        )
+        .reset_index(drop=True)
+    )
 
 
 def calculate_kendalls_w(rank_matrix: pd.DataFrame) -> float | None:
@@ -388,24 +360,17 @@ def calculate_kendalls_w(rank_matrix: pd.DataFrame) -> float | None:
     seed_count, agent_count = ranks.shape
     rank_sums = ranks.sum(axis=0)
     expected_rank_sum = seed_count * (agent_count + 1) / 2.0
-    squared_deviation_sum = float(
-        np.square(rank_sums - expected_rank_sum).sum()
-    )
+    squared_deviation_sum = float(np.square(rank_sums - expected_rank_sum).sum())
 
     tie_correction = 0.0
     for seed_ranks in ranks:
         _, tie_counts = np.unique(seed_ranks, return_counts=True)
         tie_correction += float(
-            sum(
-                count**3 - count
-                for count in tie_counts
-                if count > 1
-            )
+            sum(count**3 - count for count in tie_counts if count > 1)
         )
 
     denominator = (
-        seed_count**2 * (agent_count**3 - agent_count)
-        - seed_count * tie_correction
+        seed_count**2 * (agent_count**3 - agent_count) - seed_count * tie_correction
     )
     if denominator <= 0.0:
         return None
@@ -441,17 +406,14 @@ def build_ranking_stability(
         dropna=False,
     )
     for group_key, group in grouped:
-        training_run, opponent_name, checkpoint_episode = group_key
+        training_run, opponent_name, training_episode = group_key
         seed_count = int(group["model_seed"].nunique())
         agent_count = int(group["agent_name"].nunique())
         complete = group[group["ranking_complete"]]
         complete_seed_count = int(complete["model_seed"].nunique())
 
         kendalls_w: float | None = None
-        if (
-            complete_seed_count >= min_complete_seeds
-            and agent_count >= 2
-        ):
+        if complete_seed_count >= min_complete_seeds and agent_count >= 2:
             rank_matrix = complete.pivot(
                 index="model_seed",
                 columns="agent_name",
@@ -482,7 +444,7 @@ def build_ranking_stability(
         rows.append(
             {
                 "training_run": training_run,
-                "checkpoint_episode": checkpoint_episode,
+                "training_episode": training_episode,
                 "opponent_name": opponent_name,
                 "seed_count": seed_count,
                 "complete_seed_count": complete_seed_count,
@@ -495,9 +457,11 @@ def build_ranking_stability(
             }
         )
 
-    return pd.DataFrame(rows, columns=RANKING_STABILITY_COLUMNS).sort_values(
-        ["training_run", "checkpoint_episode", "opponent_name"]
-    ).reset_index(drop=True)
+    return (
+        pd.DataFrame(rows, columns=RANKING_STABILITY_COLUMNS)
+        .sort_values(["training_run", "training_episode", "opponent_name"])
+        .reset_index(drop=True)
+    )
 
 
 def build_seed_stability_overview(
@@ -507,7 +471,7 @@ def build_seed_stability_overview(
     if seed_performance.empty:
         return {
             "training_runs": [],
-            "checkpoints": [],
+            "final_training_episodes": [],
             "model_seeds": [],
             "opponents": [],
             "agents": [],
@@ -518,17 +482,14 @@ def build_seed_stability_overview(
 
     available_rankings = 0
     if not ranking_stability.empty:
-        available_rankings = int(
-            ranking_stability["kendalls_w"].notna().sum()
-        )
+        available_rankings = int(ranking_stability["kendalls_w"].notna().sum())
 
     return {
         "training_runs": sorted(
             str(value) for value in seed_performance["training_run"].unique()
         ),
-        "checkpoints": sorted(
-            int(value)
-            for value in seed_performance["checkpoint_episode"].unique()
+        "final_training_episodes": sorted(
+            int(value) for value in seed_performance["training_episode"].unique()
         ),
         "model_seeds": sorted(
             int(value) for value in seed_performance["model_seed"].unique()
@@ -560,7 +521,7 @@ def generate_seed_stability_findings(
     findings.append(
         "Largest seed spread: "
         f"{widest['agent_name']} vs {widest['opponent_name']} "
-        f"at checkpoint {int(widest['checkpoint_episode'])} "
+        f"at final training episode {int(widest['training_episode'])} "
         f"({float(widest[SEED_SPREAD_COLUMN]):.3f} BB/game; "
         f"best seed {widest['best_seed']}, "
         f"worst seed {widest['worst_seed']})."
@@ -576,8 +537,8 @@ def generate_seed_stability_findings(
         least_stable = available.sort_values("kendalls_w").iloc[0]
         findings.append(
             "Least stable agent ranking: "
-            f"{least_stable['opponent_name']} at checkpoint "
-            f"{int(least_stable['checkpoint_episode'])} "
+            f"{least_stable['opponent_name']} at final training episode "
+            f"{int(least_stable['training_episode'])} "
             f"(Kendall's W={float(least_stable['kendalls_w']):.3f}, "
             f"{least_stable['ranking_stability']})."
         )
@@ -603,11 +564,8 @@ def build_seed_stability_report(
     pd.DataFrame,
 ]:
     config = config or SeedStabilityConfig()
-    metrics = load_checkpoint_report_data(input_path)
-    selected = select_checkpoint_rows(
-        metrics,
-        checkpoint_episode=config.checkpoint_episode,
-    )
+    metrics = load_training_opponent_report_data(input_path)
+    selected = select_final_model_rows(metrics)
     seed_performance = build_seed_performance(selected)
     seed_rankings = build_seed_rankings(seed_performance)
     seed_summary = build_seed_stability_summary(
@@ -632,16 +590,10 @@ def build_seed_stability_report(
         config=config,
         overview=overview,
         main_findings=findings,
-        seed_performance=dataframe_records_with_missing_as_none(
-            seed_performance
-        ),
-        seed_stability_summary=dataframe_records_with_missing_as_none(
-            seed_summary
-        ),
+        seed_performance=dataframe_records_with_missing_as_none(seed_performance),
+        seed_stability_summary=dataframe_records_with_missing_as_none(seed_summary),
         seed_rankings=dataframe_records_with_missing_as_none(seed_rankings),
-        ranking_stability=dataframe_records_with_missing_as_none(
-            ranking_stability
-        ),
+        ranking_stability=dataframe_records_with_missing_as_none(ranking_stability),
     )
     return (
         report,
@@ -655,7 +607,7 @@ def build_seed_stability_report(
 def _round_numeric_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
     result = dataframe.copy()
     identifier_columns = {
-        "checkpoint_episode",
+        "training_episode",
         "model_seed",
         "best_seed",
         "worst_seed",
@@ -694,8 +646,7 @@ def render_seed_stability_markdown(
     ranking_stability: pd.DataFrame,
 ) -> str:
     findings = "\n".join(
-        f"{index + 1}. {finding}"
-        for index, finding in enumerate(report.main_findings)
+        f"{index + 1}. {finding}" for index, finding in enumerate(report.main_findings)
     )
 
     return "\n".join(
@@ -704,8 +655,8 @@ def render_seed_stability_markdown(
             "",
             (
                 "This report analyses performance variation and agent-ranking "
-                "agreement across independent model seeds. By default it uses "
-                "the latest checkpoint from each training run."
+                "agreement across independent model seeds. Every row comes "
+                "from the final model of its training run."
             ),
             "",
             (
@@ -752,8 +703,7 @@ def write_seed_stability_outputs(
 ) -> list[Path]:
     if report_format not in {"markdown", "json", "both", "all"}:
         raise ValueError(
-            "Unsupported report_format. Expected one of: "
-            "markdown, json, both, all."
+            "Unsupported report_format. Expected one of: markdown, json, both, all."
         )
 
     output_dir = Path(output_dir)
@@ -796,9 +746,7 @@ def write_seed_stability_outputs(
         ("ranking_stability.csv", ranking_stability),
     ]
     for filename, dataframe in csv_exports:
-        created_paths.append(
-            write_dataframe_csv(dataframe, output_dir / filename)
-        )
+        created_paths.append(write_dataframe_csv(dataframe, output_dir / filename))
 
     if export_latex:
         latex_exports = [

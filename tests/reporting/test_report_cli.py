@@ -1,14 +1,14 @@
 from src.experiments.diagnostics.compare_selected_q_tables import (
     parse_args as parse_compare_args,
 )
-from src.experiments.reporting.create_checkpoint_report import (
-    parse_args as parse_checkpoint_args,
-)
 from src.experiments.reporting.create_classifier_quality_report import (
     build_config as build_classifier_quality_config,
 )
 from src.experiments.reporting.create_classifier_quality_report import (
     parse_args as parse_classifier_quality_args,
+)
+from src.experiments.reporting.create_learning_curve_report import (
+    parse_args as parse_learning_curve_args,
 )
 from src.experiments.reporting.create_q_table_report import (
     parse_args as parse_q_table_args,
@@ -19,15 +19,18 @@ from src.experiments.reporting.create_seed_stability_report import (
 from src.experiments.reporting.create_seed_stability_report import (
     parse_args as parse_seed_stability_args,
 )
+from src.experiments.reporting.create_training_opponent_report import (
+    parse_args as parse_training_opponent_args,
+)
 
 
-def test_create_checkpoint_report_parser_accepts_format():
-    args = parse_checkpoint_args(
+def test_create_training_opponent_report_parser_accepts_format():
+    args = parse_training_opponent_args(
         [
             "--input-path",
             "results/evaluation/results.csv",
             "--output-dir",
-            "reports/checkpoint",
+            "reports/training_opponent",
             "--format",
             "html",
         ]
@@ -35,6 +38,21 @@ def test_create_checkpoint_report_parser_accepts_format():
 
     assert args.format == "html"
     assert args.input_path == "results/evaluation/results.csv"
+
+
+def test_create_learning_curve_report_parser_accepts_format():
+    args = parse_learning_curve_args(
+        [
+            "--input-path",
+            "results/evaluation/learning_curve.csv",
+            "--output-dir",
+            "reports/learning_curve",
+            "--format",
+            "markdown",
+        ]
+    )
+
+    assert args.format == "markdown"
 
 
 def test_create_q_table_report_parser_accepts_disagreement_limit():
@@ -92,15 +110,13 @@ def test_compare_selected_q_tables_parser_accepts_general_arguments():
     assert args.top_n == 30
 
 
-def test_create_seed_stability_report_parser_accepts_checkpoint_and_coverage():
+def test_create_seed_stability_report_parser_accepts_coverage():
     args = parse_seed_stability_args(
         [
             "--input-path",
             "results/evaluation/results.csv",
             "--output-dir",
             "reports/seed_stability",
-            "--checkpoint-episode",
-            "5000",
             "--min-complete-seeds-for-ranking",
             "3",
             "--no-export-latex",
@@ -108,20 +124,17 @@ def test_create_seed_stability_report_parser_accepts_checkpoint_and_coverage():
     )
     config = build_seed_stability_config(args)
 
-    assert config.checkpoint_episode == 5000
     assert config.min_complete_seeds_for_ranking == 3
     assert args.export_latex is False
 
 
-def test_create_classifier_quality_report_parser_accepts_checkpoint():
+def test_create_classifier_quality_report_parser_accepts_final_model_input():
     args = parse_classifier_quality_args(
         [
             "--input-path",
             "results/evaluation/results.csv",
             "--output-dir",
             "reports/classifier_quality",
-            "--checkpoint-episode",
-            "5000",
             "--format",
             "both",
             "--no-export-latex",
@@ -133,4 +146,4 @@ def test_create_classifier_quality_report_parser_accepts_checkpoint():
     assert args.output_dir == "reports/classifier_quality"
     assert args.format == "both"
     assert args.export_latex is False
-    assert config.checkpoint_episode == 5000
+    assert config.__dict__ == {}

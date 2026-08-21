@@ -1,17 +1,15 @@
 import argparse
 
-from src.evaluation.metrics.checkpoint_metrics import (
-    calculate_checkpoint_metrics,
-)
 from src.evaluation.constants import SUPPORTED_TESTED_AGENTS
+from src.evaluation.metrics.evaluation_metrics import (
+    calculate_final_model_metrics,
+)
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description=(
-            "Show aggregated checkpoint evaluation results."
-        )
+        description=("Show aggregated final-model training-opponent results.")
     )
 
     parser.add_argument(
@@ -42,36 +40,24 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    df = calculate_checkpoint_metrics(
-        args.input_path
-    )
+    df = calculate_final_model_metrics(args.input_path)
 
     if args.opponent is not None:
-        df = df[
-            df["opponent_name"] == args.opponent
-        ]
+        df = df[df["opponent_name"] == args.opponent]
 
     if args.agent is not None:
-        df = df[
-            df["agent_name"] == args.agent
-        ]
+        df = df[df["agent_name"] == args.agent]
 
     sort_columns = [
         "opponent_name",
         "agent_name",
-        "checkpoint_episode",
+        "training_episode",
         "model_seed",
     ]
 
-    df = df.sort_values(
-        sort_columns
-    )
+    df = df.sort_values(sort_columns)
 
-    print(
-        df.to_string(
-            index=False
-        )
-    )
+    print(df.to_string(index=False))
 
 
 if __name__ == "__main__":

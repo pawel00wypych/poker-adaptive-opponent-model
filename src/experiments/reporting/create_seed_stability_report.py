@@ -18,15 +18,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--input-path", required=True, type=str)
     parser.add_argument("--output-dir", required=True, type=str)
     parser.add_argument(
-        "--checkpoint-episode",
-        type=int,
-        default=None,
-        help=(
-            "Checkpoint to analyse. By default, the latest checkpoint from "
-            "each training run is used."
-        ),
-    )
-    parser.add_argument(
         "--min-complete-seeds-for-ranking",
         type=int,
         default=2,
@@ -55,10 +46,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def build_config(args: argparse.Namespace) -> SeedStabilityConfig:
     return SeedStabilityConfig(
-        checkpoint_episode=args.checkpoint_episode,
-        min_complete_seeds_for_ranking=(
-            args.min_complete_seeds_for_ranking
-        ),
+        min_complete_seeds_for_ranking=(args.min_complete_seeds_for_ranking),
     )
 
 

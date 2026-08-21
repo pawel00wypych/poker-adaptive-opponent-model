@@ -11,11 +11,11 @@ from src.evaluation.validation import (
     VALIDATION_MODE_HEAD_TO_HEAD,
     ValidationThresholds,
     render_validation_markdown,
-    validate_checkpoint_results,
+    validate_evaluation_results,
     write_validation_json_report,
     write_validation_markdown_report,
 )
-from src.experiments.validation.validate_checkpoint_evaluation import (
+from src.experiments.validation.validate_evaluation_results import (
     build_thresholds,
     parse_args,
 )
@@ -40,7 +40,7 @@ REQUIRED_RESULT_COLUMNS = {
 def make_game_row(
     *,
     seed,
-    checkpoint,
+    training_episode,
     agent,
     opponent,
     game_id,
@@ -60,7 +60,8 @@ def make_game_row(
     row.update(
         {
             "model_seed": seed,
-            "checkpoint_episode": checkpoint,
+            "model_source": "final",
+            "training_episode": training_episode,
             "experiment_name": f"{agent}_vs_{opponent}",
             "agent_name": agent,
             "opponent_name": opponent,
@@ -86,7 +87,7 @@ def add_group(
     *,
     agent,
     opponent,
-    checkpoint=2000,
+    training_episode=2000,
     seed_values=(42, 123),
     profit_by_seed=(10.0, 12.0),
     hands_played=20,
@@ -102,19 +103,21 @@ def add_group(
         busted = 1 if bust_rate >= 50.0 else 0
         classified_decisions = 10 if classifier_coverage > 0 else 0
         correct_classifications = (
-            9 if classifier_accuracy >= 80.0 else 6
-        ) if classified_decisions else 0
+            (9 if classifier_accuracy >= 80.0 else 6) if classified_decisions else 0
+        )
         incorrect_classifications = (
-            classified_decisions - correct_classifications
-        ) if classified_decisions else 0
+            (classified_decisions - correct_classifications)
+            if classified_decisions
+            else 0
+        )
         unknown_classifications = (
-            0 if classifier_coverage >= 100.0 else 2
-        ) if classified_decisions else 0
+            (0 if classifier_coverage >= 100.0 else 2) if classified_decisions else 0
+        )
 
         rows.append(
             make_game_row(
                 seed=seed,
-                checkpoint=checkpoint,
+                training_episode=training_episode,
                 agent=agent,
                 opponent=opponent,
                 game_id=index,
@@ -133,7 +136,7 @@ def add_group(
         )
 
 
-def write_sample_checkpoint_csv(path):
+def write_sample_final_model_csv(path):
     rows = []
 
     for opponent in ["aggressive", "calling", "tight"]:
@@ -167,17 +170,11 @@ def write_sample_checkpoint_csv(path):
             profit_by_seed=(19.3, 19.4)
             if opponent in {"aggressive", "tight"}
             else (-1.0, -0.8),
-            win_rate=100.0
-            if opponent in {"aggressive", "tight"}
-            else 45.0,
-            bust_rate=0.0
-            if opponent in {"aggressive", "tight"}
-            else 52.0,
+            win_rate=100.0 if opponent in {"aggressive", "tight"} else 45.0,
+            bust_rate=0.0 if opponent in {"aggressive", "tight"} else 52.0,
         )
 
     pd.DataFrame(rows).to_csv(path, index=False)
-
-
 
 
 def write_sample_head_to_head_csv(path):
@@ -223,11 +220,12 @@ def write_sample_head_to_head_csv(path):
 
     pd.DataFrame(rows).to_csv(path, index=False)
 
-def test_validate_checkpoint_results_generates_expected_statuses(tmp_path):
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
 
-    report = validate_checkpoint_results(csv_path)
+def test_validate_evaluation_results_generates_expected_statuses(tmp_path):
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
+
+    report = validate_evaluation_results(csv_path)
     counts = report.status_counts()
 
     assert report.passed
@@ -235,36 +233,26 @@ def test_validate_checkpoint_results_generates_expected_statuses(tmp_path):
     assert counts[STATUS_PASS] > 0
     assert counts[STATUS_WARNING] >= 1
 
-    check_names = {
-        check.check_name
-        for check in report.checks
-    }
+    check_names = {check.check_name for check in report.checks}
     assert "Monte Carlo: Adaptive beats rule-based vs aggressive" in check_names
     assert "Monte Carlo: Adaptive beats rule-based vs calling" in check_names
     assert "Monte Carlo: Adaptive exploits TightPlayer" in check_names
 
 
-def test_validate_checkpoint_results_fails_when_adaptive_loses_to_rule_based(
+def test_validate_evaluation_results_fails_when_adaptive_loses_to_rule_based(
     tmp_path,
 ):
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
 
     df = pd.read_csv(csv_path)
-    mask = (
-        (df["agent_name"] == "adaptive_mc")
-        & (df["opponent_name"] == "calling")
-    )
+    mask = (df["agent_name"] == "adaptive_mc") & (df["opponent_name"] == "calling")
     df.loc[mask, "profit_bb"] = -5.0
     df.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(csv_path)
+    report = validate_evaluation_results(csv_path)
 
-    failing_checks = [
-        check
-        for check in report.checks
-        if check.status == STATUS_FAIL
-    ]
+    failing_checks = [check for check in report.checks if check.status == STATUS_FAIL]
 
     assert not report.passed
     assert any(
@@ -273,29 +261,28 @@ def test_validate_checkpoint_results_fails_when_adaptive_loses_to_rule_based(
     )
 
 
-def test_validate_checkpoint_results_skips_missing_required_rows(tmp_path):
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
+def test_validate_evaluation_results_skips_missing_required_rows(tmp_path):
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
 
     df = pd.read_csv(csv_path)
     df = df[df["agent_name"] != "oracle_mc"]
     df.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(csv_path)
+    report = validate_evaluation_results(csv_path)
 
     assert any(
-        check.status == STATUS_SKIPPED
-        and check.agent_name == "oracle_mc"
+        check.status == STATUS_SKIPPED and check.agent_name == "oracle_mc"
         for check in report.checks
     )
 
 
 def test_validation_markdown_and_json_reports_are_written(tmp_path):
-    csv_path = tmp_path / "checkpoint_results.csv"
+    csv_path = tmp_path / "training_episode_results.csv"
     output_dir = tmp_path / "validation"
-    write_sample_checkpoint_csv(csv_path)
+    write_sample_final_model_csv(csv_path)
 
-    report = validate_checkpoint_results(csv_path)
+    report = validate_evaluation_results(csv_path)
     markdown_path = write_validation_markdown_report(report, output_dir)
     json_path = write_validation_json_report(report, output_dir)
 
@@ -312,14 +299,14 @@ def test_validation_markdown_and_json_reports_are_written(tmp_path):
 
 
 def test_render_validation_markdown_contains_thresholds(tmp_path):
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
     thresholds = ValidationThresholds(
         min_seeds_per_matchup=2,
         max_std_across_seeds_bb=2.5,
     )
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         thresholds=thresholds,
     )
@@ -399,14 +386,13 @@ def test_validation_cli_rejects_non_positive_seed_minimum():
         )
 
 
-
 def test_validation_warns_when_always_raise_beats_adaptive_by_large_margin(
     tmp_path,
 ):
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
 
-    report = validate_checkpoint_results(csv_path)
+    report = validate_evaluation_results(csv_path)
 
     checks = [
         check
@@ -421,40 +407,33 @@ def test_validation_warns_when_always_raise_beats_adaptive_by_large_margin(
 
 
 def test_validation_warns_about_trivial_always_raise_exploit(tmp_path):
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
 
-    report = validate_checkpoint_results(csv_path)
+    report = validate_evaluation_results(csv_path)
 
     warning_names = {
-        check.check_name
-        for check in report.checks
-        if check.status == STATUS_WARNING
+        check.check_name for check in report.checks if check.status == STATUS_WARNING
     }
 
-    assert (
-        "Always-raise trivial exploit sanity check vs aggressive"
-        in warning_names
-    )
+    assert "Always-raise trivial exploit sanity check vs aggressive" in warning_names
     assert "Always-raise trivial exploit sanity check vs tight" in warning_names
-    assert (
-        "Always-raise trivial exploit sanity check vs calling"
-        not in warning_names
-    )
+    assert "Always-raise trivial exploit sanity check vs calling" not in warning_names
 
 
 def test_validation_warns_when_tight_is_saturated_by_simple_baselines(
     tmp_path,
 ):
-    csv_path = tmp_path / "checkpoint_results.csv"
-    write_sample_checkpoint_csv(csv_path)
+    csv_path = tmp_path / "training_episode_results.csv"
+    write_sample_final_model_csv(csv_path)
 
-    report = validate_checkpoint_results(csv_path)
+    report = validate_evaluation_results(csv_path)
 
     checks = [
         check
         for check in report.checks
-        if check.check_name == "Monte Carlo: TightPlayer baseline saturation sanity check"
+        if check.check_name
+        == "Monte Carlo: TightPlayer baseline saturation sanity check"
     ]
 
     assert len(checks) == 1
@@ -467,7 +446,7 @@ def test_head_to_head_validation_mode_uses_direct_matchup_checks(tmp_path):
     csv_path = tmp_path / "head_to_head_results.csv"
     write_sample_head_to_head_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_HEAD_TO_HEAD,
     )
@@ -500,15 +479,13 @@ def test_head_to_head_validation_warns_for_always_raise_stress_test(
     csv_path = tmp_path / "head_to_head_results.csv"
     write_sample_head_to_head_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode="head-to-head",
     )
 
     stress_checks = [
-        check
-        for check in report.checks
-        if check.category == "head_to_head_stress_test"
+        check for check in report.checks if check.category == "head_to_head_stress_test"
     ]
 
     assert stress_checks
@@ -526,14 +503,11 @@ def test_head_to_head_validation_fails_when_adaptive_loses_to_rule_based(
     write_sample_head_to_head_csv(csv_path)
 
     df = pd.read_csv(csv_path)
-    mask = (
-        (df["agent_name"] == "adaptive_mc")
-        & (df["opponent_name"] == "rule_based")
-    )
+    mask = (df["agent_name"] == "adaptive_mc") & (df["opponent_name"] == "rule_based")
     df.loc[mask, "profit_bb"] = -5.0
     df.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode="head-to-head",
     )
@@ -543,7 +517,6 @@ def test_head_to_head_validation_fails_when_adaptive_loses_to_rule_based(
         and check.status == STATUS_FAIL
         for check in report.checks
     )
-
 
 
 def write_sample_generalization_csv(path):
@@ -670,7 +643,7 @@ def test_generalization_validation_mode_uses_variant_checks(tmp_path):
     csv_path = tmp_path / "generalization_results.csv"
     write_sample_generalization_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode="generalization",
     )
@@ -702,15 +675,13 @@ def test_generalization_validation_warns_for_oracle_gap_and_classifier(
     csv_path = tmp_path / "generalization_results.csv"
     write_sample_generalization_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode="generalization",
     )
 
     warnings = {
-        check.check_name
-        for check in report.checks
-        if check.status == STATUS_WARNING
+        check.check_name for check in report.checks if check.status == STATUS_WARNING
     }
     oracle_gap_checks = [
         check
@@ -747,7 +718,7 @@ def test_generalization_validation_fails_when_adaptive_is_not_positive(
     df.loc[mask, "profit_bb"] = -5.0
     df.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode="generalization",
     )
@@ -787,14 +758,8 @@ def test_generalization_validation_cli_parser_accepts_thresholds():
 
     assert args.validation_mode == "generalization"
     assert thresholds.min_generalization_positive_variants == 4
-    assert (
-        thresholds.min_generalization_adaptive_beats_general_variants
-        == 4
-    )
-    assert (
-        thresholds.min_generalization_adaptive_beats_rule_based_variants
-        == 2
-    )
+    assert thresholds.min_generalization_adaptive_beats_general_variants == 4
+    assert thresholds.min_generalization_adaptive_beats_rule_based_variants == 2
     assert thresholds.max_generalization_oracle_gap_bb == 2.5
     assert thresholds.generalization_extreme_aggressive_min_profit_bb == -8.0
     assert thresholds.generalization_extreme_aggressive_max_bust_rate == 90.0

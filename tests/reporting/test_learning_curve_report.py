@@ -10,12 +10,12 @@ from src.evaluation.metrics.seed_statistics import (
     SEED_SPREAD_COLUMN,
     SEED_STANDARD_ERROR_COLUMN,
 )
-from src.evaluation.reporting.checkpoint_report import (
+from src.evaluation.reporting.learning_curve_report import (
     aggregate_across_seeds,
     best_rows_by_agent,
-    create_checkpoint_plots,
-    load_checkpoint_report_data,
-    write_checkpoint_html_report,
+    create_learning_curve_plots,
+    load_learning_curve_report_data,
+    write_learning_curve_html_report,
 )
 
 
@@ -25,6 +25,8 @@ def write_sample_checkpoint_csv(path):
             {
                 "training_run": "sample_run",
                 "model_seed": 42,
+                "model_source": "checkpoint",
+                "training_episode": None,
                 "checkpoint_episode": 500,
                 "experiment_id": "a",
                 "experiment_name": "adaptive_mc_vs_calling",
@@ -56,6 +58,8 @@ def write_sample_checkpoint_csv(path):
             {
                 "training_run": "sample_run",
                 "model_seed": 456,
+                "model_source": "checkpoint",
+                "training_episode": None,
                 "checkpoint_episode": 500,
                 "experiment_id": "b",
                 "experiment_name": "adaptive_mc_vs_calling",
@@ -89,11 +93,11 @@ def write_sample_checkpoint_csv(path):
     df.to_csv(path, index=False)
 
 
-def test_load_checkpoint_report_data_filters_opponent(tmp_path):
+def test_load_learning_curve_report_data_filters_opponent(tmp_path):
     csv_path = tmp_path / "results.csv"
     write_sample_checkpoint_csv(csv_path)
 
-    result = load_checkpoint_report_data(csv_path, opponent="calling")
+    result = load_learning_curve_report_data(csv_path, opponent="calling")
 
     assert len(result) == 2
     assert set(result["opponent_name"]) == {"calling"}
@@ -102,7 +106,7 @@ def test_load_checkpoint_report_data_filters_opponent(tmp_path):
 def test_aggregate_across_seeds_calculates_agent_checkpoint_rows(tmp_path):
     csv_path = tmp_path / "results.csv"
     write_sample_checkpoint_csv(csv_path)
-    metrics = load_checkpoint_report_data(csv_path)
+    metrics = load_learning_curve_report_data(csv_path)
 
     aggregated = aggregate_across_seeds(metrics)
 
@@ -111,9 +115,7 @@ def test_aggregate_across_seeds_calculates_agent_checkpoint_rows(tmp_path):
     assert row["seeds"] == 2
     assert row["games"] == 2
     assert row["mean_profit_bb"] == 1.5
-    assert row["mean_profit_bb_std_across_seeds"] == pytest.approx(
-        0.7071067811865476
-    )
+    assert row["mean_profit_bb_std_across_seeds"] == pytest.approx(0.7071067811865476)
     assert row[SEED_STANDARD_ERROR_COLUMN] == pytest.approx(0.5)
     assert row[SEED_CI_LOWER_COLUMN] == pytest.approx(-4.853102368087348)
     assert row[SEED_CI_UPPER_COLUMN] == pytest.approx(7.853102368087348)
@@ -148,16 +150,16 @@ def test_best_rows_by_agent_selects_highest_mean_profit(tmp_path):
     assert result.iloc[0]["checkpoint_episode"] == 1500
 
 
-def test_write_checkpoint_html_report_creates_file_and_plots(tmp_path):
+def test_write_learning_curve_html_report_creates_file_and_plots(tmp_path):
     csv_path = tmp_path / "results.csv"
     output_dir = tmp_path / "report"
     write_sample_checkpoint_csv(csv_path)
 
-    output_path = write_checkpoint_html_report(csv_path, output_dir)
+    output_path = write_learning_curve_html_report(csv_path, output_dir)
 
     assert output_path.exists()
     html = output_path.read_text(encoding="utf-8")
-    assert "Checkpoint evaluation report" in html
+    assert "Learning-curve analysis" in html
     assert "Metric glossary" in html
     assert any((output_dir / "plots").glob("*.png"))
 
@@ -185,10 +187,10 @@ def test_classifier_plots_include_all_adaptive_agents(monkeypatch, tmp_path):
             classifier_plot_agents.append(set(aggregated["agent_name"]))
 
     monkeypatch.setattr(
-        "src.evaluation.reporting.checkpoint_report.plot_metric_by_checkpoint",
+        "src.evaluation.reporting.learning_curve_report.plot_metric_by_checkpoint",
         capture_plot,
     )
 
-    create_checkpoint_plots(pd.DataFrame(rows), tmp_path)
+    create_learning_curve_plots(pd.DataFrame(rows), tmp_path)
 
     assert classifier_plot_agents == [set(ADAPTIVE_AGENTS)] * 2

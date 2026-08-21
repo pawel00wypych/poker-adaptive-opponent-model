@@ -6,9 +6,7 @@ from scipy.stats import t as student_t
 
 SEED_CONFIDENCE_LEVEL = 0.95
 
-SEED_STANDARD_ERROR_COLUMN = (
-    "mean_profit_bb_standard_error_across_seeds"
-)
+SEED_STANDARD_ERROR_COLUMN = "mean_profit_bb_standard_error_across_seeds"
 SEED_CI_LOWER_COLUMN = "mean_profit_bb_ci_95_lower_across_seeds"
 SEED_CI_UPPER_COLUMN = "mean_profit_bb_ci_95_upper_across_seeds"
 SEED_CI_MARGIN_COLUMN = "mean_profit_bb_ci_95_margin_across_seeds"
@@ -32,7 +30,8 @@ def add_seed_level_statistical_summary(
 ) -> pd.DataFrame:
     """Add a 95% Student-t summary across independent training seeds.
 
-    The input contains one aggregated row per agent, opponent, and checkpoint.
+    The input contains one aggregated row per agent, opponent, and final
+    training episode.
     Its mean and standard deviation must be calculated from equally weighted
     per-seed means. A confidence interval is undefined for fewer than two
     seeds, so the corresponding fields remain missing instead of reporting a
@@ -64,16 +63,11 @@ def add_seed_level_statistical_summary(
         result["mean_profit_bb_std_across_seeds"],
         errors="coerce",
     )
-    valid = (
-        seed_counts.ge(2)
-        & means.notna()
-        & standard_deviations.notna()
-    )
+    valid = seed_counts.ge(2) & means.notna() & standard_deviations.notna()
 
     standard_errors = pd.Series(np.nan, index=result.index, dtype="float64")
-    standard_errors.loc[valid] = (
-        standard_deviations.loc[valid]
-        / np.sqrt(seed_counts.loc[valid])
+    standard_errors.loc[valid] = standard_deviations.loc[valid] / np.sqrt(
+        seed_counts.loc[valid]
     )
 
     margins = pd.Series(np.nan, index=result.index, dtype="float64")
@@ -90,9 +84,7 @@ def add_seed_level_statistical_summary(
     result[SEED_CI_UPPER_COLUMN] = means + margins
 
     if {SEED_MIN_COLUMN, SEED_MAX_COLUMN}.issubset(result.columns):
-        result[SEED_SPREAD_COLUMN] = (
-            result[SEED_MAX_COLUMN] - result[SEED_MIN_COLUMN]
-        )
+        result[SEED_SPREAD_COLUMN] = result[SEED_MAX_COLUMN] - result[SEED_MIN_COLUMN]
     else:
         result[SEED_MIN_COLUMN] = np.nan
         result[SEED_MAX_COLUMN] = np.nan

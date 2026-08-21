@@ -12,7 +12,7 @@ from src.evaluation.reporting.seed_stability import (
     build_seed_performance,
     build_seed_stability_report,
     calculate_kendalls_w,
-    select_checkpoint_rows,
+    select_final_model_rows,
     write_seed_stability_outputs,
 )
 from tests.reporting.test_experiment_summary import make_game_row
@@ -24,7 +24,7 @@ def write_seed_stability_input(path):
 
     def add_agent_results(
         *,
-        checkpoint,
+        training_episode,
         agent,
         profits,
         seeds=(1, 2, 3),
@@ -35,7 +35,7 @@ def write_seed_stability_input(path):
             rows.append(
                 make_game_row(
                     seed=seed,
-                    checkpoint=checkpoint,
+                    training_episode=training_episode,
                     agent=agent,
                     opponent=opponent,
                     game_id=game_id,
@@ -45,32 +45,17 @@ def write_seed_stability_input(path):
             game_id += 1
 
     add_agent_results(
-        checkpoint=1000,
-        agent="adaptive_mc",
-        profits=(-100.0, -100.0, -100.0),
-    )
-    add_agent_results(
-        checkpoint=1000,
-        agent="adaptive_q_learning",
-        profits=(100.0, 100.0, 100.0),
-    )
-    add_agent_results(
-        checkpoint=1000,
-        agent="adaptive_sarsa",
-        profits=(0.0, 0.0, 0.0),
-    )
-    add_agent_results(
-        checkpoint=2000,
+        training_episode=2000,
         agent="adaptive_mc",
         profits=(10.0, 8.0, 6.0),
     )
     add_agent_results(
-        checkpoint=2000,
+        training_episode=2000,
         agent="adaptive_q_learning",
         profits=(5.0, 7.0, 9.0),
     )
     add_agent_results(
-        checkpoint=2000,
+        training_episode=2000,
         agent="adaptive_sarsa",
         profits=(0.0, 0.0, 0.0),
     )
@@ -86,7 +71,8 @@ def make_seed_metric(
 ):
     return {
         "training_run": "run",
-        "checkpoint_episode": 2000,
+        "model_source": "final",
+        "training_episode": 2000,
         "opponent_name": "calling",
         "model_seed": seed,
         "agent_name": agent,
@@ -133,23 +119,21 @@ def test_calculate_kendalls_w_corrects_tied_rankings():
     assert calculate_kendalls_w(rankings_without_any_order) is None
 
 
-def test_seed_report_uses_latest_checkpoint_and_keeps_extreme_seed_ids(
+def test_seed_report_uses_final_models_and_keeps_extreme_seed_ids(
     tmp_path,
 ):
     input_path = tmp_path / "results.csv"
     write_seed_stability_input(input_path)
 
-    report, performance, summary, rankings, stability = (
-        build_seed_stability_report(input_path)
+    report, performance, summary, rankings, stability = build_seed_stability_report(
+        input_path
     )
 
-    assert report.overview["checkpoints"] == [2000]
-    assert set(performance["checkpoint_episode"]) == {2000}
-    assert set(rankings["checkpoint_episode"]) == {2000}
+    assert report.overview["final_training_episodes"] == [2000]
+    assert set(performance["training_episode"]) == {2000}
+    assert set(rankings["training_episode"]) == {2000}
 
-    monte_carlo = summary[
-        summary["agent_name"] == "adaptive_mc"
-    ].iloc[0]
+    monte_carlo = summary[summary["agent_name"] == "adaptive_mc"].iloc[0]
     assert monte_carlo["best_seed"] == 1
     assert monte_carlo["best_seed_mean_profit_bb"] == 10.0
     assert monte_carlo["worst_seed"] == 3
@@ -166,28 +150,18 @@ def test_seed_report_uses_latest_checkpoint_and_keeps_extreme_seed_ids(
     assert ranking_row["ranking_stability"] == RANKING_STABILITY_MODERATE
 
 
-def test_explicit_checkpoint_selection_and_unknown_checkpoint_error(
+def test_final_model_rows_are_not_selected_by_episode(
     tmp_path,
 ):
     input_path = tmp_path / "results.csv"
     write_seed_stability_input(input_path)
-    _, performance, _, _, _ = build_seed_stability_report(
-        input_path,
-        config=SeedStabilityConfig(checkpoint_episode=1000),
-    )
+    _, performance, _, _, _ = build_seed_stability_report(input_path)
 
-    assert set(performance["checkpoint_episode"]) == {1000}
+    assert set(performance["training_episode"]) == {2000}
 
-    metrics = pd.DataFrame(
-        [
-            {
-                "training_run": "run",
-                "checkpoint_episode": 1000,
-            }
-        ]
-    )
-    with pytest.raises(ValueError, match="Checkpoint 3000 is not present"):
-        select_checkpoint_rows(metrics, checkpoint_episode=3000)
+    selected = select_final_model_rows(performance)
+    assert len(selected) == len(performance)
+    assert set(selected["training_episode"]) == {2000}
 
 
 def test_incomplete_seed_ranking_is_excluded_from_kendalls_w():
@@ -224,7 +198,7 @@ def test_report_keeps_rank_fields_when_no_seed_has_a_complete_ranking(
         [
             make_game_row(
                 seed=1,
-                checkpoint=2000,
+                training_episode=2000,
                 agent="agent_a",
                 opponent="calling",
                 game_id=0,
@@ -232,7 +206,7 @@ def test_report_keeps_rank_fields_when_no_seed_has_a_complete_ranking(
             ),
             make_game_row(
                 seed=2,
-                checkpoint=2000,
+                training_episode=2000,
                 agent="agent_b",
                 opponent="calling",
                 game_id=1,
@@ -278,26 +252,18 @@ def test_seed_stability_outputs_include_all_reports_and_valid_json(
         "ranking_stability.tex",
     }
 
-    json_text = (output_dir / "seed_stability.json").read_text(
-        encoding="utf-8"
-    )
+    json_text = (output_dir / "seed_stability.json").read_text(encoding="utf-8")
     payload = json.loads(json_text)
     assert "NaN" not in json_text
     assert payload["seed_stability_summary"][0]["best_seed"] is not None
-    assert payload["ranking_stability"][0]["kendalls_w"] == pytest.approx(
-        7 / 9
-    )
+    assert payload["ranking_stability"][0]["kendalls_w"] == pytest.approx(7 / 9)
 
-    markdown = (output_dir / "seed_stability.md").read_text(
-        encoding="utf-8"
-    )
+    markdown = (output_dir / "seed_stability.md").read_text(encoding="utf-8")
     assert "# Seed stability report" in markdown
     assert "## Ranking stability" in markdown
     assert "Kendall's W" in markdown
 
 
 def test_seed_stability_config_rejects_invalid_values():
-    with pytest.raises(ValueError, match="checkpoint_episode"):
-        SeedStabilityConfig(checkpoint_episode=-1)
     with pytest.raises(ValueError, match="at least 2"):
         SeedStabilityConfig(min_complete_seeds_for_ranking=1)

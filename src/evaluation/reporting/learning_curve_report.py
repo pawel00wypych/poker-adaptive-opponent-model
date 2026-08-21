@@ -11,7 +11,9 @@ import pandas as pd
 
 from src.evaluation.algorithm_metadata import ADAPTIVE_AGENTS
 from src.evaluation.constants import ORACLE_AGENTS
-from src.evaluation.metrics.checkpoint_metrics import calculate_checkpoint_metrics
+from src.evaluation.metrics.learning_curve_metrics import (
+    calculate_learning_curve_metrics,
+)
 from src.evaluation.metrics.seed_statistics import (
     SEED_CI_LOWER_COLUMN,
     SEED_CI_MARGIN_COLUMN,
@@ -67,12 +69,12 @@ def display_agent_name(agent_name: str) -> str:
     return AGENT_LABELS.get(agent_name, agent_name)
 
 
-def load_checkpoint_report_data(
+def load_learning_curve_report_data(
     input_path: str | Path,
     opponent: str | None = None,
     agent: str | None = None,
 ) -> pd.DataFrame:
-    df = calculate_checkpoint_metrics(str(input_path))
+    df = calculate_learning_curve_metrics(str(input_path))
 
     if opponent is not None:
         df = df[df["opponent_name"] == opponent]
@@ -196,7 +198,7 @@ def plot_metric_by_checkpoint(
     save_current_figure(output_path)
 
 
-def create_checkpoint_plots(
+def create_learning_curve_plots(
     aggregated: pd.DataFrame,
     output_dir: str | Path,
 ) -> list[Path]:
@@ -249,8 +251,7 @@ def metric_glossary_html() -> str:
         "mean_policy_switches",
     ]
     return definition_list(
-        (metric, METRIC_DESCRIPTIONS[metric])
-        for metric in relevant_metrics
+        (metric, METRIC_DESCRIPTIONS[metric]) for metric in relevant_metrics
     )
 
 
@@ -276,12 +277,11 @@ def metric_glossary_markdown() -> str:
         "mean_policy_switches",
     ]
     return "\n".join(
-        f"- **{metric}**: {METRIC_DESCRIPTIONS[metric]}"
-        for metric in relevant_metrics
+        f"- **{metric}**: {METRIC_DESCRIPTIONS[metric]}" for metric in relevant_metrics
     )
 
 
-def write_checkpoint_html_report(
+def write_learning_curve_html_report(
     input_path: str | Path,
     output_dir: str | Path,
     opponent: str | None = None,
@@ -290,10 +290,10 @@ def write_checkpoint_html_report(
     output_dir = ensure_output_dir(output_dir)
     plots_dir = ensure_output_dir(output_dir / "plots")
 
-    metrics_df = load_checkpoint_report_data(input_path, opponent, agent)
+    metrics_df = load_learning_curve_report_data(input_path, opponent, agent)
     aggregated = aggregate_across_seeds(metrics_df)
     best = best_rows_by_agent(aggregated)
-    plots = create_checkpoint_plots(aggregated, plots_dir)
+    plots = create_learning_curve_plots(aggregated, plots_dir)
 
     plot_html = "\n".join(
         f'<div class="plot"><img src="plots/{plot.name}" alt="{plot.stem}"></div>'
@@ -301,8 +301,10 @@ def write_checkpoint_html_report(
     )
 
     body = f"""
-<h1>Checkpoint evaluation report</h1>
+<h1>Learning-curve analysis report</h1>
 <p class="note">{REPORT_INTRODUCTION}</p>
+<p>This diagnostic evaluates intermediate checkpoints to show learning
+progress. Its rows must not be merged into final-model benchmark reports.</p>
 <h2>Filters</h2>
 <ul>
   <li><strong>Input file:</strong> <code>{Path(input_path)}</code></li>
@@ -323,12 +325,12 @@ def write_checkpoint_html_report(
 {dataframe_to_html_table(metrics_df[SUMMARY_COLUMNS])}
 """
 
-    output_path = output_dir / "checkpoint_report.html"
-    write_text(output_path, html_page("Checkpoint evaluation report", body))
+    output_path = output_dir / "learning_curve_report.html"
+    write_text(output_path, html_page("Learning-curve analysis report", body))
     return output_path
 
 
-def write_checkpoint_markdown_report(
+def write_learning_curve_markdown_report(
     input_path: str | Path,
     output_dir: str | Path,
     opponent: str | None = None,
@@ -337,19 +339,19 @@ def write_checkpoint_markdown_report(
     output_dir = ensure_output_dir(output_dir)
     plots_dir = ensure_output_dir(output_dir / "plots")
 
-    metrics_df = load_checkpoint_report_data(input_path, opponent, agent)
+    metrics_df = load_learning_curve_report_data(input_path, opponent, agent)
     aggregated = aggregate_across_seeds(metrics_df)
     best = best_rows_by_agent(aggregated)
-    plots = create_checkpoint_plots(aggregated, plots_dir)
+    plots = create_learning_curve_plots(aggregated, plots_dir)
 
-    plot_markdown = "\n".join(
-        f"![{plot.stem}](plots/{plot.name})"
-        for plot in plots
-    )
+    plot_markdown = "\n".join(f"![{plot.stem}](plots/{plot.name})" for plot in plots)
 
-    text = f"""# Checkpoint evaluation report
+    text = f"""# Learning-curve analysis report
 
 {REPORT_INTRODUCTION}
+
+This diagnostic evaluates intermediate checkpoints to show learning progress.
+Its rows must not be merged into final-model benchmark reports.
 
 ## Filters
 
@@ -378,6 +380,6 @@ def write_checkpoint_markdown_report(
 {dataframe_to_markdown_table(metrics_df[SUMMARY_COLUMNS])}
 """
 
-    output_path = output_dir / "checkpoint_report.md"
+    output_path = output_dir / "learning_curve_report.md"
     write_text(output_path, text)
     return output_path

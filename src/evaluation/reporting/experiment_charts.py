@@ -17,8 +17,8 @@ from src.evaluation.metrics.seed_statistics import (
     SEED_STANDARD_ERROR_COLUMN,
     add_seed_level_statistical_summary,
 )
-from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.reporting.plot_utils import ensure_output_dir, save_current_figure
+from src.evaluation.reporting.training_opponent_report import display_agent_name
 
 MEAN_CI_CHART_FILENAME = "mean_profit_ci_by_opponent.png"
 SEED_STABILITY_CHART_FILENAME = "seed_stability_by_opponent.png"
@@ -37,23 +37,11 @@ def _existing_columns(df: pd.DataFrame, columns: list[str]) -> list[str]:
     return [column for column in columns if column in df.columns]
 
 
-def _latest_checkpoint_rows(summary_table: pd.DataFrame) -> pd.DataFrame:
-    if summary_table.empty or "checkpoint_episode" not in summary_table.columns:
-        return summary_table.copy()
-
-    latest = summary_table.groupby(["training_run", "opponent_name"])[
-        "checkpoint_episode"
-    ].transform("max")
-    return summary_table[summary_table["checkpoint_episode"] == latest].copy()
-
-
 def _add_display_labels(df: pd.DataFrame, max_label_length: int) -> pd.DataFrame:
     result = df.copy()
     result["agent_label"] = result["agent_name"].map(display_agent_name)
     result["opponent_label"] = result["opponent_name"].astype(str)
-    result["plot_label"] = (
-        result["opponent_label"] + "\n" + result["agent_label"]
-    )
+    result["plot_label"] = result["opponent_label"] + "\n" + result["agent_label"]
 
     if max_label_length > 0:
         result["plot_label"] = result["plot_label"].map(
@@ -78,7 +66,7 @@ def _sort_for_plot(df: pd.DataFrame, value_column: str) -> pd.DataFrame:
         df,
         [
             "training_run",
-            "checkpoint_episode",
+            "training_episode",
             "opponent_name",
             value_column,
             "agent_name",
@@ -125,7 +113,7 @@ def plot_mean_profit_confidence_interval(
     config: ExperimentChartConfig | None = None,
 ) -> Path | None:
     config = config or ExperimentChartConfig()
-    data = _latest_checkpoint_rows(summary_table)
+    data = summary_table.copy()
 
     if data.empty or "mean_profit_bb" not in data.columns:
         return None
@@ -164,7 +152,7 @@ def plot_seed_stability(
     config: ExperimentChartConfig | None = None,
 ) -> Path | None:
     config = config or ExperimentChartConfig()
-    data = _latest_checkpoint_rows(summary_table)
+    data = summary_table.copy()
 
     if data.empty or "mean_profit_bb_std_across_seeds" not in data.columns:
         return None

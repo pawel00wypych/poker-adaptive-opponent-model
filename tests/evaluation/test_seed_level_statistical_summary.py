@@ -13,11 +13,11 @@ from src.evaluation.metrics.seed_statistics import (
     SEED_STANDARD_ERROR_COLUMN,
     add_seed_level_statistical_summary,
 )
-from src.evaluation.reporting.checkpoint_report import aggregate_across_seeds
 from src.evaluation.reporting.experiment_summary import (
     build_experiment_summary,
     write_experiment_summary_outputs,
 )
+from src.evaluation.reporting.training_opponent_report import aggregate_across_seeds
 from tests.reporting.test_experiment_summary import make_game_row
 
 
@@ -31,7 +31,8 @@ def make_per_seed_metric(
         "training_run": "run",
         "agent_name": "adaptive_mc",
         "opponent_name": "calling",
-        "checkpoint_episode": 1000,
+        "model_source": "final",
+        "training_episode": 1000,
         "model_seed": seed,
         "games": games,
         "mean_profit_bb": mean_profit_bb,
@@ -59,9 +60,7 @@ def test_seed_summary_uses_student_t_confidence_interval():
 
     row = add_seed_level_statistical_summary(summary).iloc[0]
 
-    assert row[SEED_STANDARD_ERROR_COLUMN] == pytest.approx(
-        0.6454972243679028
-    )
+    assert row[SEED_STANDARD_ERROR_COLUMN] == pytest.approx(0.6454972243679028)
     assert row[SEED_CI_MARGIN_COLUMN] == pytest.approx(2.0542602567605206)
     assert row[SEED_CI_LOWER_COLUMN] == pytest.approx(0.4457397432394794)
     assert row[SEED_CI_UPPER_COLUMN] == pytest.approx(4.554260256760521)
@@ -103,9 +102,7 @@ def test_aggregate_across_seeds_equally_weights_each_training_seed():
     assert row["seeds"] == 2
     assert row["games"] == 1001
     assert row["mean_profit_bb"] == 5.0
-    assert row["mean_profit_bb_std_across_seeds"] == pytest.approx(
-        7.0710678118654755
-    )
+    assert row["mean_profit_bb_std_across_seeds"] == pytest.approx(7.0710678118654755)
     assert row[SEED_STANDARD_ERROR_COLUMN] == pytest.approx(5.0)
     assert row[SEED_CI_MARGIN_COLUMN] == pytest.approx(63.53102368087347)
     assert row[SEED_MIN_COLUMN] == 0.0
@@ -122,7 +119,7 @@ def test_experiment_summary_exports_seed_statistics_and_null_for_one_seed(
         [
             make_game_row(
                 seed=42,
-                checkpoint=1000,
+                training_episode=1000,
                 agent="adaptive_mc",
                 opponent="calling",
                 game_id=0,
@@ -143,9 +140,7 @@ def test_experiment_summary_exports_seed_statistics_and_null_for_one_seed(
         export_latex=False,
         include_charts=False,
     )
-    json_text = (output_dir / "experiment_summary.json").read_text(
-        encoding="utf-8"
-    )
+    json_text = (output_dir / "experiment_summary.json").read_text(encoding="utf-8")
     payload = json.loads(json_text)
 
     assert payload["ranking"][0][SEED_CI_LOWER_COLUMN] is None

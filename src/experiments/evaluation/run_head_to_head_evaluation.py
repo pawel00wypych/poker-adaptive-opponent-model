@@ -7,9 +7,6 @@ from concurrent.futures import (
 from pathlib import Path
 from time import perf_counter
 
-from src.evaluation.runners.checkpoint_evaluator import (
-    discover_model_bundles,
-)
 from src.evaluation.runners.head_to_head_evaluator import (
     DEFAULT_HEAD_TO_HEAD_AGENTS,
     DEFAULT_HEAD_TO_HEAD_OPPONENTS,
@@ -22,6 +19,9 @@ from src.evaluation.runners.head_to_head_evaluator import (
     evaluate_head_to_head_bundle,
     learned_tested_agents,
     write_head_to_head_rows,
+)
+from src.evaluation.runners.model_evaluator import (
+    discover_final_model_bundles,
 )
 
 
@@ -41,17 +41,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "Required only for learned agents. Directory created by "
             "run_training_suite, for example "
             "results/training_runs/state_v2_linear_2000_sqrt_visit."
-        ),
-    )
-
-    parser.add_argument(
-        "--checkpoint-episodes",
-        type=int,
-        nargs="+",
-        default=None,
-        help=(
-            "Required only for learned agents. Checkpoint episodes to "
-            "evaluate, e.g. 2000 or 1000 2000."
         ),
     )
 
@@ -88,9 +77,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=sorted(SUPPORTED_HEAD_TO_HEAD_AGENTS),
         nargs="+",
         default=list(DEFAULT_HEAD_TO_HEAD_AGENTS),
-        help=(
-            "Agents/policies to evaluate against direct baseline opponents."
-        ),
+        help=("Agents/policies to evaluate against direct baseline opponents."),
     )
 
     parser.add_argument(
@@ -130,21 +117,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--use-final-models",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help=(
-            "Evaluate final.pkl instead of checkpoint files. Usually leave disabled "
-            "for checkpoint-aligned direct comparisons."
-        ),
-    )
-
-    parser.add_argument(
         "--fail-on-incomplete",
         action=argparse.BooleanOptionalAction,
         default=False,
         help=(
-            "Fail when any requested seed/checkpoint bundle is incomplete. "
+            "Fail when any requested seed/final-model bundle is incomplete. "
             "By default incomplete bundles are skipped."
         ),
     )
@@ -152,47 +129,19 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
 
     if args.games <= 0:
-        parser.error(
-            "--games must be greater than zero"
-        )
+        parser.error("--games must be greater than zero")
 
     if args.workers <= 0:
-        parser.error(
-            "--workers must be greater than zero"
-        )
+        parser.error("--workers must be greater than zero")
 
     if args.evaluation_replicates <= 0:
-        parser.error(
-            "--evaluation-replicates must be greater than zero"
-        )
+        parser.error("--evaluation-replicates must be greater than zero")
 
     if args.eval_seed_base < 0:
         parser.error("--eval-seed-base must be non-negative")
 
-    if (
-        args.checkpoint_episodes is not None
-        and any(episode <= 0 for episode in args.checkpoint_episodes)
-    ):
-        parser.error(
-            "All checkpoint episodes must be positive"
-        )
-
-    if (
-        args.checkpoint_episodes is not None
-        and len(set(args.checkpoint_episodes))
-        != len(args.checkpoint_episodes)
-    ):
-        parser.error(
-            "--checkpoint-episodes must not contain duplicates"
-        )
-
-    if (
-        args.seeds is not None
-        and len(set(args.seeds)) != len(args.seeds)
-    ):
-        parser.error(
-            "--seeds must not contain duplicates"
-        )
+    if args.seeds is not None and len(set(args.seeds)) != len(args.seeds):
+        parser.error("--seeds must not contain duplicates")
 
     if args.seeds is not None and any(seed < 0 for seed in args.seeds):
         parser.error("All model seeds must be non-negative")
@@ -203,20 +152,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             parser.error(
                 "--training-run-dir is required when learned agents are selected"
             )
-        if args.checkpoint_episodes is None:
-            parser.error(
-                "--checkpoint-episodes is required when learned agents are selected"
-            )
     else:
         model_only_options = []
         if args.training_run_dir is not None:
             model_only_options.append("--training-run-dir")
-        if args.checkpoint_episodes is not None:
-            model_only_options.append("--checkpoint-episodes")
         if args.seeds is not None:
             model_only_options.append("--seeds")
-        if args.use_final_models:
-            model_only_options.append("--use-final-models")
         if args.fail_on_incomplete:
             model_only_options.append("--fail-on-incomplete")
         if model_only_options:
@@ -253,18 +194,18 @@ def save_summary(
     output_path: Path,
     arguments: argparse.Namespace,
     bundle_count: int,
+    training_episodes: list[int],
     row_count: int,
     duration_seconds: float,
 ) -> None:
-    summary_path = output_path.with_suffix(
-        ".summary.json"
-    )
+    summary_path = output_path.with_suffix(".summary.json")
 
     summary = {
         "evaluation_type": "direct_head_to_head",
         "output_path": str(output_path),
         "training_run_dir": arguments.training_run_dir,
-        "checkpoint_episodes": arguments.checkpoint_episodes,
+        "model_source": "final" if training_episodes else None,
+        "training_episodes": training_episodes,
         "model_seeds": arguments.seeds,
         "games": arguments.games,
         "evaluation_replicates": (
@@ -276,7 +217,6 @@ def save_summary(
         "opponents": arguments.opponents,
         "workers": arguments.workers,
         "eval_seed_base": arguments.eval_seed_base,
-        "use_final_models": arguments.use_final_models,
         "bundle_count": bundle_count,
         "row_count": row_count,
         "duration_seconds": duration_seconds,
@@ -300,9 +240,7 @@ def main() -> None:
     learned_agents = learned_tested_agents(args.agents)
     baseline_agents = baseline_tested_agents(args.agents)
     training_run_dir = (
-        Path(args.training_run_dir)
-        if args.training_run_dir is not None
-        else None
+        Path(args.training_run_dir) if args.training_run_dir is not None else None
     )
 
     output_path = Path(
@@ -318,18 +256,15 @@ def main() -> None:
     bundles = []
     if learned_agents:
         assert training_run_dir is not None
-        assert args.checkpoint_episodes is not None
-        bundles = discover_model_bundles(
+        bundles = discover_final_model_bundles(
             training_run_directory=training_run_dir,
-            checkpoint_episodes=args.checkpoint_episodes,
             seeds=args.seeds,
-            use_final_models=args.use_final_models,
             skip_incomplete=not args.fail_on_incomplete,
         )
 
     if learned_agents and not bundles:
         raise SystemExit(
-            "No complete model bundles found for the requested seeds/checkpoints."
+            "No complete final model bundles found for the requested seeds."
         )
 
     config = HeadToHeadEvaluationConfig(
@@ -345,7 +280,7 @@ def main() -> None:
         "Direct head-to-head evaluation started\n"
         f"training_run_dir={training_run_dir or 'not_applicable'}\n"
         f"bundles={len(bundles)}\n"
-        f"checkpoint_episodes={args.checkpoint_episodes or 'not_applicable'}\n"
+        f"training_episodes={sorted({bundle.episode for bundle in bundles}) or 'not_applicable'}\n"
         f"model_seeds={args.seeds or ('auto' if learned_agents else 'not_applicable')}\n"
         f"evaluation_replicates={args.evaluation_replicates if baseline_agents else 'not_applicable'}\n"
         f"games_per_matchup={args.games}\n"
@@ -364,9 +299,7 @@ def main() -> None:
             bundles,
             start=1,
         ):
-            print(
-                f"[{index}/{len(bundles)}] Evaluating {bundle.experiment_id}"
-            )
+            print(f"[{index}/{len(bundles)}] Evaluating {bundle.experiment_id}")
 
             rows = evaluate_head_to_head_bundle(
                 bundle=bundle,
@@ -375,9 +308,7 @@ def main() -> None:
 
             all_rows.extend(rows)
     else:
-        with ProcessPoolExecutor(
-            max_workers=args.workers
-        ) as executor:
+        with ProcessPoolExecutor(max_workers=args.workers) as executor:
             future_to_bundle = {
                 executor.submit(
                     evaluate_bundle_worker,
@@ -395,15 +326,11 @@ def main() -> None:
                 rows = future.result()
                 all_rows.extend(rows)
 
-                print(
-                    f"[{completed}/{len(bundles)}] Finished {bundle.experiment_id}"
-                )
+                print(f"[{completed}/{len(bundles)}] Finished {bundle.experiment_id}")
 
     if baseline_agents:
         if args.workers == 1:
-            all_rows.extend(
-                evaluate_baseline_replicates(config=config)
-            )
+            all_rows.extend(evaluate_baseline_replicates(config=config))
         else:
             with ProcessPoolExecutor(max_workers=args.workers) as executor:
                 future_to_replicate = {
@@ -412,9 +339,7 @@ def main() -> None:
                         evaluation_replicate_id,
                         config,
                     ): evaluation_replicate_id
-                    for evaluation_replicate_id in range(
-                        args.evaluation_replicates
-                    )
+                    for evaluation_replicate_id in range(args.evaluation_replicates)
                 }
                 for completed, future in enumerate(
                     as_completed(future_to_replicate),
@@ -433,14 +358,13 @@ def main() -> None:
         rows=all_rows,
     )
 
-    duration_seconds = (
-        perf_counter() - started_at
-    )
+    duration_seconds = perf_counter() - started_at
 
     save_summary(
         output_path=output_path,
         arguments=args,
         bundle_count=len(bundles),
+        training_episodes=sorted({bundle.episode for bundle in bundles}),
         row_count=len(all_rows),
         duration_seconds=duration_seconds,
     )

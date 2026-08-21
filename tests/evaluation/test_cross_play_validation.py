@@ -8,13 +8,13 @@ from src.evaluation.validation import (
     STATUS_WARNING,
     VALIDATION_MODE_CROSS_PLAY,
     ValidationThresholds,
-    validate_checkpoint_results,
+    validate_evaluation_results,
     validate_required_matchups_present,
 )
 from src.evaluation.validation.cross_play_validation import (
     validate_cross_play_pair_reciprocity,
 )
-from src.experiments.validation.validate_checkpoint_evaluation import (
+from src.experiments.validation.validate_evaluation_results import (
     build_thresholds,
     parse_args,
 )
@@ -47,13 +47,14 @@ def write_sample_cross_play_csv(path):
 def make_comparison_row(
     agent_name: str,
     opponent_name: str,
-    checkpoint_episode: int,
+    training_episode: int,
     mean_profit_bb: float,
 ) -> dict[str, object]:
     return {
         "agent_name": agent_name,
         "opponent_name": opponent_name,
-        "checkpoint_episode": checkpoint_episode,
+        "model_source": "final",
+        "training_episode": training_episode,
         "mean_profit_bb": mean_profit_bb,
     }
 
@@ -79,7 +80,7 @@ def test_cross_play_mode_validates_required_adaptive_matrix(tmp_path):
     csv_path = tmp_path / "cross_play.csv"
     write_sample_cross_play_csv(csv_path)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_CROSS_PLAY,
     )
@@ -105,8 +106,7 @@ def test_cross_play_mode_validates_required_adaptive_matrix(tmp_path):
     ]
     assert all(check.sample_size == 2 for check in reciprocity_checks)
     assert all(
-        "paired_seed_statistics" in check.details
-        for check in reciprocity_checks
+        "paired_seed_statistics" in check.details for check in reciprocity_checks
     )
 
 
@@ -123,7 +123,7 @@ def test_cross_play_mode_fails_when_directed_matchup_is_missing(tmp_path):
     ]
     rows.to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_CROSS_PLAY,
     )
@@ -171,7 +171,7 @@ def test_selected_cross_play_coverage_can_warn_for_missing_matchup():
     ]
 
 
-def test_cross_play_reciprocity_uses_latest_common_checkpoint():
+def test_cross_play_reciprocity_uses_latest_common_training_episode():
     first_spec, second_spec = ALGORITHM_VALIDATION_SPECS[:2]
     rows = pd.DataFrame(
         [
@@ -211,7 +211,7 @@ def test_cross_play_reciprocity_uses_latest_common_checkpoint():
     )[0]
 
     assert check.status == STATUS_WARNING
-    assert check.checkpoint_episode == 2000
+    assert check.training_episode == 2000
     assert check.observed_value == 6.0
     assert check.details["pair_sum_bb"] == 6.0
 
@@ -357,7 +357,7 @@ def test_cross_play_validates_optional_same_algorithm_general_pair(tmp_path):
     )
     pd.DataFrame(rows).to_csv(csv_path, index=False)
 
-    report = validate_checkpoint_results(
+    report = validate_evaluation_results(
         csv_path,
         validation_mode=VALIDATION_MODE_CROSS_PLAY,
     )

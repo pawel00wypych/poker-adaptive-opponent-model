@@ -54,8 +54,6 @@ def test_parse_stress_test_args_accepts_td_run_directories():
             "results/training_runs/sarsa",
             "--double-q-learning-run-dir",
             "results/training_runs/double_q_learning",
-            "--checkpoint-episodes",
-            "1000",
             "--seeds",
             "42",
             "123",
@@ -76,7 +74,6 @@ def test_parse_stress_test_args_accepts_td_run_directories():
     assert args.q_learning_run_dir == "results/training_runs/q_learning"
     assert args.sarsa_run_dir == "results/training_runs/sarsa"
     assert args.double_q_learning_run_dir == "results/training_runs/double_q_learning"
-    assert args.checkpoint_episodes == [1000]
     assert args.seeds == [42, 123]
     assert args.games == 10
     assert args.agents == [

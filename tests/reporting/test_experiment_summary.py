@@ -45,7 +45,7 @@ REQUIRED_RESULT_COLUMNS = {
 def make_game_row(
     *,
     seed,
-    checkpoint,
+    training_episode,
     agent,
     opponent,
     game_id,
@@ -65,7 +65,8 @@ def make_game_row(
     row.update(
         {
             "model_seed": seed,
-            "checkpoint_episode": checkpoint,
+            "model_source": "final",
+            "training_episode": training_episode,
             "experiment_name": f"{agent}_vs_{opponent}",
             "agent_name": agent,
             "opponent_name": opponent,
@@ -91,7 +92,7 @@ def add_group(
     *,
     agent,
     opponent,
-    checkpoint=2000,
+    training_episode=2000,
     seed_values=(42, 123),
     profit_by_seed=(10.0, 12.0),
     win_by_seed=(1, 1),
@@ -101,7 +102,7 @@ def add_group(
         rows.append(
             make_game_row(
                 seed=seed,
-                checkpoint=checkpoint,
+                training_episode=training_episode,
                 agent=agent,
                 opponent=opponent,
                 game_id=index,
@@ -194,13 +195,14 @@ def write_sample_results_csv(path):
     pd.DataFrame(rows).to_csv(path, index=False)
 
 
-def test_build_agent_ranking_sorts_agents_per_opponent_and_checkpoint():
+def test_build_agent_ranking_sorts_agents_per_opponent_and_training_episode():
     aggregated = pd.DataFrame(
         [
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 2000,
+                "model_source": "final",
+                "training_episode": 2000,
                 "agent_name": "rule_based",
                 "mean_profit_bb": -1.0,
                 "win_rate": 40.0,
@@ -210,7 +212,8 @@ def test_build_agent_ranking_sorts_agents_per_opponent_and_checkpoint():
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 2000,
+                "model_source": "final",
+                "training_episode": 2000,
                 "agent_name": "adaptive_mc",
                 "mean_profit_bb": 18.0,
                 "win_rate": 95.0,
@@ -232,7 +235,8 @@ def test_add_baseline_deltas_calculates_rule_based_and_oracle_gap():
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 2000,
+                "model_source": "final",
+                "training_episode": 2000,
                 "rank": 1,
                 "agent_name": "adaptive_mc",
                 "mean_profit_bb": 18.0,
@@ -240,7 +244,8 @@ def test_add_baseline_deltas_calculates_rule_based_and_oracle_gap():
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 2000,
+                "model_source": "final",
+                "training_episode": 2000,
                 "rank": 2,
                 "agent_name": "rule_based",
                 "mean_profit_bb": -1.0,
@@ -248,7 +253,8 @@ def test_add_baseline_deltas_calculates_rule_based_and_oracle_gap():
             {
                 "training_run": "run",
                 "opponent_name": "calling",
-                "checkpoint_episode": 2000,
+                "model_source": "final",
+                "training_episode": 2000,
                 "rank": 3,
                 "agent_name": "oracle_mc",
                 "mean_profit_bb": 20.0,
@@ -319,8 +325,7 @@ def test_build_experiment_summary_creates_ranking_deltas_and_findings(tmp_path):
         "Double Q-learning",
     ]:
         assert any(
-            f"Adaptive {algorithm_name} beats the rule-based baseline"
-            in finding
+            f"Adaptive {algorithm_name} beats the rule-based baseline" in finding
             for finding in report.main_findings
         )
         assert any(
@@ -363,9 +368,7 @@ def test_write_experiment_summary_outputs_creates_markdown_json_csv_and_latex(tm
     assert ORACLE_GAP_BB_COLUMN in ranking_csv.columns
     assert "delta_vs_oracle" not in ranking_csv.columns
 
-    markdown = (output_dir / "experiment_summary.md").read_text(
-        encoding="utf-8"
-    )
+    markdown = (output_dir / "experiment_summary.md").read_text(encoding="utf-8")
     assert "Oracle mean profit minus adaptive mean profit" in markdown
     assert "## Charts" in markdown
     assert "charts/mean_profit_ci_by_opponent.png" in markdown

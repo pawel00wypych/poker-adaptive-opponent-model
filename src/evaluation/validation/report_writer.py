@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.evaluation.reporting.checkpoint_report import display_agent_name
 from src.evaluation.reporting.html_utils import write_text
+from src.evaluation.reporting.training_opponent_report import display_agent_name
 from src.evaluation.validation.common import (
     VALIDATION_STATUSES,
     ValidationCheckResult,
@@ -19,10 +19,7 @@ from src.evaluation.validation.common import (
 def validation_checks_to_dataframe(
     checks: Iterable[ValidationCheckResult],
 ) -> pd.DataFrame:
-    rows = [
-        check.to_dict()
-        for check in checks
-    ]
+    rows = [check.to_dict() for check in checks]
 
     if not rows:
         return pd.DataFrame(
@@ -33,7 +30,7 @@ def validation_checks_to_dataframe(
                 "algorithm_name",
                 "agent_name",
                 "opponent_name",
-                "checkpoint_episode",
+                "training_episode",
                 "observed_value",
                 "threshold",
                 "sample_size",
@@ -46,6 +43,7 @@ def validation_checks_to_dataframe(
 
     return pd.DataFrame(rows)
 
+
 def _format_report_table(df: pd.DataFrame) -> pd.DataFrame:
     table = df[
         [
@@ -55,7 +53,7 @@ def _format_report_table(df: pd.DataFrame) -> pd.DataFrame:
             "check_name",
             "agent_name",
             "opponent_name",
-            "checkpoint_episode",
+            "training_episode",
             "observed_value",
             "threshold",
             "sample_size",
@@ -80,12 +78,11 @@ def _format_report_table(df: pd.DataFrame) -> pd.DataFrame:
     )
 
     table["agent_name"] = table["agent_name"].map(
-        lambda value: display_agent_name(value)
-        if isinstance(value, str)
-        else value
+        lambda value: display_agent_name(value) if isinstance(value, str) else value
     )
 
     return table
+
 
 def render_validation_markdown(report: ValidationReport) -> str:
     checks_df = validation_checks_to_dataframe(report.checks)
@@ -110,15 +107,14 @@ def render_validation_markdown(report: ValidationReport) -> str:
         f"- **Evaluation file:** `{report.input_path}`",
         f"- **Validation mode:** `{report.validation_mode}`",
         (
-            f"- **Selected checkpoint:** `{report.checkpoint_episode}`"
-            if report.checkpoint_episode is not None
-            else "- **Selected checkpoint:** `n/a`"
+            f"- **Final training episode:** `{report.training_episode}`"
+            if report.training_episode is not None
+            else "- **Final training episode:** `n/a`"
         ),
         (
-            "- **Checkpoint selection:** "
-            f"`{report.checkpoint_selection}`"
-            if report.checkpoint_selection is not None
-            else "- **Checkpoint selection:** `n/a`"
+            f"- **Model selection:** `{report.model_selection}`"
+            if report.model_selection is not None
+            else "- **Model selection:** `n/a`"
         ),
         f"- **Overall status:** `{'PASS' if report.passed else 'FAIL'}`",
         "",
@@ -145,12 +141,11 @@ def render_validation_markdown(report: ValidationReport) -> str:
     if checks_df.empty:
         lines.append("No checks were generated.")
     else:
-        lines.append(
-            _format_report_table(checks_df).to_markdown(index=False)
-        )
+        lines.append(_format_report_table(checks_df).to_markdown(index=False))
 
     lines.append("")
     return "\n".join(lines)
+
 
 def write_validation_markdown_report(
     report: ValidationReport,
@@ -165,6 +160,7 @@ def write_validation_markdown_report(
         render_validation_markdown(report),
     )
     return output_path
+
 
 def write_validation_json_report(
     report: ValidationReport,

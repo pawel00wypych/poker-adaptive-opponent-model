@@ -9,7 +9,7 @@ from src.evaluation.constants import (
     POLICY_GENERAL_Q_LEARNING_AGENT,
     RULE_BASED_AGENT,
 )
-from src.evaluation.runners.checkpoint_evaluator import ModelBundle
+from src.evaluation.runners.model_evaluator import ModelBundle
 from src.evaluation.runners.stress_test_evaluator import (
     DEFAULT_STRESS_TEST_AGENTS,
     DEFAULT_STRESS_TEST_OPPONENTS,
@@ -62,7 +62,8 @@ def make_bundle_with_q_paths(tmp_path: Path) -> ModelBundle:
     return ModelBundle(
         training_run_directory=tmp_path / "mc_run",
         seed=42,
-        checkpoint_episode=1000,
+        episode=1000,
+        model_source="final",
         unknown_model_path=Path("mc_unknown.pkl"),
         tight_model_path=Path("mc_tight.pkl"),
         aggressive_model_path=Path("mc_aggressive.pkl"),
@@ -146,34 +147,40 @@ def test_build_stress_tested_scripted_baseline(tmp_path):
 
 
 def test_duplicate_agent_and_opponent_names_get_distinct_registration_name():
-    assert stress_test_opponent_registration_name(
-        tested_agent_name=ALWAYS_CALL_AGENT,
-        opponent_name=ALWAYS_CALL_AGENT,
-    ) == "always_call_opponent"
+    assert (
+        stress_test_opponent_registration_name(
+            tested_agent_name=ALWAYS_CALL_AGENT,
+            opponent_name=ALWAYS_CALL_AGENT,
+        )
+        == "always_call_opponent"
+    )
 
-    assert stress_test_opponent_registration_name(
-        tested_agent_name=ADAPTIVE_Q_LEARNING_AGENT,
-        opponent_name=ALWAYS_CALL_AGENT,
-    ) == ALWAYS_CALL_AGENT
+    assert (
+        stress_test_opponent_registration_name(
+            tested_agent_name=ADAPTIVE_Q_LEARNING_AGENT,
+            opponent_name=ALWAYS_CALL_AGENT,
+        )
+        == ALWAYS_CALL_AGENT
+    )
 
 
 def test_build_stress_test_seed_is_deterministic_and_distinct():
     first = build_stress_test_seed(
         eval_seed_base=600_000,
         model_seed=42,
-        checkpoint_episode=1000,
+        model_episode=1000,
         matchup_game_index=0,
     )
     repeated = build_stress_test_seed(
         eval_seed_base=600_000,
         model_seed=42,
-        checkpoint_episode=1000,
+        model_episode=1000,
         matchup_game_index=0,
     )
     second = build_stress_test_seed(
         eval_seed_base=600_000,
         model_seed=42,
-        checkpoint_episode=1000,
+        model_episode=1000,
         matchup_game_index=1,
     )
 
@@ -205,7 +212,8 @@ def test_evaluate_stress_test_bundle_runs_all_matchups(tmp_path, monkeypatch):
         return {
             "training_run": bundle.training_run_directory.name,
             "model_seed": bundle.seed,
-            "checkpoint_episode": bundle.checkpoint_episode,
+            "model_source": "final",
+            "training_episode": bundle.training_episode,
             "experiment_id": bundle.experiment_id,
             "experiment_name": f"{tested_agent_name}_vs_{opponent_name}",
             "game_id": game_id,

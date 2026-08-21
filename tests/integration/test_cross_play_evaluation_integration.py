@@ -35,9 +35,7 @@ def test_cross_play_supports_policy_general_agents_for_optional_comparisons():
         POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
     }
 
-    assert set(POLICY_GENERAL_CROSS_PLAY_AGENTS).issubset(
-        SUPPORTED_CROSS_PLAY_AGENTS
-    )
+    assert set(POLICY_GENERAL_CROSS_PLAY_AGENTS).issubset(SUPPORTED_CROSS_PLAY_AGENTS)
 
 
 def test_parse_cross_play_args_accepts_td_run_directories_and_learned_agents():
@@ -51,8 +49,6 @@ def test_parse_cross_play_args_accepts_td_run_directories_and_learned_agents():
             "results/training_runs/sarsa",
             "--double-q-learning-run-dir",
             "results/training_runs/double_q_learning",
-            "--checkpoint-episodes",
-            "1000",
             "--seeds",
             "42",
             "123",
@@ -74,7 +70,6 @@ def test_parse_cross_play_args_accepts_td_run_directories_and_learned_agents():
     assert args.q_learning_run_dir == "results/training_runs/q_learning"
     assert args.sarsa_run_dir == "results/training_runs/sarsa"
     assert args.double_q_learning_run_dir == "results/training_runs/double_q_learning"
-    assert args.checkpoint_episodes == [1000]
     assert args.seeds == [42, 123]
     assert args.games == 10
     assert args.agents == [
