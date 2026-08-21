@@ -15,6 +15,10 @@ from src.evaluation.constants import (
     POLICY_TIGHT_AGENT,
     RULE_BASED_AGENT,
 )
+from src.evaluation.metrics.oracle_gap import (
+    ORACLE_GAP_BB_COLUMN,
+    calculate_oracle_gap_bb,
+)
 from src.evaluation.validation.common import (
     STATUS_FAIL,
     STATUS_PASS,
@@ -456,21 +460,23 @@ def validate_generalization_oracle_gap(
                 continue
 
             if paired_statistics is None:
-                oracle_gap = float(
-                    oracle_row["mean_profit_bb"]
-                    - adaptive_row["mean_profit_bb"]
+                oracle_gap_bb = float(
+                    calculate_oracle_gap_bb(
+                        oracle_row["mean_profit_bb"],
+                        adaptive_row["mean_profit_bb"],
+                    )
                 )
                 large_gap = (
-                    oracle_gap
+                    oracle_gap_bb
                     > thresholds.max_generalization_oracle_gap_bb
                 )
                 status = STATUS_WARNING if large_gap else STATUS_PASS
                 message = (
                     "Oracle minus adaptive mean profit is "
-                    f"{_format_float(oracle_gap)} BB/game."
+                    f"{_format_float(oracle_gap_bb)} BB/game."
                 )
             else:
-                oracle_gap = float(paired_statistics.mean_delta)
+                oracle_gap_bb = float(paired_statistics.mean_delta)
                 status = _maximum_delta_status(
                     paired_statistics,
                     thresholds.max_generalization_oracle_gap_bb,
@@ -489,7 +495,7 @@ def validate_generalization_oracle_gap(
                     agent_name=spec.adaptive_agent,
                     opponent_name=opponent_name,
                     checkpoint_episode=checkpoint_episode,
-                    observed_value=oracle_gap,
+                    observed_value=oracle_gap_bb,
                     threshold=thresholds.max_generalization_oracle_gap_bb,
                     sample_size=(
                         paired_statistics.common_seed_count
@@ -522,6 +528,7 @@ def validate_generalization_oracle_gap(
                         "oracle_mean_profit_bb": float(
                             oracle_row["mean_profit_bb"]
                         ),
+                        ORACLE_GAP_BB_COLUMN: oracle_gap_bb,
                         "max_oracle_gap_bb": thresholds.max_generalization_oracle_gap_bb,
                         **(
                             {

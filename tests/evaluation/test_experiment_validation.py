@@ -712,9 +712,19 @@ def test_generalization_validation_warns_for_oracle_gap_and_classifier(
         for check in report.checks
         if check.status == STATUS_WARNING
     }
+    oracle_gap_checks = [
+        check
+        for check in report.checks
+        if check.category == "generalization_oracle_gap"
+    ]
 
     assert "Monte Carlo: Generalization oracle gap vs tight_extreme" in warnings
     assert "Monte Carlo: Generalization oracle gap vs aggressive_extreme" in warnings
+    assert oracle_gap_checks
+    assert all(
+        check.details["oracle_gap_bb"] == check.observed_value
+        for check in oracle_gap_checks
+    )
     assert (
         "Monte Carlo: Generalization classifier accuracy vs aggressive_extreme"
         in warnings
