@@ -18,6 +18,8 @@ from src.evaluation.validation.baseline_sanity_validation import (
     validate_baseline_mirror_neutrality,
     validate_baseline_pair_reciprocity,
     validate_baseline_sanity_results_from_best_rows,
+    validate_minimum_evaluation_replicate_coverage,
+    validate_simulation_stability,
 )
 from src.evaluation.validation.checkpoint_validation import (
     validate_adaptive_beats_rule_based,
@@ -148,10 +150,12 @@ __all__ = [
     "validate_head_to_head_results_from_best_rows",
     "validate_head_to_head_rule_based_performance",
     "validate_head_to_head_specialist_rule_based_performance",
+    "validate_minimum_evaluation_replicate_coverage",
     "validate_minimum_seed_coverage",
     "validate_oracle_not_worse_than_adaptive",
     "validate_required_matchups_present",
     "validate_seed_stability",
+    "validate_simulation_stability",
     "validate_stress_test_adaptive_gap",
     "validate_stress_test_always_raise_resilience",
     "validate_stress_test_classifier_coverage",

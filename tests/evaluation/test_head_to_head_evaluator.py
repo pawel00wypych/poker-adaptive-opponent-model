@@ -14,6 +14,8 @@ from src.evaluation.runners.head_to_head_evaluator import (
     HeadToHeadEvaluationConfig,
     build_head_to_head_opponent,
     build_head_to_head_tested_player,
+    evaluate_baseline_replicate,
+    evaluate_baseline_replicates,
     evaluate_head_to_head_bundle,
     validate_head_to_head_agent,
     validate_head_to_head_opponent,
@@ -142,26 +144,26 @@ def test_build_head_to_head_fixed_general_policy(
 
 
 
-def test_build_head_to_head_always_call_tested_agent(tmp_path):
+def test_build_head_to_head_always_call_tested_agent_needs_no_model():
     player = build_head_to_head_tested_player(
         tested_agent_name=ALWAYS_CALL_AGENT,
-        bundle=sample_bundle(tmp_path),
+        bundle=None,
     )
 
     assert isinstance(player, AlwaysCallPlayer)
     assert player.player_name == ALWAYS_CALL_AGENT
 
 
-def test_build_head_to_head_always_raise_tested_agent(tmp_path):
+def test_build_head_to_head_always_raise_tested_agent_needs_no_model():
     player = build_head_to_head_tested_player(
         tested_agent_name=ALWAYS_RAISE_AGENT,
-        bundle=sample_bundle(tmp_path),
+        bundle=None,
     )
 
     assert isinstance(player, AlwaysRaisePlayer)
     assert player.player_name == ALWAYS_RAISE_AGENT
 
-def test_evaluate_head_to_head_bundle_runs_all_matchups(
+def test_evaluate_head_to_head_bundle_runs_only_learned_matchups(
     tmp_path,
     monkeypatch,
 ):
@@ -220,7 +222,11 @@ def test_evaluate_head_to_head_bundle_runs_all_matchups(
     config = HeadToHeadEvaluationConfig(
         games_per_matchup=2,
         opponents=(ALWAYS_CALL_AGENT, ALWAYS_RAISE_AGENT),
-        tested_agents=(ALWAYS_CALL_AGENT, ALWAYS_RAISE_AGENT),
+        tested_agents=(
+            POLICY_GENERAL_MC_AGENT,
+            ALWAYS_CALL_AGENT,
+            ALWAYS_RAISE_AGENT,
+        ),
         eval_seed_base=300_000,
         output_path=tmp_path / "h2h.csv",
     )
@@ -230,12 +236,93 @@ def test_evaluate_head_to_head_bundle_runs_all_matchups(
         config=config,
     )
 
+    assert len(rows) == 4
+    assert len(calls) == 4
+    assert all(call[0] == POLICY_GENERAL_MC_AGENT for call in calls)
+    assert rows[0]["experiment_name"] == "policy_general_mc_vs_always_call"
+    assert rows[-1]["experiment_name"] == "policy_general_mc_vs_always_raise"
+    assert [row["game_id"] for row in rows] == list(range(4))
+    assert [call[3] for call in calls] == [0, 1] * 2
+
+
+def test_evaluate_baseline_replicate_runs_without_model_bundle(
+    tmp_path,
+    monkeypatch,
+):
+    calls = []
+
+    def fake_evaluate_single_baseline_game(**kwargs):
+        calls.append(kwargs)
+        return {
+            "agent_name": kwargs["tested_agent_name"],
+            "opponent_name": kwargs["opponent_name"],
+            "evaluation_replicate_id": kwargs["evaluation_replicate_id"],
+            "model_seed": None,
+            "checkpoint_episode": None,
+            "game_id": kwargs["game_id"],
+        }
+
+    monkeypatch.setattr(
+        "src.evaluation.runners.head_to_head_evaluator."
+        "evaluate_single_baseline_game",
+        fake_evaluate_single_baseline_game,
+    )
+    config = HeadToHeadEvaluationConfig(
+        games_per_matchup=2,
+        opponents=(ALWAYS_CALL_AGENT, ALWAYS_RAISE_AGENT),
+        tested_agents=(
+            POLICY_GENERAL_MC_AGENT,
+            ALWAYS_CALL_AGENT,
+            RULE_BASED_AGENT,
+        ),
+        eval_seed_base=300_000,
+        output_path=tmp_path / "baseline.csv",
+        evaluation_replicates=4,
+    )
+
+    rows = evaluate_baseline_replicate(
+        evaluation_replicate_id=3,
+        config=config,
+    )
+
     assert len(rows) == 8
-    assert len(calls) == 8
-    assert rows[0]["experiment_name"] == "always_call_vs_always_call"
-    assert rows[-1]["experiment_name"] == "always_raise_vs_always_raise"
-    assert [row["game_id"] for row in rows] == list(range(8))
-    assert [call[3] for call in calls] == [0, 1] * 4
+    assert {row["agent_name"] for row in rows} == {
+        ALWAYS_CALL_AGENT,
+        RULE_BASED_AGENT,
+    }
+    assert all(row["evaluation_replicate_id"] == 3 for row in rows)
+    assert all(row["model_seed"] is None for row in rows)
+    assert [call["matchup_game_index"] for call in calls] == [0, 1] * 4
+
+
+def test_evaluate_baseline_replicates_uses_configured_replicate_count(
+    tmp_path,
+    monkeypatch,
+):
+    replicate_ids = []
+
+    def fake_evaluate_baseline_replicate(**kwargs):
+        replicate_ids.append(kwargs["evaluation_replicate_id"])
+        return [{"evaluation_replicate_id": kwargs["evaluation_replicate_id"]}]
+
+    monkeypatch.setattr(
+        "src.evaluation.runners.head_to_head_evaluator."
+        "evaluate_baseline_replicate",
+        fake_evaluate_baseline_replicate,
+    )
+    config = HeadToHeadEvaluationConfig(
+        games_per_matchup=1,
+        opponents=(ALWAYS_CALL_AGENT,),
+        tested_agents=(ALWAYS_CALL_AGENT,),
+        eval_seed_base=300_000,
+        output_path=tmp_path / "baseline.csv",
+        evaluation_replicates=3,
+    )
+
+    rows = evaluate_baseline_replicates(config=config)
+
+    assert replicate_ids == [0, 1, 2]
+    assert [row["evaluation_replicate_id"] for row in rows] == [0, 1, 2]
 
 
 def test_write_head_to_head_rows_creates_csv(tmp_path):
@@ -305,21 +392,35 @@ def test_parse_args_uses_expected_defaults():
 def test_parse_args_accepts_custom_head_to_head_matchups():
     args = parse_args(
         [
-            "--training-run-dir",
-            "results/training_runs/run",
-            "--checkpoint-episodes",
-            "2000",
             "--agents",
             "always_call",
-            "always_raise",
+            "rule_based",
             "--opponents",
             "always_raise",
             "always_call",
             "--games",
             "50",
+            "--evaluation-replicates",
+            "7",
         ]
     )
 
-    assert args.agents == ["always_call", "always_raise"]
+    assert args.agents == ["always_call", "rule_based"]
     assert args.opponents == ["always_raise", "always_call"]
     assert args.games == 50
+    assert args.evaluation_replicates == 7
+    assert args.training_run_dir is None
+    assert args.checkpoint_episodes is None
+
+
+def test_parse_args_rejects_model_seed_for_baseline_only_run():
+    with pytest.raises(SystemExit):
+        parse_args(
+            [
+                "--agents",
+                "always_call",
+                "rule_based",
+                "--seeds",
+                "42",
+            ]
+        )
