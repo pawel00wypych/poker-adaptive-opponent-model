@@ -124,6 +124,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=5.0,
     )
     parser.add_argument(
+        "--min-evaluation-replicates-per-matchup",
+        type=_positive_int,
+        default=2,
+        help=(
+            "Minimum number of distinct simulation replicates required "
+            "for each baseline-only matchup."
+        ),
+    )
+    parser.add_argument(
+        "--max-std-across-evaluation-replicates-bb",
+        type=float,
+        default=5.0,
+        help=(
+            "Maximum warning-free standard deviation across baseline "
+            "evaluation replicates."
+        ),
+    )
+    parser.add_argument(
         "--extreme-bb-per-100-threshold",
         type=float,
         default=300.0,
@@ -235,6 +253,12 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         min_classifier_coverage=args.min_classifier_coverage,
         min_seeds_per_matchup=args.min_seeds_per_matchup,
         max_std_across_seeds_bb=args.max_std_across_seeds_bb,
+        min_evaluation_replicates_per_matchup=(
+            args.min_evaluation_replicates_per_matchup
+        ),
+        max_std_across_evaluation_replicates_bb=(
+            args.max_std_across_evaluation_replicates_bb
+        ),
         extreme_bb_per_100_threshold=(
             args.extreme_bb_per_100_threshold
         ),

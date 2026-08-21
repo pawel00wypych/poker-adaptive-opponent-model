@@ -151,6 +151,8 @@ class ValidationThresholds:
     generalization_extreme_aggressive_min_profit_bb: float = -5.0
     generalization_extreme_aggressive_max_bust_rate: float = 85.0
     min_seeds_per_matchup: int = 2
+    min_evaluation_replicates_per_matchup: int = 2
+    max_std_across_evaluation_replicates_bb: float = 5.0
     max_baseline_mirror_abs_profit_bb: float = 1.0
     max_baseline_pair_sum_abs_profit_bb: float = 2.0
     max_cross_play_pair_sum_abs_profit_bb: float = 2.0

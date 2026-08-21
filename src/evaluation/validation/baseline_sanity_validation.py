@@ -2,28 +2,30 @@ from __future__ import annotations
 
 from itertools import combinations
 
+import numpy as np
 import pandas as pd
+from scipy.stats import t as student_t
 
 from src.evaluation.constants import (
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
     RULE_BASED_AGENT,
 )
+from src.evaluation.metrics.baseline_metrics import (
+    BASELINE_REPLICATE_STD_COLUMN,
+)
 from src.evaluation.validation.common import (
     STATUS_FAIL,
     STATUS_PASS,
+    STATUS_SKIPPED,
     STATUS_WARNING,
     ValidationCheckResult,
     ValidationThresholds,
     _checkpoint_episode,
     _find_row,
-    _find_rows_at_latest_common_checkpoint,
     _format_float,
-    _missing_common_checkpoint_result,
     _missing_row_result,
     validate_extreme_bb_per_100,
-    validate_minimum_seed_coverage,
-    validate_seed_stability,
 )
 
 BASELINE_SANITY_AGENTS = (
@@ -142,7 +144,7 @@ def validate_baseline_mirror_neutrality(
 
 
 def validate_baseline_pair_reciprocity(
-    comparison_rows: pd.DataFrame,
+    replicate_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
@@ -151,17 +153,20 @@ def validate_baseline_pair_reciprocity(
         check_name = (
             f"Baseline pair reciprocity for {first_agent} and {second_agent}"
         )
-        matchups = (
-            (first_agent, second_agent),
-            (second_agent, first_agent),
+        first_direction = replicate_rows[
+            (replicate_rows["agent_name"] == first_agent)
+            & (replicate_rows["opponent_name"] == second_agent)
+        ][["evaluation_replicate_id", "mean_profit_bb"]].rename(
+            columns={"mean_profit_bb": "first_direction_profit_bb"}
         )
-        checkpoint_episode, rows = _find_rows_at_latest_common_checkpoint(
-            comparison_rows,
-            matchups,
+        second_direction = replicate_rows[
+            (replicate_rows["agent_name"] == second_agent)
+            & (replicate_rows["opponent_name"] == first_agent)
+        ][["evaluation_replicate_id", "mean_profit_bb"]].rename(
+            columns={"mean_profit_bb": "second_direction_profit_bb"}
         )
-        first_row, second_row = rows
 
-        if first_row is None:
+        if first_direction.empty:
             results.append(
                 _missing_row_result(
                     check_name,
@@ -171,7 +176,7 @@ def validate_baseline_pair_reciprocity(
                 )
             )
             continue
-        if second_row is None:
+        if second_direction.empty:
             results.append(
                 _missing_row_result(
                     check_name,
@@ -181,23 +186,58 @@ def validate_baseline_pair_reciprocity(
                 )
             )
             continue
-        if checkpoint_episode is None:
+        paired = first_direction.merge(
+            second_direction,
+            on="evaluation_replicate_id",
+            how="inner",
+            validate="one_to_one",
+        )
+        if paired.empty:
             results.append(
-                _missing_common_checkpoint_result(
-                    check_name,
-                    "baseline_pair_reciprocity",
-                    comparison_rows,
-                    matchups,
+                ValidationCheckResult(
+                    check_name=check_name,
+                    status=STATUS_FAIL,
+                    category="baseline_pair_reciprocity",
                     agent_name=first_agent,
                     opponent_name=second_agent,
+                    message=(
+                        "The opposite matchup directions have no common "
+                        "evaluation_replicate_id."
+                    ),
+                    details={
+                        "first_direction_replicate_ids": sorted(
+                            first_direction[
+                                "evaluation_replicate_id"
+                            ].astype(int).tolist()
+                        ),
+                        "second_direction_replicate_ids": sorted(
+                            second_direction[
+                                "evaluation_replicate_id"
+                            ].astype(int).tolist()
+                        ),
+                    },
                 )
             )
             continue
 
-        first_profit = float(first_row["mean_profit_bb"])
-        second_profit = float(second_row["mean_profit_bb"])
-        pair_sum = first_profit + second_profit
+        paired["pair_sum_bb"] = (
+            paired["first_direction_profit_bb"]
+            + paired["second_direction_profit_bb"]
+        )
+        pair_sum = float(paired["pair_sum_bb"].mean())
         absolute_pair_sum = abs(pair_sum)
+        sample_size = len(paired)
+        pair_std = float(paired["pair_sum_bb"].std())
+        standard_error = (
+            pair_std / np.sqrt(sample_size)
+            if sample_size >= 2 and not np.isnan(pair_std)
+            else None
+        )
+        ci_margin = (
+            float(student_t.ppf(0.975, sample_size - 1) * standard_error)
+            if standard_error is not None
+            else None
+        )
         threshold = thresholds.max_baseline_pair_sum_abs_profit_bb
         results.append(
             ValidationCheckResult(
@@ -210,21 +250,139 @@ def validate_baseline_pair_reciprocity(
                 category="baseline_pair_reciprocity",
                 agent_name=first_agent,
                 opponent_name=second_agent,
-                checkpoint_episode=checkpoint_episode,
                 observed_value=absolute_pair_sum,
                 threshold=threshold,
+                sample_size=sample_size,
+                standard_error=standard_error,
+                ci_lower=(pair_sum - ci_margin if ci_margin is not None else None),
+                ci_upper=(pair_sum + ci_margin if ci_margin is not None else None),
                 message=(
-                    "Opposite-direction mean profits sum to "
+                    "Mean paired sum of opposite-direction profits across "
+                    f"{sample_size} evaluation replicate(s) is "
                     f"{_format_float(pair_sum)} BB/game."
                 ),
                 details={
                     "first_agent": first_agent,
                     "second_agent": second_agent,
-                    "first_direction_mean_profit_bb": first_profit,
-                    "second_direction_mean_profit_bb": second_profit,
-                    "pair_sum_bb": pair_sum,
-                    "absolute_pair_sum_bb": absolute_pair_sum,
+                    "common_evaluation_replicate_ids": paired[
+                        "evaluation_replicate_id"
+                    ].astype(int).tolist(),
+                    "paired_sum_mean_profit_bb": pair_sum,
+                    "absolute_paired_sum_mean_profit_bb": absolute_pair_sum,
+                    "paired_sum_std_profit_bb": (
+                        None if np.isnan(pair_std) else pair_std
+                    ),
                     "max_absolute_pair_sum_bb": threshold,
+                },
+            )
+        )
+
+    return results
+
+
+def validate_minimum_evaluation_replicate_coverage(
+    aggregated_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    minimum_replicates = thresholds.min_evaluation_replicates_per_matchup
+    if minimum_replicates < 1:
+        raise ValueError(
+            "min_evaluation_replicates_per_matchup must be at least 1"
+        )
+
+    results: list[ValidationCheckResult] = []
+    for _, row in aggregated_rows.iterrows():
+        raw_count = row.get("evaluation_replicates", 0)
+        replicate_count = 0 if pd.isna(raw_count) else int(raw_count)
+        agent_name = str(row["agent_name"])
+        opponent_name = str(row["opponent_name"])
+        results.append(
+            ValidationCheckResult(
+                check_name=(
+                    "Minimum evaluation replicate coverage "
+                    f"for {agent_name} vs {opponent_name}"
+                ),
+                status=(
+                    STATUS_PASS
+                    if replicate_count >= minimum_replicates
+                    else STATUS_FAIL
+                ),
+                category="evaluation_replicate_coverage",
+                agent_name=agent_name,
+                opponent_name=opponent_name,
+                observed_value=float(replicate_count),
+                threshold=float(minimum_replicates),
+                sample_size=replicate_count,
+                message=(
+                    f"Evaluation includes {replicate_count} distinct "
+                    "simulation replicate(s); minimum required is "
+                    f"{minimum_replicates}."
+                ),
+                details={
+                    "evaluation_replicate_count": replicate_count,
+                    "min_evaluation_replicates_per_matchup": (
+                        minimum_replicates
+                    ),
+                },
+            )
+        )
+
+    return results
+
+
+def validate_simulation_stability(
+    aggregated_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    results: list[ValidationCheckResult] = []
+
+    for _, row in aggregated_rows.iterrows():
+        agent_name = str(row["agent_name"])
+        opponent_name = str(row["opponent_name"])
+        raw_value = row.get(BASELINE_REPLICATE_STD_COLUMN, np.nan)
+        replicate_count = int(row.get("evaluation_replicates", 0))
+        check_name = (
+            "Simulation stability across evaluation replicates "
+            f"for {agent_name} vs {opponent_name}"
+        )
+
+        if pd.isna(raw_value) or replicate_count < 2:
+            results.append(
+                ValidationCheckResult(
+                    check_name=check_name,
+                    status=STATUS_SKIPPED,
+                    category="simulation_stability",
+                    agent_name=agent_name,
+                    opponent_name=opponent_name,
+                    sample_size=replicate_count,
+                    message=(
+                        "Simulation stability requires at least two "
+                        "evaluation replicates."
+                    ),
+                )
+            )
+            continue
+
+        value = float(raw_value)
+        threshold = thresholds.max_std_across_evaluation_replicates_bb
+        results.append(
+            ValidationCheckResult(
+                check_name=check_name,
+                status=STATUS_PASS if value <= threshold else STATUS_WARNING,
+                category="simulation_stability",
+                agent_name=agent_name,
+                opponent_name=opponent_name,
+                observed_value=value,
+                threshold=threshold,
+                sample_size=replicate_count,
+                message=(
+                    "Mean profit std across evaluation replicates is "
+                    f"{_format_float(value)} BB/game."
+                ),
+                details={
+                    "evaluation_replicate_count": replicate_count,
+                    "std_across_evaluation_replicates_bb": value,
+                    "max_std_across_evaluation_replicates_bb": threshold,
                 },
             )
         )
@@ -299,22 +457,21 @@ def validate_baseline_extreme_results(
 def validate_baseline_sanity_results_from_best_rows(
     best_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
-    comparison_rows: pd.DataFrame | None = None,
+    replicate_rows: pd.DataFrame,
 ) -> list[ValidationCheckResult]:
-    aligned_comparison_rows = (
-        best_rows if comparison_rows is None else comparison_rows
-    )
     checks: list[ValidationCheckResult] = []
     checks.extend(validate_baseline_matchup_coverage(best_rows))
     checks.extend(validate_baseline_mirror_neutrality(best_rows, thresholds))
     checks.extend(
         validate_baseline_pair_reciprocity(
-            aligned_comparison_rows,
+            replicate_rows,
             thresholds,
         )
     )
     checks.extend(validate_baseline_extreme_results(best_rows, thresholds))
-    checks.extend(validate_minimum_seed_coverage(best_rows, thresholds))
-    checks.extend(validate_seed_stability(best_rows, thresholds))
+    checks.extend(
+        validate_minimum_evaluation_replicate_coverage(best_rows, thresholds)
+    )
+    checks.extend(validate_simulation_stability(best_rows, thresholds))
     checks.extend(validate_extreme_bb_per_100(best_rows, thresholds))
     return checks

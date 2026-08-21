@@ -36,6 +36,7 @@ from src.evaluation.runners.checkpoint_evaluator import (
     load_eval_agent,
 )
 from src.evaluation.runners.evaluation_seed import (
+    build_baseline_evaluation_seed,
     build_paired_evaluation_seed,
 )
 
@@ -63,7 +64,16 @@ DEFAULT_HEAD_TO_HEAD_AGENTS = (
     POLICY_CALLING_AGENT,
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
+    RULE_BASED_AGENT,
 )
+
+BASELINE_ONLY_AGENTS = (
+    ALWAYS_CALL_AGENT,
+    ALWAYS_RAISE_AGENT,
+    RULE_BASED_AGENT,
+)
+
+BASELINE_ONLY_AGENT_SET = frozenset(BASELINE_ONLY_AGENTS)
 
 SUPPORTED_HEAD_TO_HEAD_AGENTS = {
     ADAPTIVE_MC_AGENT,
@@ -73,6 +83,7 @@ SUPPORTED_HEAD_TO_HEAD_AGENTS = {
     POLICY_CALLING_AGENT,
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
+    RULE_BASED_AGENT,
 }
 
 
@@ -92,6 +103,13 @@ class HeadToHeadEvaluationConfig:
     tested_agents: tuple[str, ...]
     eval_seed_base: int
     output_path: Path
+    evaluation_replicates: int = 5
+
+    def __post_init__(self) -> None:
+        if self.games_per_matchup <= 0:
+            raise ValueError("games_per_matchup must be greater than zero")
+        if self.evaluation_replicates <= 0:
+            raise ValueError("evaluation_replicates must be greater than zero")
 
 
 def validate_head_to_head_agent(
@@ -136,7 +154,7 @@ def build_head_to_head_player_loaders() -> EvaluationAgentLoaders:
 
 def build_head_to_head_tested_player(
     tested_agent_name: str,
-    bundle: ModelBundle,
+    bundle: ModelBundle | None,
 ):
     """
     Build the evaluated player for direct baseline matchups.
@@ -150,6 +168,17 @@ def build_head_to_head_tested_player(
         tested_agent_name
     )
 
+    if tested_agent_name in BASELINE_ONLY_AGENT_SET:
+        return build_scripted_evaluation_player(
+            tested_agent_name,
+            unsupported_context="head-to-head agent",
+        )
+
+    if bundle is None:
+        raise ValueError(
+            f"Model bundle is required for learned agent: {tested_agent_name}"
+        )
+
     return build_evaluation_player(
         tested_agent_name=tested_agent_name,
         bundle=bundle,
@@ -157,6 +186,26 @@ def build_head_to_head_tested_player(
         expected_opponent_type=None,
         oracle_opponent_type=None,
         unsupported_context="head-to-head agent",
+    )
+
+
+def baseline_tested_agents(
+    agent_names: Iterable[str],
+) -> tuple[str, ...]:
+    return tuple(
+        agent_name
+        for agent_name in agent_names
+        if agent_name in BASELINE_ONLY_AGENT_SET
+    )
+
+
+def learned_tested_agents(
+    agent_names: Iterable[str],
+) -> tuple[str, ...]:
+    return tuple(
+        agent_name
+        for agent_name in agent_names
+        if agent_name not in BASELINE_ONLY_AGENT_SET
     )
 
 def set_head_to_head_seed(seed: int) -> None:
@@ -189,6 +238,11 @@ def evaluate_single_head_to_head_game(
     game_config: GameConfig,
     eval_seed_base: int,
 ) -> dict:
+    if tested_agent_name in BASELINE_ONLY_AGENT_SET:
+        raise ValueError(
+            "Baseline-only agents must use evaluate_single_baseline_game"
+        )
+
     game_seed = build_head_to_head_seed(
         eval_seed_base=eval_seed_base,
         model_seed=bundle.seed,
@@ -287,7 +341,9 @@ def evaluate_head_to_head_bundle(
 
     game_id = 0
 
-    for tested_agent_name in config.tested_agents:
+    for tested_agent_name in learned_tested_agents(
+        config.tested_agents
+    ):
         validate_head_to_head_agent(
             tested_agent_name
         )
@@ -312,6 +368,145 @@ def evaluate_head_to_head_bundle(
 
                 rows.append(row)
                 game_id += 1
+
+    return rows
+
+
+def evaluate_single_baseline_game(
+    *,
+    tested_agent_name: str,
+    opponent_name: str,
+    evaluation_replicate_id: int,
+    game_id: int,
+    matchup_game_index: int,
+    game_config: GameConfig,
+    eval_seed_base: int,
+) -> dict:
+    if tested_agent_name not in BASELINE_ONLY_AGENT_SET:
+        raise ValueError(
+            f"Baseline-only evaluation does not support: {tested_agent_name}"
+        )
+
+    game_seed = build_baseline_evaluation_seed(
+        eval_seed_base=eval_seed_base,
+        evaluation_replicate_id=evaluation_replicate_id,
+        matchup_game_index=matchup_game_index,
+    )
+    set_head_to_head_seed(game_seed)
+
+    config = setup_config(
+        max_round=game_config.max_round,
+        initial_stack=game_config.initial_stack,
+        small_blind_amount=game_config.small_blind_amount,
+    )
+    tested_player = build_head_to_head_tested_player(
+        tested_agent_name=tested_agent_name,
+        bundle=None,
+    )
+    opponent = build_head_to_head_opponent(opponent_name)
+    registered_opponent_name = (
+        f"{opponent_name}_opponent"
+        if tested_agent_name == opponent_name
+        else opponent_name
+    )
+
+    config.register_player(
+        name=tested_agent_name,
+        algorithm=tested_player,
+    )
+    config.register_player(
+        name=registered_opponent_name,
+        algorithm=opponent,
+    )
+
+    result = start_poker(config, verbose=0)
+    hands_played = get_hands_played(tested_player)
+    ended_by_bust = any(
+        player_result["stack"] == 0
+        for player_result in result["players"]
+    )
+    ended_by_round_limit = (
+        not ended_by_bust
+        and hands_played >= game_config.max_round
+    )
+    classifier_metrics = get_classifier_metrics(tested_player)
+    big_blind = game_config.small_blind_amount * 2
+
+    for player_result in result["players"]:
+        if player_result["name"] == tested_agent_name:
+            return build_result_row(
+                bundle=None,
+                tested_agent_name=tested_agent_name,
+                opponent_name=opponent_name,
+                game_id=game_id,
+                matchup_game_index=matchup_game_index,
+                evaluation_seed=game_seed,
+                evaluation_replicate_id=evaluation_replicate_id,
+                final_stack=player_result["stack"],
+                initial_stack=game_config.initial_stack,
+                hands_played=hands_played,
+                big_blind=big_blind,
+                ended_by_bust=ended_by_bust,
+                ended_by_round_limit=ended_by_round_limit,
+                classifier_metrics=classifier_metrics,
+            )
+
+    raise RuntimeError(
+        "Tested baseline result not found in game result."
+    )
+
+
+def evaluate_baseline_replicate(
+    *,
+    evaluation_replicate_id: int,
+    config: HeadToHeadEvaluationConfig,
+) -> list[dict]:
+    game_config = GameConfig()
+    rows: list[dict] = []
+    tested_agents = baseline_tested_agents(config.tested_agents)
+    games_per_replicate = (
+        len(tested_agents)
+        * len(config.opponents)
+        * config.games_per_matchup
+    )
+    game_id = evaluation_replicate_id * games_per_replicate
+
+    for tested_agent_name in tested_agents:
+        validate_head_to_head_agent(tested_agent_name)
+
+        for opponent_name in config.opponents:
+            validate_head_to_head_opponent(opponent_name)
+
+            for matchup_game_index in range(config.games_per_matchup):
+                rows.append(
+                    evaluate_single_baseline_game(
+                        tested_agent_name=tested_agent_name,
+                        opponent_name=opponent_name,
+                        evaluation_replicate_id=evaluation_replicate_id,
+                        game_id=game_id,
+                        matchup_game_index=matchup_game_index,
+                        game_config=game_config,
+                        eval_seed_base=config.eval_seed_base,
+                    )
+                )
+                game_id += 1
+
+    return rows
+
+
+def evaluate_baseline_replicates(
+    *,
+    config: HeadToHeadEvaluationConfig,
+) -> list[dict]:
+    rows: list[dict] = []
+
+    for evaluation_replicate_id in range(config.evaluation_replicates):
+        rows.extend(
+            evaluate_baseline_replicate(
+                evaluation_replicate_id=evaluation_replicate_id,
+                config=config,
+            )
+        )
 
     return rows
 

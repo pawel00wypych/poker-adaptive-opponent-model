@@ -2,23 +2,23 @@ import numpy as np
 import pandas as pd
 
 
-def calculate_checkpoint_metrics(
-    results_csv_path: str,
+def calculate_grouped_evaluation_metrics(
+    df: pd.DataFrame,
+    group_columns: list[str],
 ) -> pd.DataFrame:
-    df = pd.read_csv(
-        results_csv_path
-    )
+    """Calculate per-group metrics shared by model and baseline evaluations."""
+
+    missing_columns = sorted(set(group_columns).difference(df.columns))
+    if missing_columns:
+        raise ValueError(
+            "Cannot calculate evaluation metrics without grouping columns: "
+            f"{missing_columns}."
+        )
 
     grouped = (
         df.groupby(
-            [
-                "training_run",
-                "model_seed",
-                "checkpoint_episode",
-                "experiment_name",
-                "agent_name",
-                "opponent_name",
-            ]
+            group_columns,
+            dropna=False,
         )
         .agg(
             total_profit_bb=(
@@ -165,3 +165,23 @@ def calculate_checkpoint_metrics(
         grouped[column] *= 100
 
     return grouped
+
+
+def calculate_checkpoint_metrics(
+    results_csv_path: str,
+) -> pd.DataFrame:
+    df = pd.read_csv(
+        results_csv_path
+    )
+
+    return calculate_grouped_evaluation_metrics(
+        df,
+        [
+            "training_run",
+            "model_seed",
+            "checkpoint_episode",
+            "experiment_name",
+            "agent_name",
+            "opponent_name",
+        ],
+    )

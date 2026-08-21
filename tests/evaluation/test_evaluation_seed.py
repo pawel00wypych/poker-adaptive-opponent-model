@@ -5,6 +5,7 @@ from src.evaluation.runners.cross_play_evaluator import (
     build_cross_play_seed,
 )
 from src.evaluation.runners.evaluation_seed import (
+    build_baseline_evaluation_seed,
     build_paired_evaluation_seed,
 )
 from src.evaluation.runners.generalization_evaluator import (
@@ -103,4 +104,53 @@ def test_build_paired_evaluation_seed_rejects_invalid_components(
             model_seed=42,
             checkpoint_episode=5000,
             matchup_game_index=invalid_value,
+        )
+
+
+def test_build_baseline_evaluation_seed_is_model_independent_and_deterministic():
+    arguments = {
+        "eval_seed_base": 300_000,
+        "evaluation_replicate_id": 3,
+        "matchup_game_index": 7,
+    }
+
+    assert build_baseline_evaluation_seed(**arguments) == (
+        build_baseline_evaluation_seed(**arguments)
+    )
+
+
+@pytest.mark.parametrize(
+    ("component", "value"),
+    [
+        ("eval_seed_base", 300_001),
+        ("evaluation_replicate_id", 4),
+        ("matchup_game_index", 8),
+    ],
+)
+def test_build_baseline_evaluation_seed_uses_every_simulation_component(
+    component,
+    value,
+):
+    arguments = {
+        "eval_seed_base": 300_000,
+        "evaluation_replicate_id": 3,
+        "matchup_game_index": 7,
+    }
+    reference = build_baseline_evaluation_seed(**arguments)
+    arguments[component] = value
+
+    assert build_baseline_evaluation_seed(**arguments) != reference
+
+
+@pytest.mark.parametrize("invalid_value", [-1, 1.5, True])
+def test_build_baseline_evaluation_seed_rejects_invalid_replicate_id(
+    invalid_value,
+):
+    expected_exception = ValueError if invalid_value == -1 else TypeError
+
+    with pytest.raises(expected_exception):
+        build_baseline_evaluation_seed(
+            eval_seed_base=300_000,
+            evaluation_replicate_id=invalid_value,
+            matchup_game_index=7,
         )
