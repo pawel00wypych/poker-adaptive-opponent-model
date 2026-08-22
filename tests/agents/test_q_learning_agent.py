@@ -126,8 +126,15 @@ def test_q_learning_learns_from_remembered_episode():
 
     agent.learn_from_episode(reward=10.0)
 
+    # Backups run from the end of the hand, so the terminal reward has already
+    # reached second_state by the time first_state is updated:
+    #   Q(second, RAISE) = 9.0 + 0.5 * (10.0 - 9.0)              = 9.5
+    #   max_a Q(second, a) = max(0.0, 4.0, 9.5)                  = 9.5
+    #   Q(first,  CALL)  = 0.0 + 0.5 * (0.0 + 1.0 * 9.5 - 0.0)   = 4.75
+    # A forward pass would have used the stale 9.0 and produced 4.5, leaving
+    # the reward one step short.
     assert agent.episode == []
-    assert agent.q_table[first_state][ActionMapper.CALL] == pytest.approx(4.5)
+    assert agent.q_table[first_state][ActionMapper.CALL] == pytest.approx(4.75)
     assert agent.q_table[second_state][ActionMapper.RAISE_MIN] == pytest.approx(9.5)
 
 

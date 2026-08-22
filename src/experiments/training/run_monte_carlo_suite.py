@@ -14,6 +14,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Sequence
 
+from src.config import TrainingConfig
 from src.experiments.constants import (
     MODEL_TYPE_GENERAL_POLICY,
     MODEL_TYPES,
@@ -102,9 +103,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--episodes",
         type=int,
-        default=10_000,
+        default=TrainingConfig.episodes,
         help=(
-            "Maximum number of episodes in each training run."
+            "Maximum number of episodes in each training run. Shared with the "
+            "temporal-difference trainers so budgets stay comparable."
         ),
     )
 
@@ -112,15 +114,10 @@ def parse_args() -> argparse.Namespace:
         "--checkpoint-episodes",
         type=int,
         nargs="+",
-        default=[
-            1_000,
-            2_500,
-            5_000,
-            7_500,
-            10_000,
-        ],
+        default=list(TrainingConfig.checkpoint_episodes),
         help=(
-            "Episode counts saved as model checkpoints."
+            "Episode counts saved as model checkpoints. Defaults stay inside "
+            "the default episode budget so the suite starts without flags."
         ),
     )
 

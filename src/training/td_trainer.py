@@ -32,6 +32,7 @@ from src.training.training_metadata import save_json
 
 class TabularTDAgent(Protocol):
     alpha: float
+    alpha_mode: str
     gamma: float
     epsilon: float
     epsilon_min: float
@@ -166,6 +167,7 @@ def build_td_metadata(
         "epsilon_schedule": epsilon_schedule,
         "current_epsilon": agent.epsilon,
         "alpha": agent.alpha,
+        "alpha_mode": agent.alpha_mode,
         "gamma": agent.gamma,
         "epsilon_min": agent.epsilon_min,
         "states": len(agent.q_table),
@@ -253,6 +255,7 @@ def run_td_model_training(
     seed: int | None = None,
     epsilon_schedule: str | None = None,
     alpha: float | None = None,
+    alpha_mode: str | None = None,
     gamma: float = 1.0,
     output_path: str | None = None,
     checkpoint_directory: str | None = None,
@@ -312,6 +315,12 @@ def run_td_model_training(
         else training_config.alpha
     )
 
+    selected_alpha_mode = (
+        alpha_mode
+        if alpha_mode is not None
+        else training_config.alpha_mode
+    )
+
     final_model_path = (
         output_path
         if output_path is not None
@@ -340,6 +349,7 @@ def run_td_model_training(
 
     agent = spec.agent_factory(
         alpha=selected_alpha,
+        alpha_mode=selected_alpha_mode,
         gamma=gamma,
         epsilon=training_config.epsilon_start,
         epsilon_min=training_config.epsilon_min,

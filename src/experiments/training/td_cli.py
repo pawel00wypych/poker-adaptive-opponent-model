@@ -4,8 +4,13 @@ from pathlib import Path
 from time import perf_counter
 from typing import Callable, Sequence
 
+from src.config import TrainingConfig
 from src.experiments.constants import MODEL_TYPES
-from src.training.constants import SUPPORTED_EPSILON_SCHEDULES
+from src.training.constants import (
+    ALPHA_MODE_CONSTANT,
+    SUPPORTED_ALPHA_MODES,
+    SUPPORTED_EPSILON_SCHEDULES,
+)
 from src.training.td_trainer import format_duration
 from src.training.training_metadata import save_json
 
@@ -33,8 +38,11 @@ def parse_td_training_args(
     parser.add_argument(
         "--episodes",
         type=int,
-        default=2_000,
-        help="Number of training episodes per model.",
+        default=TrainingConfig.episodes,
+        help=(
+            "Number of training episodes per model. Shared with the Monte "
+            "Carlo suite so budgets stay comparable."
+        ),
     )
 
     parser.add_argument(
@@ -70,6 +78,17 @@ def parse_td_training_args(
         type=float,
         default=None,
         help=f"Override TrainingConfig.alpha for {spec.display_name}.",
+    )
+
+    parser.add_argument(
+        "--alpha-mode",
+        choices=SUPPORTED_ALPHA_MODES,
+        default=ALPHA_MODE_CONSTANT,
+        help=(
+            "Learning-rate schedule. constant uses a fixed alpha, "
+            "visit_count uses 1/N(s,a), and sqrt_visit uses 1/sqrt(N(s,a)). "
+            "Matches the Monte Carlo suite so all algorithms can share one."
+        ),
     )
 
     parser.add_argument(
@@ -233,6 +252,7 @@ def run_td_training(
     models: Sequence[str],
     epsilon_schedule: str,
     alpha: float | None,
+    alpha_mode: str,
     gamma: float,
     output_dir: str,
     checkpoint_episodes: Sequence[int] | None,
@@ -270,6 +290,7 @@ def run_td_training(
                 seed=seed,
                 epsilon_schedule=epsilon_schedule,
                 alpha=alpha,
+                alpha_mode=alpha_mode,
                 gamma=gamma,
                 output_path=str(final_model_path),
                 checkpoint_directory=str(checkpoint_directory),
@@ -302,6 +323,7 @@ def run_td_training(
         "models": list(models),
         "epsilon_schedule": epsilon_schedule,
         "alpha": alpha,
+        "alpha_mode": alpha_mode,
         "gamma": gamma,
         "output_dir": str(output_root),
         "duration_seconds": duration_seconds,
@@ -336,6 +358,7 @@ def run_td_cli(spec: TDTrainingCliSpec) -> dict:
         models=args.models,
         epsilon_schedule=args.epsilon_schedule,
         alpha=args.alpha,
+        alpha_mode=args.alpha_mode,
         gamma=args.gamma,
         output_dir=args.output_dir,
         checkpoint_episodes=args.checkpoint_episodes,
