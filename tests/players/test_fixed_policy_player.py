@@ -121,7 +121,7 @@ def test_policy_type_does_not_leak_into_the_encoded_state(
     distinct_states = set(encoded_states.values())
 
     assert len(distinct_states) == 1, encoded_states
-    assert len(distinct_states.pop()) == 6
+    assert len(distinct_states.pop()) == 7
 
 
 def test_fixed_policy_player_resets_tracking_on_game_start(

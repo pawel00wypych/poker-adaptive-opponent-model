@@ -125,7 +125,7 @@ def test_adaptive_player_uses_general_policy_before_classification(
         iter(unknown_agent.q_table)
     )
 
-    assert len(state) == 6
+    assert len(state) == 7
 
 
 def test_adaptive_player_switches_to_aggressive_policy(
@@ -174,7 +174,7 @@ def test_adaptive_player_switches_to_aggressive_policy(
         iter(aggressive_agent.q_table)
     )
 
-    assert len(state) == 6
+    assert len(state) == 7
 
 
 def test_adaptive_player_switches_to_calling_policy(
@@ -219,7 +219,7 @@ def test_adaptive_player_switches_to_calling_policy(
         )
     )
 
-    assert len(state) == 6
+    assert len(state) == 7
 
 
 def test_adaptive_player_records_incorrect_classification(
