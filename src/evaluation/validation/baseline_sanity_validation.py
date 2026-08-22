@@ -36,15 +36,15 @@ BASELINE_SANITY_AGENTS = (
 
 
 def validate_baseline_matchup_coverage(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
 ) -> list[ValidationCheckResult]:
     available_matchups = (
         set(
-            best_rows[["agent_name", "opponent_name"]]
+            final_rows[["agent_name", "opponent_name"]]
             .dropna()
             .itertuples(index=False, name=None)
         )
-        if {"agent_name", "opponent_name"}.issubset(best_rows.columns)
+        if {"agent_name", "opponent_name"}.issubset(final_rows.columns)
         else set()
     )
     required_matchups = [
@@ -90,14 +90,14 @@ def validate_baseline_matchup_coverage(
 
 
 def validate_baseline_mirror_neutrality(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
     for agent_name in BASELINE_SANITY_AGENTS:
         check_name = f"Baseline mirror neutrality for {agent_name}"
-        row = _find_row(best_rows, agent_name, agent_name)
+        row = _find_row(final_rows, agent_name, agent_name)
         if row is None:
             results.append(
                 _missing_row_result(
@@ -379,7 +379,7 @@ def validate_simulation_stability(
 
 
 def validate_baseline_extreme_results(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
@@ -392,7 +392,7 @@ def validate_baseline_extreme_results(
             check_name = (
                 f"Baseline extreme result for {tested_agent} vs {opponent_name}"
             )
-            row = _find_row(best_rows, tested_agent, opponent_name)
+            row = _find_row(final_rows, tested_agent, opponent_name)
             if row is None:
                 results.append(
                     _missing_row_result(
@@ -440,22 +440,24 @@ def validate_baseline_extreme_results(
     return results
 
 
-def validate_baseline_sanity_results_from_best_rows(
-    best_rows: pd.DataFrame,
+def validate_baseline_sanity_results_from_final_rows(
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     replicate_rows: pd.DataFrame,
 ) -> list[ValidationCheckResult]:
     checks: list[ValidationCheckResult] = []
-    checks.extend(validate_baseline_matchup_coverage(best_rows))
-    checks.extend(validate_baseline_mirror_neutrality(best_rows, thresholds))
+    checks.extend(validate_baseline_matchup_coverage(final_rows))
+    checks.extend(validate_baseline_mirror_neutrality(final_rows, thresholds))
     checks.extend(
         validate_baseline_pair_reciprocity(
             replicate_rows,
             thresholds,
         )
     )
-    checks.extend(validate_baseline_extreme_results(best_rows, thresholds))
-    checks.extend(validate_minimum_evaluation_replicate_coverage(best_rows, thresholds))
-    checks.extend(validate_simulation_stability(best_rows, thresholds))
-    checks.extend(validate_extreme_bb_per_100(best_rows, thresholds))
+    checks.extend(validate_baseline_extreme_results(final_rows, thresholds))
+    checks.extend(
+        validate_minimum_evaluation_replicate_coverage(final_rows, thresholds)
+    )
+    checks.extend(validate_simulation_stability(final_rows, thresholds))
+    checks.extend(validate_extreme_bb_per_100(final_rows, thresholds))
     return checks

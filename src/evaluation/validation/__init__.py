@@ -17,7 +17,7 @@ from src.evaluation.validation.baseline_sanity_validation import (
     validate_baseline_matchup_coverage,
     validate_baseline_mirror_neutrality,
     validate_baseline_pair_reciprocity,
-    validate_baseline_sanity_results_from_best_rows,
+    validate_baseline_sanity_results_from_final_rows,
     validate_minimum_evaluation_replicate_coverage,
     validate_simulation_stability,
 )
@@ -47,7 +47,7 @@ from src.evaluation.validation.cross_play_validation import (
     validate_cross_play_classifier_coverage,
     validate_cross_play_matchup_coverage,
     validate_cross_play_pair_reciprocity,
-    validate_cross_play_results_from_best_rows,
+    validate_cross_play_results_from_final_rows,
 )
 from src.evaluation.validation.evaluation_validation import (
     validate_adaptive_beats_rule_based,
@@ -66,13 +66,13 @@ from src.evaluation.validation.generalization_validation import (
     validate_generalization_classifier_quality,
     validate_generalization_matching_specialists,
     validate_generalization_oracle_gap,
-    validate_generalization_results_from_best_rows,
+    validate_generalization_results_from_final_rows,
 )
 from src.evaluation.validation.head_to_head_validation import (
     validate_adaptive_not_worse_than_general_rule_based,
     validate_always_raise_head_to_head_stress_test,
     validate_head_to_head_ood_classifier_coverage,
-    validate_head_to_head_results_from_best_rows,
+    validate_head_to_head_results_from_final_rows,
     validate_head_to_head_rule_based_performance,
     validate_head_to_head_specialist_rule_based_performance,
 )
@@ -88,7 +88,7 @@ from src.evaluation.validation.stress_test_validation import (
     validate_stress_test_always_raise_resilience,
     validate_stress_test_classifier_coverage,
     validate_stress_test_profitability,
-    validate_stress_test_results_from_best_rows,
+    validate_stress_test_results_from_final_rows,
 )
 
 __all__ = [
@@ -130,12 +130,12 @@ __all__ = [
     "validate_baseline_matchup_coverage",
     "validate_baseline_mirror_neutrality",
     "validate_baseline_pair_reciprocity",
-    "validate_baseline_sanity_results_from_best_rows",
+    "validate_baseline_sanity_results_from_final_rows",
     "validate_classifier_quality",
     "validate_cross_play_classifier_coverage",
     "validate_cross_play_matchup_coverage",
     "validate_cross_play_pair_reciprocity",
-    "validate_cross_play_results_from_best_rows",
+    "validate_cross_play_results_from_final_rows",
     "validate_evaluation_results",
     "validate_expected_algorithms_present",
     "validate_extreme_bb_per_100",
@@ -145,9 +145,9 @@ __all__ = [
     "validate_generalization_classifier_quality",
     "validate_generalization_matching_specialists",
     "validate_generalization_oracle_gap",
-    "validate_generalization_results_from_best_rows",
+    "validate_generalization_results_from_final_rows",
     "validate_head_to_head_ood_classifier_coverage",
-    "validate_head_to_head_results_from_best_rows",
+    "validate_head_to_head_results_from_final_rows",
     "validate_head_to_head_rule_based_performance",
     "validate_head_to_head_specialist_rule_based_performance",
     "validate_minimum_evaluation_replicate_coverage",
@@ -160,7 +160,7 @@ __all__ = [
     "validate_stress_test_always_raise_resilience",
     "validate_stress_test_classifier_coverage",
     "validate_stress_test_profitability",
-    "validate_stress_test_results_from_best_rows",
+    "validate_stress_test_results_from_final_rows",
     "validate_tight_baseline_saturation",
     "validate_tight_exploitation",
     "validation_checks_to_dataframe",

@@ -54,22 +54,22 @@ from src.poker.constants import (
 
 
 def _algorithm_specs(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> tuple[AlgorithmValidationSpec, ...]:
-    return tuple(algorithm_specs or available_algorithm_specs(best_rows))
+    return tuple(algorithm_specs or available_algorithm_specs(final_rows))
 
 
 def _existing_generalization_opponents(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
 ) -> tuple[str, ...]:
-    available_opponents = set(best_rows["opponent_name"].unique())
+    available_opponents = set(final_rows["opponent_name"].unique())
     return tuple(opponent for opponent in opponents if opponent in available_opponents)
 
 
 def _collect_agent_profit_rows(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     *,
     agent_name: str,
     opponents: Iterable[str],
@@ -79,7 +79,7 @@ def _collect_agent_profit_rows(
 
     for opponent_name in opponents:
         row = _find_row(
-            best_rows,
+            final_rows,
             agent_name,
             opponent_name,
         )
@@ -93,19 +93,19 @@ def _collect_agent_profit_rows(
 
 
 def validate_generalization_adaptive_positive_variants(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         check_name = (
             f"{spec.algorithm_name}: Adaptive positive on generalization variants"
         )
         rows, missing_opponents = _collect_agent_profit_rows(
-            best_rows,
+            final_rows,
             agent_name=spec.adaptive_agent,
             opponents=opponents,
         )
@@ -172,7 +172,7 @@ def validate_generalization_adaptive_positive_variants(
 
 
 def validate_generalization_adaptive_beats_agent(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     *,
     baseline_agent_name: str | None = None,
@@ -186,7 +186,7 @@ def validate_generalization_adaptive_beats_agent(
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         compared_baseline_agent = baseline_agent_name or spec.general_policy_agent
         full_check_name = f"{spec.algorithm_name}: {check_name}"
         successful_variants: list[str] = []
@@ -205,7 +205,7 @@ def validate_generalization_adaptive_beats_agent(
                 (compared_baseline_agent, opponent_name),
             )
             training_episode, rows = _find_rows_at_common_training_episode(
-                best_rows, matchups
+                final_rows, matchups
             )
             adaptive_row, baseline_row = rows
 
@@ -359,7 +359,7 @@ def validate_generalization_adaptive_beats_agent(
 
 
 def validate_generalization_oracle_gap(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
@@ -367,14 +367,14 @@ def validate_generalization_oracle_gap(
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         for opponent_name in opponents:
             matchups = (
                 (spec.adaptive_agent, opponent_name),
                 (spec.oracle_agent, opponent_name),
             )
             training_episode, rows = _find_rows_at_common_training_episode(
-                best_rows, matchups
+                final_rows, matchups
             )
             adaptive_row, oracle_row = rows
             check_name = (
@@ -410,7 +410,7 @@ def validate_generalization_oracle_gap(
                     _missing_common_training_episode_result(
                         check_name,
                         "generalization_oracle_gap",
-                        best_rows,
+                        final_rows,
                         matchups,
                         algorithm_name=spec.algorithm_name,
                         agent_name=spec.adaptive_agent,
@@ -514,17 +514,17 @@ def validate_generalization_oracle_gap(
 
 
 def validate_generalization_classifier_quality(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         for opponent_name in opponents:
             adaptive_row = _find_row(
-                best_rows,
+                final_rows,
                 spec.adaptive_agent,
                 opponent_name,
             )
@@ -590,16 +590,16 @@ def validate_generalization_classifier_quality(
 
 
 def validate_generalization_aggressive_extreme_robustness(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         check_name = f"{spec.algorithm_name}: Aggressive extreme robustness check"
         row = _find_row(
-            best_rows,
+            final_rows,
             spec.adaptive_agent,
             OPPONENT_AGGRESSIVE_EXTREME,
         )
@@ -658,7 +658,7 @@ def validate_generalization_aggressive_extreme_robustness(
 
 
 def validate_generalization_matching_specialists(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
@@ -674,7 +674,7 @@ def validate_generalization_matching_specialists(
 
     for opponent_name, specialist_agent in variant_to_specialist.items():
         row = _find_row(
-            best_rows,
+            final_rows,
             specialist_agent,
             opponent_name,
         )
@@ -733,21 +733,21 @@ def validate_generalization_matching_specialists(
     return results
 
 
-def validate_generalization_results_from_best_rows(
-    best_rows: pd.DataFrame,
+def validate_generalization_results_from_final_rows(
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
     comparison_rows: pd.DataFrame | None = None,
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
-    opponents = _existing_generalization_opponents(best_rows)
-    specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
-    aligned_comparison_rows = best_rows if comparison_rows is None else comparison_rows
+    opponents = _existing_generalization_opponents(final_rows)
+    specs = tuple(algorithm_specs or available_algorithm_specs(final_rows))
+    aligned_comparison_rows = final_rows if comparison_rows is None else comparison_rows
 
     checks: list[ValidationCheckResult] = []
     checks.extend(
         validate_generalization_adaptive_positive_variants(
-            best_rows,
+            final_rows,
             thresholds,
             opponents,
             algorithm_specs=specs,
@@ -795,7 +795,7 @@ def validate_generalization_results_from_best_rows(
     )
     checks.extend(
         validate_generalization_classifier_quality(
-            best_rows,
+            final_rows,
             thresholds,
             opponents,
             algorithm_specs=specs,
@@ -803,7 +803,7 @@ def validate_generalization_results_from_best_rows(
     )
     checks.extend(
         validate_generalization_matching_specialists(
-            best_rows,
+            final_rows,
             thresholds,
         )
     )
@@ -818,33 +818,33 @@ def validate_generalization_results_from_best_rows(
     )
     checks.extend(
         validate_always_raise_trivial_exploit(
-            best_rows,
+            final_rows,
             thresholds,
             opponents,
         )
     )
     checks.extend(
         validate_generalization_aggressive_extreme_robustness(
-            best_rows,
+            final_rows,
             thresholds,
             algorithm_specs=specs,
         )
     )
     checks.extend(
         validate_minimum_seed_coverage(
-            best_rows,
+            final_rows,
             thresholds,
         )
     )
     checks.extend(
         validate_seed_stability(
-            best_rows,
+            final_rows,
             thresholds,
         )
     )
     checks.extend(
         validate_extreme_bb_per_100(
-            best_rows,
+            final_rows,
             thresholds,
         )
     )
