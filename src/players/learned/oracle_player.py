@@ -10,6 +10,7 @@ from src.poker.constants import (
 )
 from src.poker.round_state_utils import (
     get_player_stack,
+    is_small_blind,
     get_round_count,
 )
 from src.players.constants import PLAYER_NAME_ORACLE_MC
@@ -102,6 +103,7 @@ class OraclePlayer(PlayerTemplate):
             valid_actions=decision_actions,
             round_state=round_state,
             hole_cards=hole_card,
+            is_small_blind=is_small_blind(round_state, self.uuid),
         )
 
         action_id = active_agent.act(

@@ -5,6 +5,7 @@ from src.poker.betting import to_decision_actions
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 from src.poker.round_state_utils import (
     get_player_stack,
+    is_small_blind,
     get_round_count,
 )
 from src.players.constants import PLAYER_NAME_SPECIALIST_MC
@@ -68,6 +69,7 @@ class SpecialistPolicyPlayer(PlayerTemplate):
             valid_actions=decision_actions,
             round_state=round_state,
             hole_cards=hole_card,
+            is_small_blind=is_small_blind(round_state, self.uuid),
         )
 
         action_id = self.agent.act(

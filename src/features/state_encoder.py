@@ -23,6 +23,7 @@ class StateEncoder:
         valid_actions: list[dict[str, Any]],
         round_state: dict[str, Any],
         hole_cards: list[str],
+        is_small_blind: bool,
     ) -> tuple:
         community_cards = round_state.get(
             "community_card",
@@ -77,6 +78,7 @@ class StateEncoder:
             pot_bucket,
             pot_odds_bin,
             spr_bin,
+            int(is_small_blind),
         )
 
     @staticmethod

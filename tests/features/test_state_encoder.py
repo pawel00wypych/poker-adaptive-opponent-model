@@ -46,6 +46,7 @@ def test_preflop_state_encoding_with_premium_hand():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "DA"],
+        is_small_blind=False,
     )
 
     assert state == (
@@ -55,6 +56,7 @@ def test_preflop_state_encoding_with_premium_hand():
         0,
         3,
         3,
+        0,
     )
 
 
@@ -95,6 +97,7 @@ def test_flop_state_encoding_with_aggressive_opponent():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["H9", "H8"],
+        is_small_blind=False,
     )
 
     assert state == (
@@ -103,6 +106,7 @@ def test_flop_state_encoding_with_aggressive_opponent():
         PokerContextEncoder.NO_PAIR_CONTEXT,
         2,
         2,
+        0,
         0,
     )
 
@@ -140,6 +144,7 @@ def test_state_encoding_with_weak_hand():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["H7", "D2"],
+        is_small_blind=False,
     )
 
     assert state == (
@@ -149,6 +154,7 @@ def test_state_encoding_with_weak_hand():
         0,
         3,
         3,
+        0,
     )
 
 
@@ -190,6 +196,7 @@ def test_state_encoding_with_free_check():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["SK", "DQ"],
+        is_small_blind=False,
     )
 
     assert state == (
@@ -199,6 +206,7 @@ def test_state_encoding_with_free_check():
         1,
         0,
         1,
+        0,
     )
 
 
@@ -241,6 +249,7 @@ def test_state_encoding_on_river():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["C4", "D4"],
+        is_small_blind=False,
     )
 
     assert state == (
@@ -249,6 +258,7 @@ def test_state_encoding_on_river():
         PokerContextEncoder.UNDER_PAIR,
         3,
         2,
+        0,
         0,
     )
 
@@ -282,6 +292,7 @@ def test_state_encoding_without_call_action():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "SK"],
+        is_small_blind=False,
     )
 
     assert state == (
@@ -291,6 +302,7 @@ def test_state_encoding_without_call_action():
         0,
         0,
         3,
+        0,
     )
 
 
@@ -331,6 +343,7 @@ def test_state_encoding_with_top_pair():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "DQ"],
+        is_small_blind=False,
     )
 
     assert state == (
@@ -340,6 +353,7 @@ def test_state_encoding_with_top_pair():
         1,
         2,
         2,
+        0,
     )
 
 
@@ -380,6 +394,7 @@ def test_state_encoding_with_overpair():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "DA"],
+        is_small_blind=False,
     )
 
     assert state == (
@@ -389,6 +404,7 @@ def test_state_encoding_with_overpair():
         1,
         2,
         2,
+        0,
     )
 
 
@@ -429,6 +445,7 @@ def test_state_encoding_with_two_pair_or_better():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "DK"],
+        is_small_blind=False,
     )
 
     assert state == (
@@ -438,6 +455,7 @@ def test_state_encoding_with_two_pair_or_better():
         1,
         2,
         2,
+        0,
     )
 
 
@@ -469,7 +487,8 @@ def test_state_encoder_rejects_invalid_community_card_count():
                     }
                 },
             },
-            hole_cards=["CA", "CK"],
+        hole_cards=["CA", "CK"],
+        is_small_blind=False,
         )
 
 
@@ -527,7 +546,7 @@ def test_state_encoding_is_independent_of_the_active_policy(policy_type):
     finally:
         module.StateEncoder = StateEncoder
 
-    assert captured["state"] == (1, 1, 4, 1, 2, 2)
+    assert captured["state"] == (1, 1, 4, 1, 2, 2, 0)
 
 
 def test_encoded_state_has_six_fields():
@@ -539,9 +558,31 @@ def test_encoded_state_has_six_fields():
             "pot": {"main": {"amount": 15}},
         },
         hole_cards=["HA", "DA"],
+        is_small_blind=False,
     )
 
-    assert len(state) == len(STATE_V2_FIELDS) == 6
+    assert len(state) == len(STATE_V2_FIELDS) == 7
+
+
+def test_small_blind_changes_the_encoded_state():
+    """Position must be a real signal, not a constant."""
+    common = {
+        "player_stack": 100,
+        "valid_actions": [{"action": "call", "amount": 10}],
+        "round_state": {
+            "community_card": [],
+            "pot": {"main": {"amount": 15}},
+        },
+        "hole_cards": ["HA", "DA"],
+    }
+
+    big_blind_state = StateEncoder.encode(**common, is_small_blind=False)
+    small_blind_state = StateEncoder.encode(**common, is_small_blind=True)
+
+    assert big_blind_state != small_blind_state
+    assert big_blind_state[-1] == 0
+    assert small_blind_state[-1] == 1
+    assert big_blind_state[:-1] == small_blind_state[:-1]
 
 
 def test_encode_no_longer_accepts_an_opponent_type():
@@ -554,5 +595,6 @@ def test_encode_no_longer_accepts_an_opponent_type():
                 "pot": {"main": {"amount": 15}},
             },
             hole_cards=["HA", "DA"],
+            is_small_blind=False,
             opponent_type="calling",
         )

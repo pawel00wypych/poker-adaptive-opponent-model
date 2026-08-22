@@ -116,7 +116,7 @@ def test_specialist_player_encodes_fixed_opponent_type(
 
     state, _ = training_agent.episode[0]
 
-    assert len(state) == 6
+    assert len(state) == 7
 
 
 def test_specialist_types_encode_identical_states(
