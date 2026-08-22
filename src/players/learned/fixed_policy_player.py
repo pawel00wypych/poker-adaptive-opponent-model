@@ -89,6 +89,7 @@ class FixedPolicyPlayer(PlayerTemplate):
         game_info,
     ):
         super().receive_game_start_message(game_info)
+        self.agent.reset_decision_diagnostics()
 
     def receive_game_update_message(
         self,

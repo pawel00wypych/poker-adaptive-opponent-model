@@ -134,6 +134,9 @@ class OraclePlayer(PlayerTemplate):
     ):
         super().receive_game_start_message(game_info)
 
+        for agent in self.agents.values():
+            agent.reset_decision_diagnostics()
+
         self.policy_usage_counts.clear()
         self.active_policy_type = self.oracle_opponent_type
 

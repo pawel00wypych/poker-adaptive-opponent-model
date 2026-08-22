@@ -319,6 +319,9 @@ class AdaptivePlayer(PlayerTemplate):
     ):
         super().receive_game_start_message(game_info)
 
+        for agent in self.agents.values():
+            agent.reset_decision_diagnostics()
+
         self.current_opponent_type = OPPONENT_TYPE_UNKNOWN
         self.active_policy_type = OPPONENT_TYPE_UNKNOWN
 

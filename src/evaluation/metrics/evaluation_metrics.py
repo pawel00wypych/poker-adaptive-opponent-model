@@ -89,6 +89,18 @@ def calculate_grouped_evaluation_metrics(
                 "policy_switches",
                 "mean",
             ),
+            total_policy_decisions=(
+                "policy_decisions",
+                "sum",
+            ),
+            total_unseen_state_decisions=(
+                "unseen_state_decisions",
+                "sum",
+            ),
+            total_untried_action_selections=(
+                "untried_action_selections",
+                "sum",
+            ),
             mean_first_classification_hand=(
                 "first_classification_hand",
                 "mean",
@@ -150,6 +162,20 @@ def calculate_grouped_evaluation_metrics(
         0.0,
     )
 
+    grouped["unseen_state_decision_rate"] = np.where(
+        grouped["total_policy_decisions"] > 0,
+        grouped["total_unseen_state_decisions"]
+        / grouped["total_policy_decisions"],
+        0.0,
+    )
+
+    grouped["untried_action_selection_rate"] = np.where(
+        grouped["total_policy_decisions"] > 0,
+        grouped["total_untried_action_selections"]
+        / grouped["total_policy_decisions"],
+        0.0,
+    )
+
     percentage_columns = [
         "win_rate",
         "bust_rate",
@@ -160,6 +186,8 @@ def calculate_grouped_evaluation_metrics(
         "global_classifier_accuracy",
         "global_classifier_coverage",
         "global_other_rate",
+        "unseen_state_decision_rate",
+        "untried_action_selection_rate",
     ]
 
     for column in percentage_columns:

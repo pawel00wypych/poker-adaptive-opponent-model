@@ -30,6 +30,17 @@ METRIC_DESCRIPTIONS = {
     "global_classifier_accuracy": "Classifier accuracy computed from total correct and incorrect classifications. Applies mainly to adaptive agents.",
     "global_classifier_coverage": "Percentage of classification opportunities where a specialist policy was selected. Decisions classified as unknown or other stay in the denominator because no specialist was used.",
     "global_other_rate": "Percentage of classification opportunities where the opponent matched no known family (other), so the general policy was used.",
+    "unseen_state_decision_rate": (
+        "Percentage of decisions taken in a state where nothing had been "
+        "learned. All Q-values are zero there, so the greedy choice "
+        "degenerates into a uniform random pick over the legal actions."
+    ),
+    "untried_action_selection_rate": (
+        "Percentage of decisions that selected an action never tried in that "
+        "state. Zero-initialised entries outrank actions already learned to "
+        "be losing, so this measures how often the choice reflects "
+        "initialisation rather than experience."
+    ),
     "mean_policy_switches": "Average number of policy switches per game. Applies mainly to adaptive agents.",
     "mean_first_classification_hand": "Average hand number of the first known opponent classification.",
     "mean_first_correct_classification_hand": "Average hand number of the first correct known opponent classification.",

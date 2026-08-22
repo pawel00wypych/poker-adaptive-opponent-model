@@ -43,6 +43,33 @@ class TabularPolicy:
         _ = self.q_table[state]
         _ = self.visit_counts[state]
 
+    def has_state(
+        self,
+        state: State,
+    ) -> bool:
+        """Report membership without inserting the state."""
+        return state in self.q_table
+
+    def peek_q_values(
+        self,
+        state: State,
+    ) -> np.ndarray:
+        """Return Q-values without inserting the state into the table."""
+        if state in self.q_table:
+            return self.q_table[state]
+
+        return np.zeros(self.num_actions, dtype=float)
+
+    def peek_visit_counts(
+        self,
+        state: State,
+    ) -> list[int]:
+        """Return visit counts without inserting the state into the table."""
+        if state in self.visit_counts:
+            return list(self.visit_counts[state])
+
+        return [0] * self.num_actions
+
     def get_q_values(
         self,
         state: State,
