@@ -228,3 +228,68 @@ def test_spr_buckets(
     )
 
     assert bucket == expected_bucket
+
+def test_pot_odds_use_the_real_call_cost_for_the_big_blind():
+    """Regression for reading the engine's bet level as a cost.
+
+    The big blind faces a level of 10 having already posted 10, so calling is
+    free and pot odds are zero. Reading the raw level gave 10 / (15 + 10) = 0.4
+    and put the state in a completely different bucket.
+    """
+    from src.poker.betting import to_decision_actions
+
+    valid_actions = [
+        {"action": "fold", "amount": 0},
+        {"action": "call", "amount": 10},
+        {"action": "raise", "amount": {"min": 20, "max": 200}},
+    ]
+    round_state = {
+        "street": "preflop",
+        "community_card": [],
+        "pot": {"main": {"amount": 15}},
+        "action_histories": {
+            "preflop": [
+                {"action": "SMALLBLIND", "amount": 5, "uuid": "uuid-sb"},
+                {"action": "BIGBLIND", "amount": 10, "uuid": "uuid-bb"},
+            ]
+        },
+    }
+
+    raw_bucket = PokerContextEncoder.pot_odds_bucket(
+        valid_actions=valid_actions,
+        round_state=round_state,
+    )
+
+    decision_actions = to_decision_actions(valid_actions, round_state, "uuid-bb")
+    corrected_bucket = PokerContextEncoder.pot_odds_bucket(
+        valid_actions=decision_actions,
+        round_state=round_state,
+    )
+
+    assert raw_bucket == 3
+    assert corrected_bucket == 0
+
+
+def test_pot_odds_unchanged_for_a_player_with_nothing_invested():
+    from src.poker.betting import to_decision_actions
+
+    valid_actions = [
+        {"action": "fold", "amount": 0},
+        {"action": "call", "amount": 10},
+    ]
+    round_state = {
+        "street": "flop",
+        "community_card": ["HA", "D7", "C2"],
+        "pot": {"main": {"amount": 40}},
+        "action_histories": {"flop": []},
+    }
+
+    decision_actions = to_decision_actions(valid_actions, round_state, "uuid-bb")
+
+    assert PokerContextEncoder.pot_odds_bucket(
+        valid_actions=decision_actions,
+        round_state=round_state,
+    ) == PokerContextEncoder.pot_odds_bucket(
+        valid_actions=valid_actions,
+        round_state=round_state,
+    )

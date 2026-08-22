@@ -1,6 +1,7 @@
 from src.players.base.player_template import PlayerTemplate
 from src.features.state_encoder import StateEncoder
 from src.poker.action_mapper import ActionMapper
+from src.poker.betting import to_decision_actions
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 from src.poker.round_state_utils import (
     get_player_stack,
@@ -56,9 +57,15 @@ class SpecialistPolicyPlayer(PlayerTemplate):
         if self.initial_stack is None:
             self.initial_stack = my_stack
 
+        decision_actions = to_decision_actions(
+            valid_actions,
+            round_state,
+            self.uuid,
+        )
+
         state = StateEncoder.encode(
             player_stack=my_stack,
-            valid_actions=valid_actions,
+            valid_actions=decision_actions,
             round_state=round_state,
             hole_cards=hole_card,
             opponent_type=self.opponent_type,
@@ -66,7 +73,7 @@ class SpecialistPolicyPlayer(PlayerTemplate):
 
         action_id = self.agent.act(
             state,
-            valid_actions,
+            decision_actions,
         )
 
         action, amount = ActionMapper.to_engine_action(
@@ -77,7 +84,7 @@ class SpecialistPolicyPlayer(PlayerTemplate):
         self.agent.remember(
             state,
             action_id,
-            valid_actions=valid_actions,
+            valid_actions=decision_actions,
         )
 
         return action, amount

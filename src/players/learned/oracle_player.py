@@ -3,6 +3,7 @@ from collections import Counter
 from src.features.state_encoder import StateEncoder
 from src.players.base.player_template import PlayerTemplate
 from src.poker.action_mapper import ActionMapper
+from src.poker.betting import to_decision_actions
 from src.poker.constants import (
     POLICY_TYPES,
     TRAINING_OPPONENT_TYPES,
@@ -86,13 +87,19 @@ class OraclePlayer(PlayerTemplate):
             self.active_policy_type
         ] += 1
 
+        decision_actions = to_decision_actions(
+            valid_actions,
+            round_state,
+            self.uuid,
+        )
+
         active_agent = self.agents[
             self.active_policy_type
         ]
 
         state = StateEncoder.encode(
             player_stack=my_stack,
-            valid_actions=valid_actions,
+            valid_actions=decision_actions,
             round_state=round_state,
             hole_cards=hole_card,
             opponent_type=self.active_policy_type,
@@ -100,7 +107,7 @@ class OraclePlayer(PlayerTemplate):
 
         action_id = active_agent.act(
             state,
-            valid_actions,
+            decision_actions,
         )
 
         action, amount = ActionMapper.to_engine_action(
@@ -112,7 +119,7 @@ class OraclePlayer(PlayerTemplate):
             active_agent.remember(
                 state,
                 action_id,
-                valid_actions=valid_actions,
+                valid_actions=decision_actions,
             )
 
         if self.verbose:
