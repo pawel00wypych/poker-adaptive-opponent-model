@@ -35,6 +35,7 @@ from src.evaluation.runners.model_evaluator import (
     ModelBundle,
     build_result_row,
     get_classifier_metrics,
+    get_decision_diagnostics,
     get_hands_played,
     load_adaptive_agents,
     load_eval_agent,
@@ -284,6 +285,7 @@ def evaluate_single_head_to_head_game(
     ended_by_round_limit = not ended_by_bust and hands_played >= game_config.max_round
 
     classifier_metrics = get_classifier_metrics(tested_player)
+    decision_diagnostics = get_decision_diagnostics(tested_player)
 
     big_blind = game_config.small_blind_amount * 2
 
@@ -303,6 +305,7 @@ def evaluate_single_head_to_head_game(
                 ended_by_bust=ended_by_bust,
                 ended_by_round_limit=(ended_by_round_limit),
                 classifier_metrics=classifier_metrics,
+                decision_diagnostics=decision_diagnostics,
             )
 
     raise RuntimeError("Tested player result not found in game result.")
@@ -395,6 +398,7 @@ def evaluate_single_baseline_game(
     )
     ended_by_round_limit = not ended_by_bust and hands_played >= game_config.max_round
     classifier_metrics = get_classifier_metrics(tested_player)
+    decision_diagnostics = get_decision_diagnostics(tested_player)
     big_blind = game_config.small_blind_amount * 2
 
     for player_result in result["players"]:
@@ -414,6 +418,7 @@ def evaluate_single_baseline_game(
                 ended_by_bust=ended_by_bust,
                 ended_by_round_limit=ended_by_round_limit,
                 classifier_metrics=classifier_metrics,
+                decision_diagnostics=decision_diagnostics,
             )
 
     raise RuntimeError("Tested baseline result not found in game result.")

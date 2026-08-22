@@ -46,6 +46,11 @@ REQUIRED_RESULT_COLUMNS = {
     "first_classification_action_count": 0,
     "first_correct_classification_action_count": 0,
     "final_predicted_type": "unknown",
+    "policy_decisions": 0,
+    "unseen_state_decisions": 0,
+    "untried_action_selections": 0,
+    "unseen_state_decision_rate": 0.0,
+    "untried_action_selection_rate": 0.0,
 }
 
 

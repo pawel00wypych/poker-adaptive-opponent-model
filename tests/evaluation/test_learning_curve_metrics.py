@@ -46,6 +46,11 @@ def test_calculate_learning_curve_metrics_groups_by_seed_and_checkpoint(
                 "first_classification_action_count": 5,
                 "first_correct_classification_action_count": 5,
                 "final_predicted_type": "calling",
+                "policy_decisions": 0,
+                "unseen_state_decisions": 0,
+                "untried_action_selections": 0,
+                "unseen_state_decision_rate": 0.0,
+                "untried_action_selection_rate": 0.0,
             },
             {
                 "training_run": "state_v2",
@@ -80,6 +85,11 @@ def test_calculate_learning_curve_metrics_groups_by_seed_and_checkpoint(
                 "first_classification_action_count": 6,
                 "first_correct_classification_action_count": 7,
                 "final_predicted_type": "calling",
+                "policy_decisions": 0,
+                "unseen_state_decisions": 0,
+                "untried_action_selections": 0,
+                "unseen_state_decision_rate": 0.0,
+                "untried_action_selection_rate": 0.0,
             },
         ]
     )

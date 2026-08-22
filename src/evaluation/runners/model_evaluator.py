@@ -34,6 +34,7 @@ from src.poker.constants import (
     OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
 )
+from src.rl.decision_diagnostics import merge_decision_diagnostics
 
 
 @dataclass(frozen=True)
@@ -696,6 +697,48 @@ def get_classifier_metrics(player) -> dict:
     }
 
 
+EMPTY_DECISION_DIAGNOSTICS = {
+    "policy_decisions": 0,
+    "unseen_state_decisions": 0,
+    "untried_action_selections": 0,
+    "unseen_state_decision_rate": 0.0,
+    "untried_action_selection_rate": 0.0,
+}
+
+
+def get_decision_diagnostics(player) -> dict:
+    """Report how many decisions came from unlearned table entries.
+
+    Zero-initialised Q-values make an unvisited entry look exactly like an
+    entry evaluated as worth zero. These counters quantify the effect without
+    altering how actions are chosen.
+    """
+    agents = getattr(player, "agents", None)
+
+    if agents is None:
+        agent = getattr(player, "agent", None)
+        agents = {} if agent is None else {"agent": agent}
+
+    diagnostics = [
+        agent.diagnostics
+        for agent in agents.values()
+        if hasattr(agent, "diagnostics")
+    ]
+
+    if not diagnostics:
+        return dict(EMPTY_DECISION_DIAGNOSTICS)
+
+    merged = merge_decision_diagnostics(diagnostics)
+
+    return {
+        "policy_decisions": merged.decisions,
+        "unseen_state_decisions": merged.unseen_state_decisions,
+        "untried_action_selections": merged.untried_action_selections,
+        "unseen_state_decision_rate": merged.unseen_state_decision_rate,
+        "untried_action_selection_rate": merged.untried_action_selection_rate,
+    }
+
+
 def set_evaluation_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
@@ -731,6 +774,7 @@ def build_result_row(
     ended_by_bust: bool,
     ended_by_round_limit: bool,
     classifier_metrics: dict,
+    decision_diagnostics: dict | None = None,
 ) -> dict:
     if big_blind <= 0:
         raise ValueError("big_blind must be greater than zero")
@@ -782,6 +826,7 @@ def build_result_row(
         "ended_by_bust": int(ended_by_bust),
         "ended_by_round_limit": int(ended_by_round_limit),
         **classifier_metrics,
+        **(decision_diagnostics or EMPTY_DECISION_DIAGNOSTICS),
     }
 
 
@@ -842,6 +887,7 @@ def evaluate_single_game(
     ended_by_round_limit = not ended_by_bust and hands_played >= game_config.max_round
 
     classifier_metrics = get_classifier_metrics(tested_player)
+    decision_diagnostics = get_decision_diagnostics(tested_player)
 
     big_blind = game_config.small_blind_amount * 2
 
@@ -861,6 +907,7 @@ def evaluate_single_game(
                 ended_by_bust=ended_by_bust,
                 ended_by_round_limit=(ended_by_round_limit),
                 classifier_metrics=classifier_metrics,
+                decision_diagnostics=decision_diagnostics,
             )
 
     raise RuntimeError("Tested player result not found in game result.")
@@ -931,6 +978,11 @@ MODEL_EVALUATION_FIELDNAMES = [
     "first_classification_action_count",
     "first_correct_classification_action_count",
     "final_predicted_type",
+    "policy_decisions",
+    "unseen_state_decisions",
+    "untried_action_selections",
+    "unseen_state_decision_rate",
+    "untried_action_selection_rate",
 ]
 
 

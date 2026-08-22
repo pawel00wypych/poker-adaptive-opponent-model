@@ -10,6 +10,7 @@ from src.rl.constants import (
     Q_TABLE_KEY,
     VISIT_COUNTS_KEY,
 )
+from src.rl.decision_diagnostics import DecisionDiagnostics
 from src.rl.model_io import (
     load_model_metadata,
     load_model_payload,
@@ -72,6 +73,10 @@ class QLearningAgent:
 
         self.episode: list[tuple[State, ActionId, tuple[ActionId, ...]]] = []
         self.training = True
+        self.diagnostics = DecisionDiagnostics()
+
+    def reset_decision_diagnostics(self) -> None:
+        self.diagnostics.reset()
 
     def train(self) -> None:
         self.training = True
@@ -99,14 +104,22 @@ class QLearningAgent:
         state: State,
         valid_actions: ValidActions,
     ) -> ActionId:
+        visit_counts = self.policy.peek_visit_counts(state)
         q_values = self.policy.get_q_values(state)
 
-        return select_epsilon_greedy_action(
+        action_id = select_epsilon_greedy_action(
             q_values=q_values,
             valid_actions=valid_actions,
             epsilon=self.epsilon,
             training=self.training,
         )
+
+        self.diagnostics.record(
+            visit_counts=visit_counts,
+            action_id=action_id,
+        )
+
+        return action_id
 
     def remember(
         self,

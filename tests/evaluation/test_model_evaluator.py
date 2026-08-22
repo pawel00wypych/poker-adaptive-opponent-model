@@ -73,6 +73,11 @@ def classifier_metrics() -> dict:
         "first_classification_action_count": 5,
         "first_correct_classification_action_count": 6,
         "final_predicted_type": "calling",
+        "policy_decisions": 0,
+        "unseen_state_decisions": 0,
+        "untried_action_selections": 0,
+        "unseen_state_decision_rate": 0.0,
+        "untried_action_selection_rate": 0.0,
     }
 
 
@@ -229,3 +234,40 @@ def test_evaluate_final_bundle_restarts_game_index_per_matchup(
     assert len(rows) == 8
     assert [call[2] for call in calls] == list(range(8))
     assert [call[3] for call in calls] == [0, 1] * 4
+
+
+def test_decision_diagnostics_sum_across_adaptive_policies():
+    from src.agents.monte_carlo_agent import MonteCarloAgent
+    from src.evaluation.runners.model_evaluator import get_decision_diagnostics
+    from src.players.learned.adaptive_player import AdaptivePlayer
+
+    agents = {}
+    for policy_type in ("unknown", "tight", "aggressive", "calling"):
+        agent = MonteCarloAgent(alpha=0.1, epsilon=0.0, epsilon_min=0.0)
+        agent.eval()
+        agents[policy_type] = agent
+
+    player = AdaptivePlayer(agents=agents, player_name="adaptive_mc")
+
+    valid_actions = [
+        {"action": "fold", "amount": 0},
+        {"action": "call", "amount": 10},
+    ]
+    agents["unknown"].act((1, 1, 1, 0, 0, 0), valid_actions)
+    agents["tight"].act((2, 2, 2, 0, 0, 0), valid_actions)
+
+    diagnostics = get_decision_diagnostics(player)
+
+    assert diagnostics["policy_decisions"] == 2
+    assert diagnostics["unseen_state_decisions"] == 2
+    assert diagnostics["unseen_state_decision_rate"] == 1.0
+
+
+def test_decision_diagnostics_are_empty_for_scripted_players():
+    from src.evaluation.runners.model_evaluator import get_decision_diagnostics
+    from src.players.baselines.rule_based_player import RuleBasedPlayer
+
+    diagnostics = get_decision_diagnostics(RuleBasedPlayer())
+
+    assert diagnostics["policy_decisions"] == 0
+    assert diagnostics["unseen_state_decision_rate"] == 0.0
