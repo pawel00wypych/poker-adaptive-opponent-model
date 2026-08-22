@@ -118,3 +118,66 @@ def is_free_check(
         find_action(valid_actions, "call") is not None
         and call_cost(valid_actions, round_state, player_uuid) == 0
     )
+
+
+def last_action_increment(
+    round_state: dict[str, Any],
+    player_uuid: str,
+) -> int | None:
+    """Return the chips a player added with its most recent action this street.
+
+    Engine history entries record cumulative levels in ``amount`` and the
+    increment separately: ``paid`` for calls and ``add_amount`` for raises and
+    blinds. The increment is what distinguishes a free check from a paid call,
+    which the action message alone cannot express because it reports the level.
+
+    Returns ``None`` when no action by that player is recorded yet.
+    """
+    street = round_state.get("street")
+    histories = round_state.get("action_histories", {}) or {}
+    street_histories = histories.get(street) or []
+
+    for entry in reversed(street_histories):
+        if entry.get("uuid") != player_uuid:
+            continue
+
+        if "paid" in entry:
+            return int(entry["paid"])
+
+        if "add_amount" in entry:
+            return int(entry["add_amount"])
+
+        return int(entry.get("amount", 0))
+
+    return None
+
+
+def avoid_free_fold(
+    action: str,
+    amount: int,
+    valid_actions: list[dict[str, Any]],
+    round_state: dict[str, Any],
+    player_uuid: str,
+) -> tuple[str, int]:
+    """Turn a fold into a check when staying in the hand is free.
+
+    Giving up a hand for nothing is strictly dominated, so no scripted
+    behaviour should express it. Folding a free option happened whenever a
+    player compared the engine's bet level against a threshold without
+    subtracting what it had already paid on the street.
+
+    The returned call amount is the engine's level, not the cost, because the
+    engine subtracts the already-paid part itself.
+    """
+    if action != "fold":
+        return action, amount
+
+    call_action = find_action(valid_actions, "call")
+
+    if call_action is None:
+        return action, amount
+
+    if call_cost(valid_actions, round_state, player_uuid) != 0:
+        return action, amount
+
+    return call_action["action"], call_action["amount"]

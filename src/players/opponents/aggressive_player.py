@@ -1,13 +1,39 @@
 import random
-from src.players.base.player_template import PlayerTemplate
+
 from src.cards.evaluator_interface import EvaluatorInterface
+from src.players.base.player_template import PlayerTemplate
+from src.poker.betting import avoid_free_fold
 
 
 class AggressivePlayer(PlayerTemplate):
+    """Raise-heavy scripted training opponent.
+
+    Hand-strength thresholds are deliberately crude; the point is a clear
+    raise-first behavioural profile rather than sound poker. The only rule
+    enforced on top is that it never gives up a hand for free, because folding
+    a free check is strictly dominated and would hand the opponent equity for
+    nothing.
+    """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def declare_action(self, valid_actions, hole_card, round_state):
+        action, amount = self._choose_action(
+            valid_actions,
+            hole_card,
+            round_state,
+        )
+
+        return avoid_free_fold(
+            action,
+            amount,
+            valid_actions,
+            round_state,
+            self.player_uuid,
+        )
+
+    def _choose_action(self, valid_actions, hole_card, round_state):
 
         player_hand_info = EvaluatorInterface.evaluate(hole_card,
                                                        round_state['community_card'])

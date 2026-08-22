@@ -2,6 +2,7 @@ import random
 
 from src.features.hand_strength_encoder import HandStrengthEncoder
 from src.players.base.player_template import PlayerTemplate
+from src.poker.betting import call_cost
 from src.poker.round_state_utils import get_player_stack
 
 
@@ -58,12 +59,12 @@ class TightPlayer(PlayerTemplate):
             return "raise", self._minimum_raise_amount(raise_action)
 
         if call_action is not None:
-            call_amount = int(call_action.get("amount", 0))
+            call_amount = call_cost(valid_actions, round_state, self.player_uuid)
 
             if call_amount <= 0:
                 return call_action["action"], call_action["amount"]
 
-            if self._is_expensive_call(call_action, round_state):
+            if self._is_expensive_call(call_amount, round_state):
                 if self.rng.random() < self._fold_expensive_probability(hand_strength):
                     if fold_action is not None:
                         return fold_action["action"], fold_action["amount"]
@@ -114,8 +115,8 @@ class TightPlayer(PlayerTemplate):
             return 0.18
         return 0.08
 
-    def _is_expensive_call(self, call_action: dict, round_state: dict) -> bool:
-        call_amount = int(call_action.get("amount", 0))
+    def _is_expensive_call(self, call_amount: int, round_state: dict) -> bool:
+        """Judge cost against the stack, using what calling actually costs."""
         if call_amount <= 0:
             return False
 

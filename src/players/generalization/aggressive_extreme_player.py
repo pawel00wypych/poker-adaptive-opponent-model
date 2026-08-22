@@ -2,6 +2,7 @@ import random
 
 from src.features.hand_strength_encoder import HandStrengthEncoder
 from src.players.base.player_template import PlayerTemplate
+from src.poker.betting import avoid_free_fold
 
 
 WEAK_HAND_STRENGTH_BIN = 0
@@ -21,7 +22,7 @@ class AggressiveExtremePlayer(PlayerTemplate):
         self.rng = rng if rng is not None else random
 
     def declare_action(self, valid_actions, hole_card, round_state):
-        return _choose_aggressive_action(
+        action, amount = _choose_aggressive_action(
             valid_actions=valid_actions,
             hole_card=hole_card,
             round_state=round_state,
@@ -36,6 +37,14 @@ class AggressiveExtremePlayer(PlayerTemplate):
             strong_raise_bonus=0.10,
             weak_raise_penalty=0.22,
             max_raise_probability=0.18,
+        )
+
+        return avoid_free_fold(
+            action,
+            amount,
+            valid_actions,
+            round_state,
+            self.player_uuid,
         )
 
 

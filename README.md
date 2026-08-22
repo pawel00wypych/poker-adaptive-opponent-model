@@ -419,8 +419,11 @@ The main evaluation metrics are:
 - `standard_error`: uncertainty of the sample mean.
 - `ci_95_lower` and `ci_95_upper`: approximate 95% confidence interval.
 - `classifier_accuracy`: correctness of classified non-unknown decisions.
-- `classifier_coverage`: fraction of decisions where the classifier returned a
-  known opponent type.
+- `classifier_coverage`: fraction of decisions where a specialist policy was
+  actually selected.
+- `fold_to_bet_rate`: how often an opponent gives up once continuing costs
+  chips. This is what separates a tight opponent from a passive one; the raw
+  fold rate cannot, because most decisions are free checks.
 - `policy_switches`: number of times the adaptive player changed active policy.
 - `delta_vs_monte_carlo`: difference in mean profit compared with the adaptive
   Monte Carlo baseline.
@@ -507,7 +510,10 @@ of robust poker strategy.
   to be losing. Both effects are reported as `unseen_state_decision_rate` and
   `untried_action_selection_rate` rather than hidden.
 - The classifier needs several observed actions before it can identify an
-  opponent type.
+  opponent type, and it withholds a verdict until the opponent has actually
+  faced a bet. Roughly three quarters of decisions are free checks, so a raw
+  fold rate cannot separate a tight opponent from a passive one; classification
+  keys on fold-to-bet instead.
 - The adaptive agent may lose chips before enough opponent information is
   available.
 - Hand-strength evaluation is still simplified compared with full poker
