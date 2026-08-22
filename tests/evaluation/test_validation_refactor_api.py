@@ -184,7 +184,7 @@ def test_validate_evaluation_results_dispatches_head_to_head_mode(
     )
 
     def fake_head_to_head_validation(
-        best_rows,
+        final_rows,
         thresholds,
         algorithm_specs=None,
         comparison_rows=None,
@@ -192,7 +192,7 @@ def test_validate_evaluation_results_dispatches_head_to_head_mode(
         calls.append(
             (
                 "head_to_head",
-                best_rows,
+                final_rows,
                 thresholds,
                 algorithm_specs,
                 comparison_rows,
@@ -207,7 +207,7 @@ def test_validate_evaluation_results_dispatches_head_to_head_mode(
 
     monkeypatch.setattr(
         evaluation_validation,
-        "validate_head_to_head_results_from_best_rows",
+        "validate_head_to_head_results_from_final_rows",
         fake_head_to_head_validation,
     )
 
@@ -257,7 +257,7 @@ def test_validate_evaluation_results_dispatches_generalization_mode(
     )
 
     def fake_generalization_validation(
-        best_rows,
+        final_rows,
         thresholds,
         algorithm_specs=None,
         comparison_rows=None,
@@ -265,7 +265,7 @@ def test_validate_evaluation_results_dispatches_generalization_mode(
         calls.append(
             (
                 "generalization",
-                best_rows,
+                final_rows,
                 thresholds,
                 algorithm_specs,
                 comparison_rows,
@@ -280,7 +280,7 @@ def test_validate_evaluation_results_dispatches_generalization_mode(
 
     monkeypatch.setattr(
         evaluation_validation,
-        "validate_generalization_results_from_best_rows",
+        "validate_generalization_results_from_final_rows",
         fake_generalization_validation,
     )
 

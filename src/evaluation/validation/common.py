@@ -409,20 +409,40 @@ def _add_mean_hands_played(
     )
 
 
-def _best_rows_by_agent_and_opponent(
-    aggregated: pd.DataFrame,
-) -> pd.DataFrame:
-    if aggregated.empty:
-        return aggregated.copy()
+ROW_IDENTITY_COLUMNS = (
+    "training_run",
+    "training_episode",
+    "model_seed",
+    "model_source",
+    "experiment_name",
+)
 
-    indexes = aggregated.groupby(
-        [
-            "agent_name",
-            "opponent_name",
-        ]
-    )["mean_profit_bb"].idxmax()
 
-    return aggregated.loc[indexes].reset_index(drop=True)
+class AmbiguousValidationRowError(ValueError):
+    """Raised when validation data does not identify exactly one row.
+
+    Validators must never choose between candidate rows: picking the
+    best-scoring one would select a result using the evaluation data itself.
+    """
+
+
+def _describe_ambiguity(matching: pd.DataFrame) -> str:
+    differing = []
+
+    for column in ROW_IDENTITY_COLUMNS:
+        if column not in matching.columns:
+            continue
+
+        values = sorted(
+            {str(value) for value in matching[column].dropna().tolist()}
+        )
+        if len(values) > 1:
+            differing.append(f"{column}={values}")
+
+    if not differing:
+        return "The duplicate rows share the same identifying columns."
+
+    return "Rows differ by " + ", ".join(differing) + "."
 
 
 def _find_row(
@@ -431,6 +451,11 @@ def _find_row(
     opponent_name: str,
     training_episode: int | None = None,
 ) -> pd.Series | None:
+    """Return the single aggregated row for one matchup, or None if absent.
+
+    Ambiguity is an error rather than something to resolve by ranking: the
+    validators must not pick a row based on how well it scored.
+    """
     matching = df[
         (df["agent_name"] == agent_name) & (df["opponent_name"] == opponent_name)
     ]
@@ -441,8 +466,13 @@ def _find_row(
     if matching.empty:
         return None
 
-    if "mean_profit_bb" in matching.columns:
-        return matching.loc[matching["mean_profit_bb"].idxmax()]
+    if len(matching) > 1:
+        raise AmbiguousValidationRowError(
+            f"Expected exactly one aggregated row for {agent_name!r} vs "
+            f"{opponent_name!r}, found {len(matching)}. "
+            f"{_describe_ambiguity(matching)} "
+            "Validate a single training run and training episode at a time."
+        )
 
     return matching.iloc[0]
 
@@ -567,7 +597,7 @@ def _missing_common_training_episode_result(
 
 
 def validate_minimum_seed_coverage(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     minimum_seeds = thresholds.min_seeds_per_matchup
@@ -576,7 +606,7 @@ def validate_minimum_seed_coverage(
 
     results: list[ValidationCheckResult] = []
 
-    for _, row in best_rows.iterrows():
+    for _, row in final_rows.iterrows():
         raw_seed_count = row.get("seeds", 0)
         seed_count = 0 if pd.isna(raw_seed_count) else int(raw_seed_count)
         agent_name = str(row["agent_name"])
@@ -612,12 +642,12 @@ def validate_minimum_seed_coverage(
 
 
 def validate_seed_stability(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for _, row in best_rows.iterrows():
+    for _, row in final_rows.iterrows():
         value = float(row["mean_profit_bb_std_across_seeds"])
         status = (
             STATUS_PASS
@@ -648,12 +678,12 @@ def validate_seed_stability(
 
 
 def validate_extreme_bb_per_100(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for _, row in best_rows.iterrows():
+    for _, row in final_rows.iterrows():
         bb_per_100 = float(row["bb_per_100"])
         mean_hands_played = float(row.get("mean_hands_played", 0.0))
         agent_name = str(row["agent_name"])
@@ -697,14 +727,14 @@ def validate_extreme_bb_per_100(
 
 
 def validate_always_raise_outperforms_adaptive(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = TRAINING_OPPONENT_TYPES,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
-    specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
+    specs = tuple(algorithm_specs or available_algorithm_specs(final_rows))
 
     for spec in specs:
         for opponent_name in opponents:
@@ -713,7 +743,7 @@ def validate_always_raise_outperforms_adaptive(
                 (spec.adaptive_agent, opponent_name),
             )
             training_episode, rows = _find_rows_at_common_training_episode(
-                best_rows, matchups
+                final_rows, matchups
             )
             always_raise_row, adaptive_row = rows
             check_name = (
@@ -750,7 +780,7 @@ def validate_always_raise_outperforms_adaptive(
                     _missing_common_training_episode_result(
                         check_name,
                         "always_raise_sanity",
-                        best_rows,
+                        final_rows,
                         matchups,
                         algorithm_name=spec.algorithm_name,
                         agent_name=spec.adaptive_agent,
@@ -851,7 +881,7 @@ def validate_always_raise_outperforms_adaptive(
 
 
 def validate_always_raise_trivial_exploit(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = TRAINING_OPPONENT_TYPES,
 ) -> list[ValidationCheckResult]:
@@ -859,7 +889,7 @@ def validate_always_raise_trivial_exploit(
 
     for opponent_name in opponents:
         always_raise_row = _find_row(
-            best_rows,
+            final_rows,
             ALWAYS_RAISE_AGENT,
             opponent_name,
         )

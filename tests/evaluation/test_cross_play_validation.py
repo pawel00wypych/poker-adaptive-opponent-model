@@ -146,7 +146,7 @@ def test_cross_play_mode_fails_when_directed_matchup_is_missing(tmp_path):
 
 def test_selected_cross_play_coverage_can_warn_for_missing_matchup():
     first_spec, second_spec = ALGORITHM_VALIDATION_SPECS[:2]
-    best_rows = pd.DataFrame(
+    final_rows = pd.DataFrame(
         [
             {
                 "agent_name": first_spec.adaptive_agent,
@@ -156,7 +156,7 @@ def test_selected_cross_play_coverage_can_warn_for_missing_matchup():
     )
 
     check = validate_required_matchups_present(
-        best_rows,
+        final_rows,
         (first_spec, second_spec),
         fail_when_missing=False,
         validation_mode=VALIDATION_MODE_CROSS_PLAY,
