@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import pytest
 
@@ -377,6 +379,16 @@ def test_agent_save_and_load_preserves_alpha_mode_and_visit_counts(tmp_path):
         10.0
     )
     assert MonteCarloAgent.load_metadata(str(path)) == {"test": True}
+
+
+def test_save_writes_algorithm_identifier(tmp_path):
+    path = tmp_path / "agent.pkl"
+    MonteCarloAgent().save(str(path))
+
+    with path.open("rb") as file:
+        payload = pickle.load(file)
+
+    assert payload["algorithm"] == MonteCarloAgent.ALGORITHM_ID
 
 
 def test_terminal_return_is_applied_to_all_first_visited_pairs():

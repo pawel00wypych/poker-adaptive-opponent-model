@@ -104,6 +104,7 @@ def build_training_metadata(
     )
 
     return {
+        "algorithm": MonteCarloAgent.ALGORITHM_ID,
         "model_type": MODEL_TYPE_SPECIALIST,
         "opponent_type": opponent_type,
         "completed_episodes": completed_episodes,
