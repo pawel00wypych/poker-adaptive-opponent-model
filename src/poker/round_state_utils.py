@@ -63,3 +63,29 @@ def get_main_pot_amount(round_state: dict[str, Any]) -> int:
         .get("main", {})
         .get("amount", 0)
     )
+
+
+def get_player_index(round_state: dict[str, Any], player_uuid: str) -> int | None:
+    seats = round_state.get("seats", [])
+
+    for index, seat in enumerate(seats):
+        if seat.get("uuid") == player_uuid:
+            return index
+
+    return None
+
+
+def is_small_blind(round_state: dict[str, Any], player_uuid: str) -> bool:
+    """Report whether the player posted the small blind this hand.
+
+    In this engine the small blind opens every street, including postflop, so
+    posting it is the same thing as acting first for the whole hand. Real
+    heads-up play alternates - the big blind opens postflop - which is a
+    documented limitation of the environment rather than of this helper.
+    """
+    small_blind_pos = round_state.get("small_blind_pos")
+
+    if small_blind_pos is None:
+        return False
+
+    return get_player_index(round_state, player_uuid) == small_blind_pos

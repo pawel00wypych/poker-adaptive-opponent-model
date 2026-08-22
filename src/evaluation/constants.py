@@ -54,6 +54,7 @@ STATE_V2_FIELDS = (
     "pot_bucket",
     "pot_odds_bin",
     "spr_bin",
+    "is_small_blind",
 )
 
 

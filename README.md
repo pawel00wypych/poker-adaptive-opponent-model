@@ -47,9 +47,9 @@ opponents.
   - `calling_extreme`
   - `aggressive_extreme`
 - Discretised state representation with hand strength, poker context, pot
-  information and stack-to-pot ratio. The opponent type is deliberately not part
-  of the state: every policy owns its own Q-table and always encoded its own
-  type, so the field was constant within any table.
+  information, stack-to-pot ratio and table position. The opponent type is
+  deliberately not part of the state: every policy owns its own Q-table and
+  always encoded its own type, so the field was constant within any table.
 - Multi-seed training, checkpoint saving and checkpoint evaluation.
 - Generalization and stress-test evaluation on base and variant opponents.
 - Direct head-to-head sanity evaluation.
@@ -475,6 +475,11 @@ of robust poker strategy.
   strategy concepts such as nuanced kicker comparison and all draw types.
 - Opponent variants are scripted behavioural approximations, not human-level
   poker opponents.
+- The engine gives no postflop positional alternation: the small blind opens
+  every street, including the flop, turn and river. Real heads-up play has the
+  big blind open postflop, so the small blind acts last and holds the
+  positional advantage. Position is encoded in the state as `is_small_blind`,
+  but conclusions about positional play do not transfer to real poker.
 - The always-raise baseline shows that some scripted opponents can be exploited
   by simple aggression.
 - `strong_calling` remains vulnerable to trivial aggression in some evaluations.

@@ -50,3 +50,21 @@ def test_tracking_negative_reward():
     assert player.total_reward_bb == -3.0
     assert player.hands_played == 2
     assert player.hand_start_stack == 70
+
+def test_dead_position_bookkeeping_is_gone():
+    """Position is derived from round_state, not tracked on the player.
+
+    The template used to compute my_position on every street start while
+    nothing ever read it.
+    """
+    from src.players.base.player_template import PlayerTemplate
+
+    removed = [
+        "set_my_position",
+        "set_available_positions",
+        "my_position",
+        "available_positions",
+    ]
+
+    for name in removed:
+        assert not hasattr(PlayerTemplate, name), name

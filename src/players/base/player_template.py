@@ -31,13 +31,6 @@ class PlayerTemplate(BasePokerPlayer):
         self.uuid_to_index = None
         self.my_index = None
 
-        self.available_positions = {
-            "dealer_btn": None,
-            "small_blind_pos": None,
-            "big_blind_pos": None,
-        }
-        self.my_position = None
-
     @property
     def big_blind_amount(self):
         return GameConfig.small_blind_amount * 2
@@ -113,30 +106,6 @@ class PlayerTemplate(BasePokerPlayer):
 
         return reward_bb
 
-    def set_my_position(self):
-        position = [
-            name
-            for name, index in self.available_positions.items()
-            if index == self.my_index
-        ]
-
-        if not position:
-            self.my_position = None
-            return
-
-        if len(position) > 1:
-            self.my_position = (
-                "big_blind_pos" if "big_blind_pos" in position else "small_blind_pos"
-            )
-            return
-
-        self.my_position = position[0]
-
-    def set_available_positions(self, round_state):
-        self.available_positions["dealer_btn"] = round_state["dealer_btn"]
-        self.available_positions["small_blind_pos"] = round_state["small_blind_pos"]
-        self.available_positions["big_blind_pos"] = round_state["big_blind_pos"]
-
     def receive_game_start_message(self, game_info):
         self.reset_tracking_stats()
 
@@ -154,8 +123,7 @@ class PlayerTemplate(BasePokerPlayer):
         self.hand_start_stack = current_stack
 
     def receive_street_start_message(self, street, round_state):
-        self.set_available_positions(round_state)
-        self.set_my_position()
+        pass
 
     def receive_game_update_message(self, action, round_state):
         self.stack = self.get_my_stack_from_round_state(round_state)
