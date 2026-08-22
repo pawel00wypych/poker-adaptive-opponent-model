@@ -1,4 +1,5 @@
 from src.players.base.player_template import PlayerTemplate
+from src.poker.betting import call_cost
 from src.poker.round_state_utils import get_player_stack
 
 class RuleBasedPlayer(PlayerTemplate):
@@ -26,7 +27,11 @@ class RuleBasedPlayer(PlayerTemplate):
         call_action = self._find_action(valid_actions, "call")
         raise_action = self._find_action(valid_actions, "raise")
 
-        call_amount = call_action["amount"] if call_action else 0
+        call_amount = (
+            call_cost(valid_actions, round_state, self.player_uuid)
+            if call_action
+            else 0
+        )
 
         if call_action and call_amount == 0:
             return "call", 0
