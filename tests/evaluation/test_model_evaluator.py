@@ -64,6 +64,7 @@ def classifier_metrics() -> dict:
         "correct_classifications": 8,
         "incorrect_classifications": 2,
         "unknown_classifications": 1,
+        "other_classifications": 0,
         "classifier_accuracy": 0.8,
         "classifier_coverage": 0.9,
         "policy_switches": 2,

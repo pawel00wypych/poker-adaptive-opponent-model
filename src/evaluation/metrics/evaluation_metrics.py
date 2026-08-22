@@ -73,6 +73,10 @@ def calculate_grouped_evaluation_metrics(
                 "unknown_classifications",
                 "sum",
             ),
+            total_other_classifications=(
+                "other_classifications",
+                "sum",
+            ),
             mean_classifier_accuracy=(
                 "classifier_accuracy",
                 "mean",
@@ -129,12 +133,20 @@ def calculate_grouped_evaluation_metrics(
     )
 
     total_predictions = (
-        grouped["total_classified_decisions"] + grouped["total_unknown_classifications"]
+        grouped["total_classified_decisions"]
+        + grouped["total_unknown_classifications"]
+        + grouped["total_other_classifications"]
     )
 
     grouped["global_classifier_coverage"] = np.where(
         total_predictions > 0,
         grouped["total_classified_decisions"] / total_predictions,
+        0.0,
+    )
+
+    grouped["global_other_rate"] = np.where(
+        total_predictions > 0,
+        grouped["total_other_classifications"] / total_predictions,
         0.0,
     )
 
@@ -147,6 +159,7 @@ def calculate_grouped_evaluation_metrics(
         "mean_classifier_coverage",
         "global_classifier_accuracy",
         "global_classifier_coverage",
+        "global_other_rate",
     ]
 
     for column in percentage_columns:

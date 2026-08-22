@@ -309,11 +309,12 @@ def test_classifier_accuracy_ignores_unknown_predictions(
     assert player.classifier_accuracy == 0.0
 
 
-def test_classifier_coverage_counts_unknown_and_classified_decisions(
+def test_classifier_coverage_excludes_unknown_and_other_decisions(
     adaptive_agents,
     valid_actions,
     round_state_factory,
 ):
+    """Only decisions that select a specialist count as covered."""
     player = create_player(
         adaptive_agents,
         expected_opponent_type="aggressive",
@@ -329,7 +330,19 @@ def test_classifier_coverage_counts_unknown_and_classified_decisions(
 
     send_opponent_actions(
         player,
-        ["raise"] * 5,
+        ["fold"] + ["call"] * 7 + ["raise"] * 2,
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+    send_opponent_actions(
+        player,
+        ["raise"] * 3,
         round_state,
     )
 
@@ -340,8 +353,126 @@ def test_classifier_coverage_counts_unknown_and_classified_decisions(
     )
 
     assert player.unknown_classifications == 1
+    assert player.other_classifications == 1
     assert player.classified_decisions == 1
-    assert player.classifier_coverage == 0.5
+    assert player.classifier_coverage == pytest.approx(1 / 3)
+
+
+def _drive_other_classification(
+    player,
+    valid_actions,
+    round_state,
+):
+    """Feed an action mix that matches no known opponent family."""
+    send_opponent_actions(
+        player,
+        ["fold"] + ["call"] * 7 + ["raise"] * 2,
+        round_state,
+    )
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+
+
+def test_other_classification_does_not_count_as_covered(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    """Previously 'other' inflated coverage to 100% with no specialist used."""
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="calling",
+    )
+    round_state = round_state_factory()
+
+    _drive_other_classification(player, valid_actions, round_state)
+
+    assert player.current_opponent_type == "other"
+    assert player.other_classifications == 1
+    assert player.classified_decisions == 0
+    assert player.classifier_coverage == 0.0
+
+
+def test_other_classification_does_not_affect_accuracy(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="calling",
+    )
+    round_state = round_state_factory()
+
+    _drive_other_classification(player, valid_actions, round_state)
+
+    assert player.correct_classifications == 0
+    assert player.incorrect_classifications == 0
+    assert player.classifier_accuracy == 0.0
+
+
+def test_other_classification_selects_the_general_policy(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    """Behaviour is unchanged; only the metric was wrong."""
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="calling",
+    )
+    round_state = round_state_factory()
+
+    _drive_other_classification(player, valid_actions, round_state)
+
+    assert player.active_policy_type == "unknown"
+
+
+def test_other_rate_reports_unmatched_decisions(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="calling",
+    )
+    round_state = round_state_factory()
+
+    player.declare_action(
+        valid_actions=valid_actions,
+        hole_card=["HA", "DA"],
+        round_state=round_state,
+    )
+    _drive_other_classification(player, valid_actions, round_state)
+
+    assert player.other_rate == pytest.approx(0.5)
+
+
+def test_other_counter_resets_between_games(
+    adaptive_agents,
+    valid_actions,
+    round_state_factory,
+):
+    player = create_player(
+        adaptive_agents,
+        expected_opponent_type="calling",
+    )
+    _drive_other_classification(
+        player,
+        valid_actions,
+        round_state_factory(),
+    )
+    assert player.other_classifications == 1
+
+    player.receive_game_start_message(None)
+
+    assert player.other_classifications == 0
+    assert player.other_rate == 0.0
 
 
 def test_policy_switch_is_counted_only_when_policy_changes(

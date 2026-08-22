@@ -37,6 +37,7 @@ def test_calculate_final_model_metrics_groups_by_seed_and_training_episode(
                 "correct_classifications": 10,
                 "incorrect_classifications": 0,
                 "unknown_classifications": 2,
+                "other_classifications": 0,
                 "classifier_accuracy": 1.0,
                 "classifier_coverage": 10 / 12,
                 "policy_switches": 1,
@@ -70,6 +71,7 @@ def test_calculate_final_model_metrics_groups_by_seed_and_training_episode(
                 "correct_classifications": 6,
                 "incorrect_classifications": 2,
                 "unknown_classifications": 4,
+                "other_classifications": 0,
                 "classifier_accuracy": 0.75,
                 "classifier_coverage": 8 / 12,
                 "policy_switches": 2,
@@ -104,6 +106,58 @@ def test_calculate_final_model_metrics_groups_by_seed_and_training_episode(
     assert row["global_classifier_coverage"] == pytest.approx(75.0)
 
 
+def test_global_classifier_coverage_excludes_other_classifications(tmp_path):
+    """'other' is an unconverted opportunity, so it lowers coverage."""
+    csv_path = tmp_path / "other_classifications.csv"
+
+    row = {
+        "training_run": "state_v2",
+        "model_seed": 42,
+        "model_source": "final",
+        "training_episode": 5000,
+        "checkpoint_episode": None,
+        "experiment_id": "seed_42_episodes_5000",
+        "experiment_name": "adaptive_mc_vs_calling",
+        "game_id": 0,
+        "agent_name": "adaptive_mc",
+        "opponent_name": "calling",
+        "final_stack": 220,
+        "initial_stack": 200,
+        "profit": 20,
+        "profit_bb": 2,
+        "hands_played": 10,
+        "won_game": 1,
+        "busted": 0,
+        "ended_by_bust": 1,
+        "ended_by_round_limit": 0,
+        "classified_decisions": 5,
+        "correct_classifications": 5,
+        "incorrect_classifications": 0,
+        "unknown_classifications": 3,
+        "other_classifications": 2,
+        "classifier_accuracy": 1.0,
+        "classifier_coverage": 0.5,
+        "policy_switches": 1,
+        "first_classification_hand": 2,
+        "first_correct_classification_hand": 2,
+        "first_classification_action_count": 5,
+        "first_correct_classification_action_count": 5,
+        "final_predicted_type": "calling",
+    }
+
+    pd.DataFrame([row]).to_csv(csv_path, index=False)
+
+    result = calculate_final_model_metrics(str(csv_path))
+    metrics = result.iloc[0]
+
+    assert metrics["total_other_classifications"] == 2
+    # 5 covered out of 5 + 3 unknown + 2 other, not 5 / 8.
+    assert metrics["global_classifier_coverage"] == pytest.approx(50.0)
+    assert metrics["global_other_rate"] == pytest.approx(20.0)
+    # Accuracy is scored only over committed specialist classifications.
+    assert metrics["global_classifier_accuracy"] == pytest.approx(100.0)
+
+
 def test_final_model_metrics_ignore_untrained_baseline_replicates(tmp_path):
     csv_path = tmp_path / "mixed_head_to_head.csv"
     final_row = {
@@ -127,6 +181,7 @@ def test_final_model_metrics_ignore_untrained_baseline_replicates(tmp_path):
         "correct_classifications": 0,
         "incorrect_classifications": 0,
         "unknown_classifications": 0,
+        "other_classifications": 0,
         "classifier_accuracy": 0.0,
         "classifier_coverage": 0.0,
         "policy_switches": 0,

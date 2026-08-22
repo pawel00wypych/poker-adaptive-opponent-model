@@ -7,6 +7,7 @@ from src.classifier.rule_based_classifier import (
 )
 from src.poker.action_mapper import ActionMapper
 from src.poker.constants import (
+    OPPONENT_TYPE_OTHER,
     OPPONENT_TYPE_UNKNOWN,
     POLICY_TYPES,
 )
@@ -82,6 +83,7 @@ class AdaptivePlayer(PlayerTemplate):
         self.correct_classifications = 0
         self.incorrect_classifications = 0
         self.unknown_classifications = 0
+        self.other_classifications = 0
 
         self.policy_switches = 0
 
@@ -197,12 +199,25 @@ class AdaptivePlayer(PlayerTemplate):
         self,
         predicted_type: str,
     ) -> None:
+        """Record one classification opportunity.
+
+        Only a decision that selects a specialist policy counts as covered.
+        ``unknown`` means the classifier has not seen enough actions yet, and
+        ``other`` means the opponent matches no known family; both fall back to
+        the general policy, so neither is a specialist selection and neither is
+        scored for accuracy. They are counted separately because "too early to
+        tell" and "does not fit any family" are different diagnoses.
+        """
         self.classification_counts[
             predicted_type
         ] += 1
 
         if predicted_type == OPPONENT_TYPE_UNKNOWN:
             self.unknown_classifications += 1
+            return
+
+        if predicted_type == OPPONENT_TYPE_OTHER:
+            self.other_classifications += 1
             return
 
         self.classified_decisions += 1
@@ -258,9 +273,15 @@ class AdaptivePlayer(PlayerTemplate):
 
     @property
     def classifier_coverage(self) -> float:
+        """Share of decisions where a specialist policy was actually selected.
+
+        ``unknown`` and ``other`` decisions are opportunities that the
+        classifier did not convert, so they stay in the denominator.
+        """
         total = (
             self.classified_decisions
             + self.unknown_classifications
+            + self.other_classifications
         )
 
         if total == 0:
@@ -268,6 +289,23 @@ class AdaptivePlayer(PlayerTemplate):
 
         return (
             self.classified_decisions
+            / total
+        )
+
+    @property
+    def other_rate(self) -> float:
+        """Share of decisions classified as matching no known family."""
+        total = (
+            self.classified_decisions
+            + self.unknown_classifications
+            + self.other_classifications
+        )
+
+        if total == 0:
+            return 0.0
+
+        return (
+            self.other_classifications
             / total
         )
 
@@ -293,6 +331,7 @@ class AdaptivePlayer(PlayerTemplate):
         self.correct_classifications = 0
         self.incorrect_classifications = 0
         self.unknown_classifications = 0
+        self.other_classifications = 0
 
         self.policy_switches = 0
 

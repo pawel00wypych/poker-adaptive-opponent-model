@@ -19,6 +19,7 @@ CLASSIFIER_COUNTER_COLUMNS = (
     "correct_classifications",
     "incorrect_classifications",
     "unknown_classifications",
+    "other_classifications",
 )
 
 CLASSIFIER_QUALITY_REQUIRED_COLUMNS = {
@@ -46,10 +47,12 @@ CLASSIFIER_QUALITY_SUMMARY_COLUMNS = [
     "total_correct_classifications",
     "total_incorrect_classifications",
     "total_unknown_classifications",
+    "total_other_classifications",
     "classification_opportunities",
     "global_classifier_accuracy",
     "classifier_coverage",
     "unknown_rate",
+    "other_rate",
     "final_known_predictions",
     "final_unknown_predictions",
     "final_prediction_unknown_rate",
@@ -306,6 +309,10 @@ def build_classifier_quality_summary(
                 "unknown_classifications",
                 "sum",
             ),
+            total_other_classifications=(
+                "other_classifications",
+                "sum",
+            ),
             final_known_predictions=(
                 "final_prediction_unknown",
                 lambda values: int((~values).sum()),
@@ -331,7 +338,9 @@ def build_classifier_quality_summary(
         + summary["total_incorrect_classifications"]
     )
     summary["classification_opportunities"] = (
-        summary["total_classified_decisions"] + summary["total_unknown_classifications"]
+        summary["total_classified_decisions"]
+        + summary["total_unknown_classifications"]
+        + summary["total_other_classifications"]
     )
     summary["global_classifier_accuracy"] = _percentage(
         summary["total_correct_classifications"],
@@ -343,6 +352,10 @@ def build_classifier_quality_summary(
     )
     summary["unknown_rate"] = _percentage(
         summary["total_unknown_classifications"],
+        summary["classification_opportunities"],
+    )
+    summary["other_rate"] = _percentage(
+        summary["total_other_classifications"],
         summary["classification_opportunities"],
     )
     summary["final_prediction_unknown_rate"] = _percentage(
