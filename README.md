@@ -126,8 +126,32 @@ Install dependencies:
 
 ```bash
 pip install -r requirements.txt
-pip install -e ./PyPokerEngine
 ```
+
+This installs `PyPokerEngine` from the pinned Git revision listed in
+`requirements.txt`; no separate engine checkout is needed.
+
+Alternatively, with conda:
+
+```bash
+conda env create -f environment.yml
+conda activate poker_env_311
+```
+
+Verify the installation:
+
+```bash
+python -m pytest -q
+python -m ruff check .
+```
+
+Some dependencies are not imported by this project directly but are still
+required:
+
+- `scipy` — Student-t statistics used for seed-level confidence intervals.
+- `jinja2` — required by pandas for `DataFrame.to_latex()`, which renders the
+  LaTeX result tables.
+- `ruff` — enforces the lint configuration declared in `pyproject.toml`.
 
 All commands below should be run from the project root.
 
