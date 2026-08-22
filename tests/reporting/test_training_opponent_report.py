@@ -42,6 +42,7 @@ def final_row(seed: int, profit_bb: float) -> dict:
         "correct_classifications": 8,
         "incorrect_classifications": 2,
         "unknown_classifications": 0,
+        "other_classifications": 0,
         "classifier_accuracy": 0.8,
         "classifier_coverage": 1.0,
         "policy_switches": 1,

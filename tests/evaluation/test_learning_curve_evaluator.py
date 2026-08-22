@@ -39,6 +39,7 @@ def empty_classifier_metrics() -> dict:
         "correct_classifications": 0,
         "incorrect_classifications": 0,
         "unknown_classifications": 0,
+        "other_classifications": 0,
         "classifier_accuracy": 0.0,
         "classifier_coverage": 0.0,
         "policy_switches": 0,
