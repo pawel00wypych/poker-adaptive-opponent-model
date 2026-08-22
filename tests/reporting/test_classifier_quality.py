@@ -28,6 +28,7 @@ def make_classifier_row(
     correct=0,
     incorrect=0,
     unknown=0,
+    other=0,
 ):
     return {
         "training_run": "run",
@@ -42,6 +43,7 @@ def make_classifier_row(
         "correct_classifications": correct,
         "incorrect_classifications": incorrect,
         "unknown_classifications": unknown,
+        "other_classifications": other,
     }
 
 
@@ -310,3 +312,31 @@ def test_classifier_quality_config_and_input_validation(tmp_path):
         match="Cannot create classifier quality report without columns",
     ):
         load_classifier_quality_rows(input_path)
+
+
+def test_summary_separates_other_from_unknown_and_covered_decisions(tmp_path):
+    input_path = tmp_path / "other_rate.csv"
+    pd.DataFrame(
+        [
+            make_classifier_row(
+                game_id=1,
+                agent="adaptive_mc",
+                opponent="calling",
+                prediction="calling",
+                classified=5,
+                correct=5,
+                unknown=3,
+                other=2,
+            )
+        ]
+    ).to_csv(input_path, index=False)
+
+    rows = load_classifier_quality_rows(input_path)
+    summary = build_classifier_quality_summary(select_final_classifier_rows(rows))
+    row = summary.iloc[0]
+
+    assert row["total_other_classifications"] == 2
+    assert row["classification_opportunities"] == 10
+    assert row["classifier_coverage"] == pytest.approx(50.0)
+    assert row["unknown_rate"] == pytest.approx(30.0)
+    assert row["other_rate"] == pytest.approx(20.0)
