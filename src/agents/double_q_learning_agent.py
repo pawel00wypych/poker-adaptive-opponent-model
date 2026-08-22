@@ -8,6 +8,7 @@ from src.rl.action_selection import (
     select_epsilon_greedy_action,
 )
 from src.rl.constants import (
+    ALGORITHM_DOUBLE_Q_LEARNING,
     ALGORITHM_KEY,
     METADATA_KEY,
     Q1_TABLE_KEY,
@@ -27,7 +28,7 @@ from src.rl.types import ActionId, State, ValidActions
 
 UPDATE_Q1 = "q1"
 UPDATE_Q2 = "q2"
-DOUBLE_Q_LEARNING_ALGORITHM_KEY = "double_q_learning"
+DOUBLE_Q_LEARNING_ALGORITHM_KEY = ALGORITHM_DOUBLE_Q_LEARNING
 
 
 class DoubleQLearningAgent:
@@ -45,6 +46,8 @@ class DoubleQLearningAgent:
     non-terminal transitions and the terminal reward in big blinds for the last
     transition.
     """
+
+    ALGORITHM_ID = ALGORITHM_DOUBLE_Q_LEARNING
 
     def __init__(
         self,
@@ -367,7 +370,7 @@ class DoubleQLearningAgent:
         self._refresh_all_combined_states()
 
         payload = {
-            ALGORITHM_KEY: DOUBLE_Q_LEARNING_ALGORITHM_KEY,
+            ALGORITHM_KEY: self.ALGORITHM_ID,
             Q1_TABLE_KEY: TabularPolicy.to_plain_q_table(
                 self.q1_table
             ),
@@ -406,6 +409,7 @@ class DoubleQLearningAgent:
         payload = load_model_payload(
             path=path,
             model_name="Double Q-learning",
+            expected_algorithm=cls.ALGORITHM_ID,
         )
 
         agent = cls(

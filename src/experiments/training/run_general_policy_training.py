@@ -51,6 +51,7 @@ def build_metadata(
     opponent_counter: Counter,
 ) -> dict:
     return {
+        "algorithm": MonteCarloAgent.ALGORITHM_ID,
         "model_type": MODEL_TYPE_GENERAL_POLICY,
         "opponent_type": "mixed",
         "completed_episodes": completed_episodes,
