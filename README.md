@@ -414,6 +414,27 @@ The main evaluation metrics are:
   nothing had been learned.
 - `untried_action_selection_rate`: share of decisions that selected an action
   never tried in that state.
+- `state_coverage`: share of the nominal state space a policy actually reached.
+- `state_action_coverage`: the same for state-action pairs.
+
+### State-space size and coverage
+
+The encoder's buckets multiply out to 40,320 nominal states (120,960
+state-action pairs), but that cross-product is an upper bound only. The buckets
+are strongly dependent - a preflop state cannot hold a postflop hand rank, and
+pair strength is constrained by hand strength - so most combinations are
+unreachable.
+
+Measured on trained Monte Carlo models, a policy reaches roughly 1,000-1,500
+states, or 1-4% of the nominal space. Raising the budget from 1,000 to 5,000
+episodes increased that by only about 1.24x, which indicates the reachable
+space saturates rather than the budget being short.
+
+What matters is whether the shortfall reaches decisions. At 5,000 episodes,
+`unseen_state_decision_rate` is at most 0.04% and
+`untried_action_selection_rate` is 0%. The low nominal coverage therefore
+reflects an unreachable cross-product, not an undertrained agent, and the two
+figures should always be quoted together.
 
 ### Decisions that are not backed by learned values
 

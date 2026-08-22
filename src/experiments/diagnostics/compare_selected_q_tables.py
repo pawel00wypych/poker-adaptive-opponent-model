@@ -8,6 +8,7 @@ from src.evaluation.diagnostics.q_table_comparator import (
     compare_q_tables,
     find_largest_disagreements,
     load_q_table,
+    load_visit_counts,
     save_json,
     summarize_q_table,
     validate_targets_exist,
@@ -200,6 +201,11 @@ def main() -> None:
         for target in targets
     }
 
+    visit_counts = {
+        target.name: load_visit_counts(target.path)
+        for target in targets
+    }
+
     abstract_q_tables = q_tables
 
     summaries = []
@@ -208,6 +214,7 @@ def main() -> None:
         summary = summarize_q_table(
             target=target,
             q_table=q_tables[target.name],
+            visit_counts=visit_counts[target.name],
         )
         summaries.append(summary)
         print_summary(summary)

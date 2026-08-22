@@ -13,6 +13,8 @@ from src.evaluation.constants import (
     STATE_V2_FIELDS,
     SUPPORTED_POLICY_TYPES,
 )
+from src.evaluation.diagnostics.state_coverage import describe_state_coverage
+from src.rl.constants import VISIT_COUNTS_KEY
 
 
 @dataclass(frozen=True)
@@ -51,6 +53,7 @@ class QTableSummary:
     best_action_counts: dict[str, int]
     best_action_rates: dict[str, float]
     action_stats: list[ActionStats]
+    coverage: dict[str, float | int] | None = None
 
 
 @dataclass(frozen=True)
@@ -210,6 +213,27 @@ def load_q_table(path: str | Path) -> dict[tuple, list[float]]:
     return normalize_q_table(raw_q_table)
 
 
+def load_visit_counts(path: str | Path) -> dict[tuple, list[int]]:
+    """Load visit counts so coverage can distinguish learned from merely read.
+
+    Returns an empty mapping for payloads that predate visit-count storage.
+    """
+    model_path = Path(path)
+
+    with model_path.open("rb") as file:
+        payload = pickle.load(file)
+
+    if not isinstance(payload, dict):
+        return {}
+
+    raw_counts = payload.get(VISIT_COUNTS_KEY) or {}
+
+    return {
+        tuple(state): [int(value) for value in counts]
+        for state, counts in raw_counts.items()
+    }
+
+
 def normalize_q_table(raw_q_table: dict[Any, Any]) -> dict[tuple, list[float]]:
     normalized: dict[tuple, list[float]] = {}
 
@@ -283,6 +307,7 @@ def describe_state(state: tuple) -> dict[str, Any]:
 def summarize_q_table(
     target: QTableTarget,
     q_table: dict[tuple, list[float]],
+    visit_counts: dict[tuple, list[int]] | None = None,
 ) -> QTableSummary:
     states = len(q_table)
 
@@ -368,6 +393,11 @@ def summarize_q_table(
         best_action_counts=best_action_counts,
         best_action_rates=best_action_rates,
         action_stats=action_stats,
+        coverage=(
+            describe_state_coverage(q_table, visit_counts).to_dict()
+            if visit_counts is not None
+            else None
+        ),
     )
 
 
