@@ -18,7 +18,10 @@ class ActionMapper:
     NUM_ACTIONS = 3
 
     @staticmethod
-    def to_engine_action(action_id: int, valid_actions: list[dict[str, Any]]) -> tuple[str, int]:
+    def to_engine_action(
+        action_id: int,
+        valid_actions: list[dict[str, Any]],
+    ) -> tuple[str, int]:
         action_by_name = {item["action"]: item for item in valid_actions}
 
         if action_id == ActionMapper.FOLD:
@@ -75,14 +78,22 @@ class ActionMapper:
         if "call" in available:
             legal.append(ActionMapper.CALL)
 
-        raise_action = next((item for item in valid_actions if item["action"] == "raise"), None)
+        raise_action = next(
+            (item for item in valid_actions if item["action"] == "raise"),
+            None,
+        )
 
         if raise_action is not None:
             amount = raise_action["amount"]
             if isinstance(amount, dict):
                 min_raise = amount.get("min")
                 max_raise = amount.get("max")
-                if min_raise is not None and max_raise is not None and min_raise != -1 and max_raise != -1:
+                if (
+                    min_raise is not None
+                    and max_raise is not None
+                    and min_raise != -1
+                    and max_raise != -1
+                ):
                     legal.append(ActionMapper.RAISE_MIN)
             else:
                 legal.append(ActionMapper.RAISE_MIN)

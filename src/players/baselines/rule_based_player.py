@@ -2,6 +2,7 @@ from src.players.base.player_template import PlayerTemplate
 from src.poker.betting import call_cost
 from src.poker.round_state_utils import get_player_stack
 
+
 class RuleBasedPlayer(PlayerTemplate):
     """
     Simple rule-based baseline.
@@ -46,7 +47,12 @@ class RuleBasedPlayer(PlayerTemplate):
                 min_raise = amount.get("min")
                 max_raise = amount.get("max")
 
-                if min_raise is not None and max_raise is not None and min_raise != -1 and max_raise != -1:
+                if (
+                    min_raise is not None
+                    and max_raise is not None
+                    and min_raise != -1
+                    and max_raise != -1
+                ):
                     return "raise", min_raise
 
         if call_action:
@@ -70,4 +76,7 @@ class RuleBasedPlayer(PlayerTemplate):
 
     @staticmethod
     def _find_action(valid_actions, action_name):
-        return next((item for item in valid_actions if item["action"] == action_name), None)
+        return next(
+            (item for item in valid_actions if item["action"] == action_name),
+            None,
+        )

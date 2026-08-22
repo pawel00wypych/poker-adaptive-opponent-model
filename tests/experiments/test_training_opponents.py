@@ -2,11 +2,11 @@ import pytest
 
 from src.players.opponents.aggressive_player import AggressivePlayer
 from src.players.opponents.calling_player import CallingPlayer
-from src.players.opponents.tight_player import TightPlayer
 from src.players.opponents.factory import (
     build_opponent,
     build_training_opponent,
 )
+from src.players.opponents.tight_player import TightPlayer
 
 
 @pytest.mark.parametrize(

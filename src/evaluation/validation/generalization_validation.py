@@ -500,7 +500,9 @@ def validate_generalization_oracle_gap(
                         ),
                         "oracle_mean_profit_bb": float(oracle_row["mean_profit_bb"]),
                         ORACLE_GAP_BB_COLUMN: oracle_gap_bb,
-                        "max_oracle_gap_bb": thresholds.max_generalization_oracle_gap_bb,
+                        "max_oracle_gap_bb": (
+                            thresholds.max_generalization_oracle_gap_bb
+                        ),
                         **(
                             {"paired_seed_statistics": (paired_statistics.to_details())}
                             if paired_statistics is not None

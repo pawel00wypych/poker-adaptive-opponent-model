@@ -1,10 +1,12 @@
 from collections import Counter
-from src.players.base.player_template import PlayerTemplate
-from src.features.opponent_stats import OpponentStats
-from src.features.state_encoder import StateEncoder
+
 from src.classifier.rule_based_classifier import (
     RuleBasedOpponentClassifier,
 )
+from src.features.opponent_stats import OpponentStats
+from src.features.state_encoder import StateEncoder
+from src.players.base.player_template import PlayerTemplate
+from src.players.constants import PLAYER_NAME_ADAPTIVE_MC
 from src.poker.action_mapper import ActionMapper
 from src.poker.betting import last_action_increment, to_decision_actions
 from src.poker.constants import (
@@ -14,10 +16,9 @@ from src.poker.constants import (
 )
 from src.poker.round_state_utils import (
     get_player_stack,
-    is_small_blind,
     get_round_count,
+    is_small_blind,
 )
-from src.players.constants import PLAYER_NAME_ADAPTIVE_MC
 
 
 class AdaptivePlayer(PlayerTemplate):

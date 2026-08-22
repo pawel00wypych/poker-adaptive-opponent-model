@@ -4,7 +4,6 @@ from src.features.hand_strength_encoder import HandStrengthEncoder
 from src.players.base.player_template import PlayerTemplate
 from src.poker.betting import avoid_free_fold
 
-
 WEAK_HAND_STRENGTH_BIN = 0
 STRONG_HAND_STRENGTH_BIN = 3
 
@@ -17,7 +16,11 @@ class AggressiveExtremePlayer(PlayerTemplate):
     AlwaysRaisePlayer because it can still call or fold with some probability.
     """
 
-    def __init__(self, player_name: str = "aggressive_extreme", rng: random.Random | None = None):
+    def __init__(
+        self,
+        player_name: str = "aggressive_extreme",
+        rng: random.Random | None = None,
+    ):
         super().__init__(player_name=player_name)
         self.rng = rng if rng is not None else random
 

@@ -10,13 +10,13 @@ from pypokerengine.api.game import (
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.config import GameConfig, TrainingConfig
-from src.experiments.constants import MODEL_TYPE_GENERAL_POLICY
 from src.experiments.cli_utils import parse_training_args
-from src.players.opponents.factory import (
-    build_training_opponent,
-)
+from src.experiments.constants import MODEL_TYPE_GENERAL_POLICY
 from src.players.learned.general_policy_player import (
     GeneralPolicyPlayer,
+)
+from src.players.opponents.factory import (
+    build_training_opponent,
 )
 from src.training.checkpoint_utils import (
     build_checkpoint_episodes,

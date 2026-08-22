@@ -8,7 +8,6 @@ from src.poker.constants import (
     TRAINING_OPPONENT_TYPES,
 )
 
-
 SUPPORTED_OPPONENTS = set(TRAINING_OPPONENT_TYPES)
 
 

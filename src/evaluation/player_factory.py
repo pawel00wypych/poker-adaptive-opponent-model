@@ -27,7 +27,6 @@ from src.players.learned.adaptive_player import AdaptivePlayer
 from src.players.learned.fixed_policy_player import FixedPolicyPlayer
 from src.players.learned.oracle_player import OraclePlayer
 
-
 AgentLoader = Callable[[Path], Any]
 AgentSetLoader = Callable[[Any], dict[str, Any]]
 

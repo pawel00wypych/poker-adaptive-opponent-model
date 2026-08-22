@@ -6,7 +6,6 @@ from src.players.baselines.always_call_player import AlwaysCallPlayer
 from src.players.generalization.calling_extreme_player import CallingExtremePlayer
 from src.players.opponents.calling_player import CallingPlayer
 
-
 VALID_ACTIONS = [
     {"action": "fold", "amount": 0},
     {"action": "call", "amount": 10},
@@ -211,7 +210,11 @@ def _round_state_for_calling_extreme(player_stack: int = 100) -> dict:
     return {
         "community_card": [],
         "seats": [
-            {"name": "calling_extreme", "uuid": "uuid-calling-extreme", "stack": player_stack},
+            {
+                "name": "calling_extreme",
+                "uuid": "uuid-calling-extreme",
+                "stack": player_stack,
+            },
             {"name": "opponent", "uuid": "uuid-opponent", "stack": 100},
         ],
     }

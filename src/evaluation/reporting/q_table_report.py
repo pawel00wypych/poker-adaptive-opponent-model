@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -154,7 +155,12 @@ def plot_best_action_distribution(
     plt.xlabel("Model")
     plt.ylabel("Best action share [%]")
     plt.title("Best-action distribution in Q-tables")
-    plt.legend([ACTION_LABELS.get(column.split("_")[1], column) for column in available_columns])
+    plt.legend(
+        [
+            ACTION_LABELS.get(column.split("_")[1], column)
+            for column in available_columns
+        ]
+    )
     save_current_figure(output_path)
 
 
@@ -189,7 +195,12 @@ def plot_mean_q_by_action(
     plt.xlabel("Model")
     plt.ylabel("Mean Q-value")
     plt.title("Mean Q-value by action")
-    plt.legend([ACTION_LABELS.get(column.split("_")[1], column) for column in available_columns])
+    plt.legend(
+        [
+            ACTION_LABELS.get(column.split("_")[1], column)
+            for column in available_columns
+        ]
+    )
     save_current_figure(output_path)
 
 

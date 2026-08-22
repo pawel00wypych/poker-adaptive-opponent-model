@@ -2,7 +2,6 @@ import random
 
 from src.players.opponents.tight_player import TightPlayer
 
-
 VALID_ACTIONS = [
     {"action": "fold", "amount": 0},
     {"action": "call", "amount": 10},
