@@ -138,7 +138,7 @@ def test_general_policy_player_updates_negative_reward_after_round():
     assert player.hand_start_stack is None
 
 
-def test_general_policy_player_uses_unknown_opponent_state():
+def test_general_policy_player_encodes_a_six_field_state():
     agent = MonteCarloAgent(epsilon=0.0)
 
     player = GeneralPolicyPlayer(
@@ -157,7 +157,7 @@ def test_general_policy_player_uses_unknown_opponent_state():
 
     state = next(iter(agent.q_table))
 
-    assert state[-1] == 0
+    assert len(state) == 6
 
 
 def test_general_policy_player_resets_tracking_on_game_start():

@@ -69,7 +69,6 @@ class FixedPolicyPlayer(PlayerTemplate):
             valid_actions=decision_actions,
             round_state=round_state,
             hole_cards=hole_card,
-            opponent_type=self.policy_type,
         )
 
         action_id = self.agent.act(

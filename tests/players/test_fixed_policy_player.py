@@ -89,43 +89,39 @@ def test_fixed_policy_player_rejects_invalid_log_interval(
         )
 
 
-@pytest.mark.parametrize(
-    ("policy_type", "expected_opponent_id"),
-    [
-        ("unknown", 0),
-        ("tight", 2),
-        ("aggressive", 1),
-        ("calling", 4),
-    ],
-)
-def test_fixed_policy_player_encodes_selected_policy_type(
-    eval_agent,
+def test_policy_type_does_not_leak_into_the_encoded_state(
     valid_actions,
     round_state_factory,
-    policy_type,
-    expected_opponent_id,
 ):
-    player = create_player(
-        eval_agent,
-        policy_type,
-    )
+    """Every policy must encode an identical state for identical situations.
 
-    player.declare_action(
-        valid_actions=valid_actions,
-        hole_card=[
-            "HA",
-            "DA",
-        ],
-        round_state=round_state_factory(),
-    )
+    The opponent type used to be part of the state, but each policy owns a
+    separate Q-table and always encoded its own type, so the field only ever
+    held one value per table. Keeping the policies aligned means their tables
+    describe the same situations and can be compared directly.
+    """
+    from src.agents.monte_carlo_agent import MonteCarloAgent
 
-    assert len(eval_agent.q_table) == 1
+    encoded_states = {}
 
-    state = next(
-        iter(eval_agent.q_table)
-    )
+    for policy_type in ("unknown", "tight", "aggressive", "calling"):
+        agent = MonteCarloAgent(alpha=0.1, epsilon=0.0, epsilon_min=0.0)
+        agent.eval()
+        player = create_player(agent, policy_type)
 
-    assert state[-1] == expected_opponent_id
+        player.declare_action(
+            valid_actions=valid_actions,
+            hole_card=["HA", "DA"],
+            round_state=round_state_factory(),
+        )
+
+        assert len(agent.q_table) == 1
+        encoded_states[policy_type] = next(iter(agent.q_table))
+
+    distinct_states = set(encoded_states.values())
+
+    assert len(distinct_states) == 1, encoded_states
+    assert len(distinct_states.pop()) == 6
 
 
 def test_fixed_policy_player_resets_tracking_on_game_start(

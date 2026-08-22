@@ -54,10 +54,7 @@ STATE_V2_FIELDS = (
     "pot_bucket",
     "pot_odds_bin",
     "spr_bin",
-    "opponent_type_id",
 )
-
-STATE_V2_ABSTRACT_FIELDS = STATE_V2_FIELDS[:-1]
 
 
 RULE_BASED_AGENT = "rule_based"

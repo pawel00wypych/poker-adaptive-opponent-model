@@ -84,19 +84,14 @@ def test_oracle_rejects_invalid_log_interval(
 
 
 @pytest.mark.parametrize(
-    ("oracle_type", "expected_opponent_id"),
-    [
-        ("tight", 2),
-        ("aggressive", 1),
-        ("calling", 4),
-    ],
+    "oracle_type",
+    ["tight", "aggressive", "calling"],
 )
 def test_oracle_uses_known_policy_from_first_decision(
     adaptive_agents,
     valid_actions,
     round_state_factory,
     oracle_type,
-    expected_opponent_id,
 ):
     player = create_player(
         adaptive_agents,
@@ -120,13 +115,13 @@ def test_oracle_uses_known_policy_from_first_decision(
         oracle_type
     ]
 
+    # The chosen specialist is the only policy that recorded a state; the
+    # policy identity lives in which table was used, not inside the state.
     assert len(selected_agent.q_table) == 1
 
-    state = next(
-        iter(selected_agent.q_table)
-    )
-
-    assert state[-1] == expected_opponent_id
+    for policy_type, agent in adaptive_agents.items():
+        if policy_type != oracle_type:
+            assert len(agent.q_table) == 0
 
 
 def test_oracle_resets_tracking_on_game_start(
