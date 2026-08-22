@@ -41,7 +41,7 @@ def _required_adaptive_matchups(
 
 
 def validate_cross_play_matchup_coverage(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     algorithm_specs: Iterable[AlgorithmValidationSpec],
     *,
     fail_when_missing: bool = True,
@@ -49,11 +49,11 @@ def validate_cross_play_matchup_coverage(
     specs = tuple(algorithm_specs)
     available_matchups = (
         set(
-            best_rows[["agent_name", "opponent_name"]]
+            final_rows[["agent_name", "opponent_name"]]
             .dropna()
             .itertuples(index=False, name=None)
         )
-        if {"agent_name", "opponent_name"}.issubset(best_rows.columns)
+        if {"agent_name", "opponent_name"}.issubset(final_rows.columns)
         else set()
     )
     required_matchups = _required_adaptive_matchups(specs)
@@ -338,7 +338,7 @@ def validate_cross_play_pair_reciprocity(
 
 
 def validate_cross_play_classifier_coverage(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec],
 ) -> list[ValidationCheckResult]:
@@ -355,7 +355,7 @@ def validate_cross_play_classifier_coverage(
                 f"vs {opponent_spec.algorithm_name} adaptive"
             )
             row = _find_row(
-                best_rows,
+                final_rows,
                 spec.adaptive_agent,
                 opponent_spec.adaptive_agent,
             )
@@ -403,17 +403,17 @@ def validate_cross_play_classifier_coverage(
     return results
 
 
-def validate_cross_play_results_from_best_rows(
-    best_rows: pd.DataFrame,
+def validate_cross_play_results_from_final_rows(
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec],
     comparison_rows: pd.DataFrame | None = None,
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     specs = tuple(algorithm_specs)
-    aligned_comparison_rows = best_rows if comparison_rows is None else comparison_rows
+    aligned_comparison_rows = final_rows if comparison_rows is None else comparison_rows
     checks: list[ValidationCheckResult] = []
-    checks.extend(validate_cross_play_matchup_coverage(best_rows, specs))
+    checks.extend(validate_cross_play_matchup_coverage(final_rows, specs))
     checks.extend(
         validate_cross_play_pair_reciprocity(
             aligned_comparison_rows,
@@ -424,12 +424,12 @@ def validate_cross_play_results_from_best_rows(
     )
     checks.extend(
         validate_cross_play_classifier_coverage(
-            best_rows,
+            final_rows,
             thresholds,
             specs,
         )
     )
-    checks.extend(validate_minimum_seed_coverage(best_rows, thresholds))
-    checks.extend(validate_seed_stability(best_rows, thresholds))
-    checks.extend(validate_extreme_bb_per_100(best_rows, thresholds))
+    checks.extend(validate_minimum_seed_coverage(final_rows, thresholds))
+    checks.extend(validate_seed_stability(final_rows, thresholds))
+    checks.extend(validate_extreme_bb_per_100(final_rows, thresholds))
     return checks

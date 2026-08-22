@@ -46,10 +46,10 @@ STRESS_TEST_PROFITABILITY_OPPONENTS = (
 
 
 def _algorithm_specs(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> tuple[AlgorithmValidationSpec, ...]:
-    return tuple(algorithm_specs or available_algorithm_specs(best_rows))
+    return tuple(algorithm_specs or available_algorithm_specs(final_rows))
 
 
 def _stress_test_agents(
@@ -62,13 +62,13 @@ def _stress_test_agents(
 
 
 def validate_stress_test_profitability(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         for role_label, agent_name in _stress_test_agents(spec):
             for opponent_name in STRESS_TEST_PROFITABILITY_OPPONENTS:
                 verb = "exploits" if opponent_name == ALWAYS_CALL_AGENT else "beats"
@@ -80,7 +80,7 @@ def validate_stress_test_profitability(
                 check_name = (
                     f"{spec.algorithm_name}: {role_label} {verb} {opponent_label}"
                 )
-                row = _find_row(best_rows, agent_name, opponent_name)
+                row = _find_row(final_rows, agent_name, opponent_name)
                 if row is None:
                     results.append(
                         _missing_row_result(
@@ -127,18 +127,18 @@ def validate_stress_test_profitability(
 
 
 def validate_stress_test_always_raise_resilience(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         for role_label, agent_name in _stress_test_agents(spec):
             check_name = (
                 f"{spec.algorithm_name}: {role_label} resilience vs AlwaysRaisePlayer"
             )
-            row = _find_row(best_rows, agent_name, ALWAYS_RAISE_AGENT)
+            row = _find_row(final_rows, agent_name, ALWAYS_RAISE_AGENT)
             if row is None:
                 results.append(
                     _missing_row_result(
@@ -339,19 +339,19 @@ def validate_stress_test_adaptive_gap(
 
 
 def validate_stress_test_classifier_coverage(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         for opponent_name in STRESS_TEST_OPPONENTS:
             check_name = (
                 f"{spec.algorithm_name}: Stress-test classifier coverage "
                 f"vs {opponent_name}"
             )
-            row = _find_row(best_rows, spec.adaptive_agent, opponent_name)
+            row = _find_row(final_rows, spec.adaptive_agent, opponent_name)
             if row is None:
                 results.append(
                     _missing_row_result(
@@ -396,26 +396,26 @@ def validate_stress_test_classifier_coverage(
     return results
 
 
-def validate_stress_test_results_from_best_rows(
-    best_rows: pd.DataFrame,
+def validate_stress_test_results_from_final_rows(
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
     comparison_rows: pd.DataFrame | None = None,
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
-    specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
-    aligned_comparison_rows = best_rows if comparison_rows is None else comparison_rows
+    specs = tuple(algorithm_specs or available_algorithm_specs(final_rows))
+    aligned_comparison_rows = final_rows if comparison_rows is None else comparison_rows
     checks: list[ValidationCheckResult] = []
     checks.extend(
         validate_stress_test_profitability(
-            best_rows,
+            final_rows,
             thresholds,
             algorithm_specs=specs,
         )
     )
     checks.extend(
         validate_stress_test_always_raise_resilience(
-            best_rows,
+            final_rows,
             thresholds,
             algorithm_specs=specs,
         )
@@ -430,12 +430,12 @@ def validate_stress_test_results_from_best_rows(
     )
     checks.extend(
         validate_stress_test_classifier_coverage(
-            best_rows,
+            final_rows,
             thresholds,
             algorithm_specs=specs,
         )
     )
-    checks.extend(validate_minimum_seed_coverage(best_rows, thresholds))
-    checks.extend(validate_seed_stability(best_rows, thresholds))
-    checks.extend(validate_extreme_bb_per_100(best_rows, thresholds))
+    checks.extend(validate_minimum_seed_coverage(final_rows, thresholds))
+    checks.extend(validate_seed_stability(final_rows, thresholds))
+    checks.extend(validate_extreme_bb_per_100(final_rows, thresholds))
     return checks

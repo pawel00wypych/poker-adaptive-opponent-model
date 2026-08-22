@@ -35,15 +35,15 @@ from src.evaluation.validation.common import (
 
 
 def _algorithm_specs(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> tuple[AlgorithmValidationSpec, ...]:
-    return tuple(algorithm_specs or available_algorithm_specs(best_rows))
+    return tuple(algorithm_specs or available_algorithm_specs(final_rows))
 
 
 def _profit_check_result(
     *,
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     agent_name: str,
     opponent_name: str,
     check_name: str,
@@ -52,7 +52,7 @@ def _profit_check_result(
     algorithm_name: str | None = None,
     fail_on_underperformance: bool = True,
 ) -> ValidationCheckResult:
-    row = _find_row(best_rows, agent_name, opponent_name)
+    row = _find_row(final_rows, agent_name, opponent_name)
 
     if row is None:
         return _missing_row_result(
@@ -96,17 +96,17 @@ def _profit_check_result(
 
 
 def validate_head_to_head_rule_based_performance(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         results.extend(
             [
                 _profit_check_result(
-                    best_rows=best_rows,
+                    final_rows=final_rows,
                     agent_name=spec.general_policy_agent,
                     opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
                     check_name=(
@@ -118,7 +118,7 @@ def validate_head_to_head_rule_based_performance(
                     algorithm_name=spec.algorithm_name,
                 ),
                 _profit_check_result(
-                    best_rows=best_rows,
+                    final_rows=final_rows,
                     agent_name=spec.adaptive_agent,
                     opponent_name=HEAD_TO_HEAD_RULE_BASED_OPPONENT,
                     check_name=(
@@ -135,7 +135,7 @@ def validate_head_to_head_rule_based_performance(
 
 
 def validate_head_to_head_specialist_rule_based_performance(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
     check_name = "Monte Carlo: At least one specialist beats RuleBasedPlayer"
@@ -144,7 +144,7 @@ def validate_head_to_head_specialist_rule_based_performance(
 
     for agent_name in HEAD_TO_HEAD_SPECIALIST_AGENTS:
         row = _find_row(
-            best_rows,
+            final_rows,
             agent_name,
             HEAD_TO_HEAD_RULE_BASED_OPPONENT,
         )
@@ -209,14 +209,14 @@ def validate_head_to_head_specialist_rule_based_performance(
 
 
 def validate_adaptive_not_worse_than_general_rule_based(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         check_name = (
             f"{spec.algorithm_name}: Adaptive not significantly worse "
             "than fixed general vs RuleBasedPlayer"
@@ -226,7 +226,7 @@ def validate_adaptive_not_worse_than_general_rule_based(
             (spec.general_policy_agent, HEAD_TO_HEAD_RULE_BASED_OPPONENT),
         )
         training_episode, rows = _find_rows_at_common_training_episode(
-            best_rows,
+            final_rows,
             matchups,
         )
         adaptive_row, general_row = rows
@@ -260,7 +260,7 @@ def validate_adaptive_not_worse_than_general_rule_based(
                 _missing_common_training_episode_result(
                     check_name,
                     "head_to_head_adaptive_gap",
-                    best_rows,
+                    final_rows,
                     matchups,
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
@@ -363,7 +363,7 @@ def validate_adaptive_not_worse_than_general_rule_based(
 
 
 def validate_head_to_head_ood_classifier_coverage(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = (
         HEAD_TO_HEAD_RULE_BASED_OPPONENT,
@@ -373,10 +373,10 @@ def validate_head_to_head_ood_classifier_coverage(
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         for opponent_name in opponents:
             adaptive_row = _find_row(
-                best_rows,
+                final_rows,
                 spec.adaptive_agent,
                 opponent_name,
             )
@@ -435,12 +435,12 @@ def validate_head_to_head_ood_classifier_coverage(
 
 
 def validate_always_raise_head_to_head_stress_test(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     agents: Iterable[str] | None = None,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
-    specs = _algorithm_specs(best_rows, algorithm_specs)
+    specs = _algorithm_specs(final_rows, algorithm_specs)
     agent_to_algorithm = {spec.adaptive_agent: spec.algorithm_name for spec in specs}
     agent_to_algorithm.update(
         {spec.general_policy_agent: spec.algorithm_name for spec in specs}
@@ -448,7 +448,7 @@ def validate_always_raise_head_to_head_stress_test(
 
     if agents is None:
         evaluated_agents = list(agent_to_algorithm)
-        available_agents = set(best_rows["agent_name"].dropna())
+        available_agents = set(final_rows["agent_name"].dropna())
         evaluated_agents.extend(
             agent_name
             for agent_name in HEAD_TO_HEAD_SPECIALIST_AGENTS
@@ -461,7 +461,7 @@ def validate_always_raise_head_to_head_stress_test(
 
     for agent_name in evaluated_agents:
         row = _find_row(
-            best_rows,
+            final_rows,
             agent_name,
             HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT,
         )
@@ -524,27 +524,27 @@ def validate_always_raise_head_to_head_stress_test(
     return results
 
 
-def validate_head_to_head_results_from_best_rows(
-    best_rows: pd.DataFrame,
+def validate_head_to_head_results_from_final_rows(
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
     comparison_rows: pd.DataFrame | None = None,
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
-    specs = tuple(algorithm_specs or available_algorithm_specs(best_rows))
-    aligned_comparison_rows = best_rows if comparison_rows is None else comparison_rows
+    specs = tuple(algorithm_specs or available_algorithm_specs(final_rows))
+    aligned_comparison_rows = final_rows if comparison_rows is None else comparison_rows
 
     checks: list[ValidationCheckResult] = []
     checks.extend(
         validate_head_to_head_rule_based_performance(
-            best_rows,
+            final_rows,
             thresholds,
             algorithm_specs=specs,
         )
     )
     checks.extend(
         validate_head_to_head_specialist_rule_based_performance(
-            best_rows,
+            final_rows,
             thresholds,
         )
     )
@@ -558,33 +558,33 @@ def validate_head_to_head_results_from_best_rows(
     )
     checks.extend(
         validate_head_to_head_ood_classifier_coverage(
-            best_rows,
+            final_rows,
             thresholds,
             algorithm_specs=specs,
         )
     )
     checks.extend(
         validate_always_raise_head_to_head_stress_test(
-            best_rows,
+            final_rows,
             thresholds,
             algorithm_specs=specs,
         )
     )
     checks.extend(
         validate_minimum_seed_coverage(
-            best_rows,
+            final_rows,
             thresholds,
         )
     )
     checks.extend(
         validate_seed_stability(
-            best_rows,
+            final_rows,
             thresholds,
         )
     )
     checks.extend(
         validate_extreme_bb_per_100(
-            best_rows,
+            final_rows,
             thresholds,
         )
     )

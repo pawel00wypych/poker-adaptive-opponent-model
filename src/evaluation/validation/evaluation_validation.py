@@ -25,7 +25,7 @@ from src.evaluation.reporting.training_opponent_report import (
 )
 from src.evaluation.validation.baseline_sanity_validation import (
     BASELINE_SANITY_AGENTS,
-    validate_baseline_sanity_results_from_best_rows,
+    validate_baseline_sanity_results_from_final_rows,
 )
 from src.evaluation.validation.common import (
     DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS,
@@ -64,27 +64,27 @@ from src.evaluation.validation.common import (
 )
 from src.evaluation.validation.cross_play_validation import (
     validate_cross_play_matchup_coverage,
-    validate_cross_play_results_from_best_rows,
+    validate_cross_play_results_from_final_rows,
 )
 from src.evaluation.validation.generalization_validation import (
-    validate_generalization_results_from_best_rows,
+    validate_generalization_results_from_final_rows,
 )
 from src.evaluation.validation.head_to_head_validation import (
-    validate_head_to_head_results_from_best_rows,
+    validate_head_to_head_results_from_final_rows,
 )
 from src.evaluation.validation.stress_test_validation import (
     STRESS_TEST_OPPONENTS,
-    validate_stress_test_results_from_best_rows,
+    validate_stress_test_results_from_final_rows,
 )
 from src.players.constants import GENERALIZATION_OPPONENTS
 from src.poker.constants import OPPONENT_TYPE_TIGHT, TRAINING_OPPONENT_TYPES
 
 
 def _algorithm_specs(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> tuple[AlgorithmValidationSpec, ...]:
-    return tuple(algorithm_specs or available_algorithm_specs(best_rows))
+    return tuple(algorithm_specs or available_algorithm_specs(final_rows))
 
 
 _REQUIRED_ALGORITHM_ROLES_BY_MODE = {
@@ -124,7 +124,7 @@ def _required_algorithm_agents(
 
 
 def validate_expected_algorithms_present(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     expected_specs: Iterable[AlgorithmValidationSpec],
     *,
     fail_when_missing: bool,
@@ -137,8 +137,8 @@ def validate_expected_algorithms_present(
         )
 
     available_agents = (
-        set(best_rows["agent_name"].dropna())
-        if "agent_name" in best_rows.columns
+        set(final_rows["agent_name"].dropna())
+        if "agent_name" in final_rows.columns
         else set()
     )
     results: list[ValidationCheckResult] = []
@@ -203,7 +203,7 @@ def validate_expected_algorithms_present(
 
 
 def validate_required_matchups_present(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     expected_specs: Iterable[AlgorithmValidationSpec],
     *,
     fail_when_missing: bool,
@@ -211,7 +211,7 @@ def validate_required_matchups_present(
 ) -> list[ValidationCheckResult]:
     if validation_mode == VALIDATION_MODE_CROSS_PLAY:
         return validate_cross_play_matchup_coverage(
-            best_rows,
+            final_rows,
             expected_specs,
             fail_when_missing=fail_when_missing,
         )
@@ -224,11 +224,11 @@ def validate_required_matchups_present(
 
     available_matchups = (
         set(
-            best_rows[["agent_name", "opponent_name"]]
+            final_rows[["agent_name", "opponent_name"]]
             .dropna()
             .itertuples(index=False, name=None)
         )
-        if {"agent_name", "opponent_name"}.issubset(best_rows.columns)
+        if {"agent_name", "opponent_name"}.issubset(final_rows.columns)
         else set()
     )
     required_opponents = _REQUIRED_MATCHUP_OPPONENTS_BY_MODE[validation_mode]
@@ -314,7 +314,7 @@ def validate_required_matchups_present(
 
 
 def validate_adaptive_beats_rule_based(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = DEFAULT_ADAPTIVE_RULE_BASED_OPPONENTS,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
@@ -322,14 +322,14 @@ def validate_adaptive_beats_rule_based(
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         for opponent_name in opponents:
             matchups = (
                 (spec.adaptive_agent, opponent_name),
                 (RULE_BASED_AGENT, opponent_name),
             )
             training_episode, rows = _find_rows_at_common_training_episode(
-                best_rows, matchups
+                final_rows, matchups
             )
             adaptive_row, rule_based_row = rows
             check_name = (
@@ -365,7 +365,7 @@ def validate_adaptive_beats_rule_based(
                     _missing_common_training_episode_result(
                         check_name,
                         "baseline_delta",
-                        best_rows,
+                        final_rows,
                         matchups,
                         algorithm_name=spec.algorithm_name,
                         agent_name=spec.adaptive_agent,
@@ -471,7 +471,7 @@ def validate_adaptive_beats_rule_based(
 
 
 def validate_oracle_not_worse_than_adaptive(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = DEFAULT_ORACLE_OPPONENTS,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
@@ -479,14 +479,14 @@ def validate_oracle_not_worse_than_adaptive(
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         for opponent_name in opponents:
             matchups = (
                 (spec.oracle_agent, opponent_name),
                 (spec.adaptive_agent, opponent_name),
             )
             training_episode, rows = _find_rows_at_common_training_episode(
-                best_rows, matchups
+                final_rows, matchups
             )
             oracle_row, adaptive_row = rows
             check_name = (
@@ -523,7 +523,7 @@ def validate_oracle_not_worse_than_adaptive(
                     _missing_common_training_episode_result(
                         check_name,
                         "oracle_gap",
-                        best_rows,
+                        final_rows,
                         matchups,
                         algorithm_name=spec.algorithm_name,
                         agent_name=spec.oracle_agent,
@@ -628,15 +628,15 @@ def validate_oracle_not_worse_than_adaptive(
 
 
 def validate_tight_exploitation(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         adaptive_row = _find_row(
-            best_rows,
+            final_rows,
             spec.adaptive_agent,
             OPPONENT_TYPE_TIGHT,
         )
@@ -692,17 +692,17 @@ def validate_tight_exploitation(
 
 
 def validate_classifier_quality(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     opponents: Iterable[str] = DEFAULT_CLASSIFIER_OPPONENTS,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         for opponent_name in opponents:
             adaptive_row = _find_row(
-                best_rows,
+                final_rows,
                 spec.adaptive_agent,
                 opponent_name,
             )
@@ -767,13 +767,13 @@ def validate_classifier_quality(
 
 
 def validate_tight_baseline_saturation(
-    best_rows: pd.DataFrame,
+    final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
 ) -> list[ValidationCheckResult]:
     results: list[ValidationCheckResult] = []
 
-    for spec in _algorithm_specs(best_rows, algorithm_specs):
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
         required_agents = (
             spec.adaptive_agent,
             RULE_BASED_AGENT,
@@ -783,7 +783,7 @@ def validate_tight_baseline_saturation(
             (agent_name, OPPONENT_TYPE_TIGHT) for agent_name in required_agents
         )
         training_episode, rows = _find_rows_at_common_training_episode(
-            best_rows,
+            final_rows,
             matchups,
         )
         rows_by_agent = dict(zip(required_agents, rows, strict=True))
@@ -813,7 +813,7 @@ def validate_tight_baseline_saturation(
                 _missing_common_training_episode_result(
                     check_name,
                     "always_raise_sanity",
-                    best_rows,
+                    final_rows,
                     matchups,
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
@@ -925,7 +925,7 @@ def validate_evaluation_results(
         aggregated_replicates = aggregate_across_evaluation_replicates(
             replicate_metrics
         )
-        checks = validate_baseline_sanity_results_from_best_rows(
+        checks = validate_baseline_sanity_results_from_final_rows(
             aggregated_replicates,
             thresholds,
             replicate_rows=replicate_metrics,
@@ -973,7 +973,7 @@ def validate_evaluation_results(
             )
         if seed_validation_rows is None:
             checks.extend(
-                validate_cross_play_results_from_best_rows(
+                validate_cross_play_results_from_final_rows(
                     validation_rows,
                     thresholds,
                     algorithm_specs=expected_specs,
@@ -982,7 +982,7 @@ def validate_evaluation_results(
             )
         else:
             checks.extend(
-                validate_cross_play_results_from_best_rows(
+                validate_cross_play_results_from_final_rows(
                     validation_rows,
                     thresholds,
                     algorithm_specs=expected_specs,
@@ -1011,7 +1011,7 @@ def validate_evaluation_results(
             )
         if seed_validation_rows is None:
             checks.extend(
-                validate_stress_test_results_from_best_rows(
+                validate_stress_test_results_from_final_rows(
                     validation_rows,
                     thresholds,
                     algorithm_specs=expected_specs,
@@ -1020,7 +1020,7 @@ def validate_evaluation_results(
             )
         else:
             checks.extend(
-                validate_stress_test_results_from_best_rows(
+                validate_stress_test_results_from_final_rows(
                     validation_rows,
                     thresholds,
                     algorithm_specs=expected_specs,
@@ -1049,7 +1049,7 @@ def validate_evaluation_results(
             )
         if seed_validation_rows is None:
             checks.extend(
-                validate_head_to_head_results_from_best_rows(
+                validate_head_to_head_results_from_final_rows(
                     validation_rows,
                     thresholds,
                     algorithm_specs=expected_specs,
@@ -1058,7 +1058,7 @@ def validate_evaluation_results(
             )
         else:
             checks.extend(
-                validate_head_to_head_results_from_best_rows(
+                validate_head_to_head_results_from_final_rows(
                     validation_rows,
                     thresholds,
                     algorithm_specs=expected_specs,
@@ -1087,7 +1087,7 @@ def validate_evaluation_results(
             )
         if seed_validation_rows is None:
             checks.extend(
-                validate_generalization_results_from_best_rows(
+                validate_generalization_results_from_final_rows(
                     validation_rows,
                     thresholds,
                     algorithm_specs=expected_specs,
@@ -1096,7 +1096,7 @@ def validate_evaluation_results(
             )
         else:
             checks.extend(
-                validate_generalization_results_from_best_rows(
+                validate_generalization_results_from_final_rows(
                     validation_rows,
                     thresholds,
                     algorithm_specs=expected_specs,
