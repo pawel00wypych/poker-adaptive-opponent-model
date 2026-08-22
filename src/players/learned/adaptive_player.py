@@ -6,7 +6,7 @@ from src.classifier.rule_based_classifier import (
     RuleBasedOpponentClassifier,
 )
 from src.poker.action_mapper import ActionMapper
-from src.poker.betting import to_decision_actions
+from src.poker.betting import last_action_increment, to_decision_actions
 from src.poker.constants import (
     OPPONENT_TYPE_OTHER,
     OPPONENT_TYPE_UNKNOWN,
@@ -360,7 +360,11 @@ class AdaptivePlayer(PlayerTemplate):
 
         if action_player_uuid != self.uuid:
             self.opponent_stats.update_action(
-                action.get("action")
+                action.get("action"),
+                paid=last_action_increment(
+                    round_state,
+                    action_player_uuid,
+                ),
             )
 
     def receive_round_result_message(

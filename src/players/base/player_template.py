@@ -35,6 +35,16 @@ class PlayerTemplate(BasePokerPlayer):
     def big_blind_amount(self):
         return GameConfig.small_blind_amount * 2
 
+    @property
+    def player_uuid(self) -> str | None:
+        """Return the engine-assigned uuid, or None before a game starts.
+
+        The engine assigns ``uuid`` when it seats the player, so helpers that
+        run before that - and unit tests that build a player directly - must
+        not assume the attribute exists.
+        """
+        return getattr(self, "uuid", None)
+
     def ensure_player_index(self, seats):
         if self.my_index is not None:
             return

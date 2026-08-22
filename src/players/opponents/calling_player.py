@@ -1,6 +1,7 @@
 import random
 
 from src.players.base.player_template import PlayerTemplate
+from src.poker.betting import call_cost
 from src.poker.round_state_utils import get_player_stack
 
 
@@ -52,7 +53,7 @@ class CallingPlayer(PlayerTemplate):
             first_action = valid_actions[0]
             return first_action["action"], first_action["amount"]
 
-        call_amount = int(call_action.get("amount", 0))
+        call_amount = call_cost(valid_actions, round_state, self.player_uuid)
         if call_amount <= 0:
             return call_action["action"], call_action["amount"]
 
