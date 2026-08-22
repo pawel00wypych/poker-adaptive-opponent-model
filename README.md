@@ -47,7 +47,9 @@ opponents.
   - `calling_extreme`
   - `aggressive_extreme`
 - Discretised state representation with hand strength, poker context, pot
-  information, stack-to-pot ratio and opponent type.
+  information and stack-to-pot ratio. The opponent type is deliberately not part
+  of the state: every policy owns its own Q-table and always encoded its own
+  type, so the field was constant within any table.
 - Multi-seed training, checkpoint saving and checkpoint evaluation.
 - Generalization and stress-test evaluation on base and variant opponents.
 - Direct head-to-head sanity evaluation.

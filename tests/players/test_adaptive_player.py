@@ -125,7 +125,7 @@ def test_adaptive_player_uses_general_policy_before_classification(
         iter(unknown_agent.q_table)
     )
 
-    assert state[-1] == 0
+    assert len(state) == 6
 
 
 def test_adaptive_player_switches_to_aggressive_policy(
@@ -174,7 +174,7 @@ def test_adaptive_player_switches_to_aggressive_policy(
         iter(aggressive_agent.q_table)
     )
 
-    assert state[-1] == 1
+    assert len(state) == 6
 
 
 def test_adaptive_player_switches_to_calling_policy(
@@ -219,7 +219,7 @@ def test_adaptive_player_switches_to_calling_policy(
         )
     )
 
-    assert state[-1] == 4
+    assert len(state) == 6
 
 
 def test_adaptive_player_records_incorrect_classification(
@@ -795,8 +795,9 @@ def test_adaptive_player_updates_all_policies_that_acted_before_switch(
 
     aggressive_state, aggressive_action_id = agents["aggressive"].episode[0]
 
-    assert unknown_state[-1] == 0
-    assert aggressive_state[-1] == 1
+    # Both policies describe the same situation now that the policy identity
+    # is no longer part of the state.
+    assert unknown_state == aggressive_state
 
     player.receive_round_result_message(
         winners=[],

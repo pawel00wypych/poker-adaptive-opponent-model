@@ -6,20 +6,23 @@ from src.features.hand_strength_encoder import (
 from src.features.poker_context_encoder import (
     PokerContextEncoder,
 )
-from src.poker.constants import (
-    OPPONENT_TYPE_UNKNOWN,
-    STATE_ENCODER_OPPONENT_TYPE_IDS,
-)
 
 
 class StateEncoder:
+    """Discretised state used by every tabular policy.
+
+    The opponent type is deliberately not encoded. Each policy owns a separate
+    Q-table and always encoded its own type, so the field was constant within
+    any table: it carried no information while multiplying the nominal state
+    space by five.
+    """
+
     @staticmethod
     def encode(
         player_stack: int,
         valid_actions: list[dict[str, Any]],
         round_state: dict[str, Any],
         hole_cards: list[str],
-        opponent_type: str = OPPONENT_TYPE_UNKNOWN,
     ) -> tuple:
         community_cards = round_state.get(
             "community_card",
@@ -67,12 +70,6 @@ class StateEncoder:
             )
         )
 
-        opponent_id = (
-            StateEncoder._opponent_type_id(
-                opponent_type
-            )
-        )
-
         return (
             street,
             hand_strength_bin,
@@ -80,7 +77,6 @@ class StateEncoder:
             pot_bucket,
             pot_odds_bin,
             spr_bin,
-            opponent_id,
         )
 
     @staticmethod
@@ -132,17 +128,3 @@ class StateEncoder:
             return 2
 
         return 3
-
-    @staticmethod
-    def _opponent_type_id(
-        opponent_type: str,
-    ) -> int:
-        mapping = STATE_ENCODER_OPPONENT_TYPE_IDS
-
-        if opponent_type not in mapping:
-            raise ValueError(
-                "Unsupported opponent type: "
-                f"{opponent_type}"
-            )
-
-        return mapping[opponent_type]

@@ -116,30 +116,37 @@ def test_specialist_player_encodes_fixed_opponent_type(
 
     state, _ = training_agent.episode[0]
 
-    assert state[-1] == 1
+    assert len(state) == 6
 
 
-def test_specialist_player_uses_calling_type_id(
-    training_agent,
+def test_specialist_types_encode_identical_states(
     valid_actions,
     round_state_factory,
 ):
-    player = SpecialistPolicyPlayer(
-        agent=training_agent,
-        opponent_type="calling",
-        player_name="tested_player",
-    )
-    player.uuid = "uuid-tested"
+    """The trained-against opponent selects the table, not the state."""
+    from src.agents.monte_carlo_agent import MonteCarloAgent
 
-    player.declare_action(
-        valid_actions=valid_actions,
-        hole_card=["HK", "DQ"],
-        round_state=round_state_factory(),
-    )
+    recorded = {}
 
-    state, _ = training_agent.episode[0]
+    for opponent_type in ("tight", "aggressive", "calling"):
+        agent = MonteCarloAgent(alpha=0.1, epsilon=0.0, epsilon_min=0.0)
+        agent.train()
+        player = SpecialistPolicyPlayer(
+            agent=agent,
+            opponent_type=opponent_type,
+            player_name="tested_player",
+        )
+        player.uuid = "uuid-tested"
 
-    assert state[-1] == 4
+        player.declare_action(
+            valid_actions=valid_actions,
+            hole_card=["HK", "DQ"],
+            round_state=round_state_factory(),
+        )
+
+        recorded[opponent_type] = agent.episode[0][0]
+
+    assert len(set(recorded.values())) == 1, recorded
 
 
 def test_specialist_player_returns_legal_action(
