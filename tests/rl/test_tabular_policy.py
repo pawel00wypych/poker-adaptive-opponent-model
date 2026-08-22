@@ -102,3 +102,64 @@ def test_tabular_policy_loads_plain_tables():
 
     assert policy.q_table[state].tolist() == [1.0, 2.0, 3.0]
     assert policy.visit_counts[state] == [4, 5, 6]
+
+
+def test_peek_q_values_does_not_insert_the_state():
+    policy = TabularPolicy()
+    state = (1, 2, 3)
+
+    values = policy.peek_q_values(state)
+
+    assert list(values) == [0.0, 0.0, 0.0]
+    assert len(policy.q_table) == 0
+    assert len(policy.visit_counts) == 0
+
+
+def test_peek_visit_counts_does_not_insert_the_state():
+    policy = TabularPolicy()
+    state = (1, 2, 3)
+
+    assert policy.peek_visit_counts(state) == [0, 0, 0]
+    assert len(policy.visit_counts) == 0
+
+
+def test_has_state_does_not_insert_the_state():
+    policy = TabularPolicy()
+    state = (1, 2, 3)
+
+    assert policy.has_state(state) is False
+    assert len(policy.q_table) == 0
+
+    policy.ensure_state_exists(state)
+
+    assert policy.has_state(state) is True
+
+
+def test_peek_returns_stored_values_for_a_known_state():
+    policy = TabularPolicy()
+    state = (1, 2, 3)
+    policy.set_q_value(state, 1, 4.5)
+    policy.increment_visit_count(state, 1)
+
+    assert policy.peek_q_values(state)[1] == 4.5
+    assert policy.peek_visit_counts(state)[1] == 1
+
+
+def test_peeked_visit_counts_are_a_copy():
+    policy = TabularPolicy()
+    state = (1, 2, 3)
+    policy.increment_visit_count(state, 0)
+
+    peeked = policy.peek_visit_counts(state)
+    peeked[0] = 999
+
+    assert policy.get_visit_count(state, 0) == 1
+
+
+def test_get_q_values_still_inserts_the_state():
+    """Documents the remaining read-time mutation measured by the counters."""
+    policy = TabularPolicy()
+
+    policy.get_q_values((9, 9, 9))
+
+    assert len(policy.q_table) == 1

@@ -408,6 +408,29 @@ The main evaluation metrics are:
   baseline.
 - `delta_vs_oracle`: difference in mean profit compared with the oracle adaptive
   baseline, if oracle rows are available.
+- `unseen_state_decision_rate`: share of decisions taken in a state where
+  nothing had been learned.
+- `untried_action_selection_rate`: share of decisions that selected an action
+  never tried in that state.
+
+### Decisions that are not backed by learned values
+
+Q-values are initialised to zero, which makes an unvisited table entry
+indistinguishable from one that was visited and evaluated as worth zero. Two
+consequences follow, and both are **measured rather than corrected**:
+
+1. In a state where nothing was learned, every legal action ties at zero, so
+   the greedy choice degenerates into a uniform random pick over legal actions.
+   This happens in evaluation mode as well, where epsilon is zero.
+2. In a partially explored state, an action that was never tried still holds
+   zero and therefore outranks any action already learned to be losing.
+
+`unseen_state_decision_rate` and `untried_action_selection_rate` quantify how
+much of a reported result comes from these effects. They must be read alongside
+the profitability metrics: a high rate means the numbers reflect table coverage
+and initialisation as much as learned strategy. Changing the fallback behaviour
+was deliberately avoided so that the measurement describes the same agent that
+produced the published results.
 
 `mean_profit_bb` is the main game-level profitability metric. `BB/100` is useful
 for normalising by the number of hands, but it can become inflated when games end
@@ -437,6 +460,11 @@ of robust poker strategy.
 - The poker environment is simplified and depends on the local `PyPokerEngine`
   implementation.
 - The state space is discretised, so it does not capture every poker detail.
+- Tabular Q-values start at zero, so an unvisited entry looks the same as one
+  evaluated as worth zero. In an unlearned state the agent effectively plays a
+  uniform random legal action, and an untried action outranks actions learned
+  to be losing. Both effects are reported as `unseen_state_decision_rate` and
+  `untried_action_selection_rate` rather than hidden.
 - The classifier needs several observed actions before it can identify an
   opponent type.
 - The adaptive agent may lose chips before enough opponent information is

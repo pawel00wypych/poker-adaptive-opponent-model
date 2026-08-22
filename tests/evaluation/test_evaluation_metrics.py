@@ -46,6 +46,11 @@ def test_calculate_final_model_metrics_groups_by_seed_and_training_episode(
                 "first_classification_action_count": 5,
                 "first_correct_classification_action_count": 5,
                 "final_predicted_type": "calling",
+                "policy_decisions": 0,
+                "unseen_state_decisions": 0,
+                "untried_action_selections": 0,
+                "unseen_state_decision_rate": 0.0,
+                "untried_action_selection_rate": 0.0,
             },
             {
                 "training_run": "state_v2",
@@ -80,6 +85,11 @@ def test_calculate_final_model_metrics_groups_by_seed_and_training_episode(
                 "first_classification_action_count": 6,
                 "first_correct_classification_action_count": 7,
                 "final_predicted_type": "calling",
+                "policy_decisions": 0,
+                "unseen_state_decisions": 0,
+                "untried_action_selections": 0,
+                "unseen_state_decision_rate": 0.0,
+                "untried_action_selection_rate": 0.0,
             },
         ]
     )
@@ -143,6 +153,11 @@ def test_global_classifier_coverage_excludes_other_classifications(tmp_path):
         "first_classification_action_count": 5,
         "first_correct_classification_action_count": 5,
         "final_predicted_type": "calling",
+        "policy_decisions": 0,
+        "unseen_state_decisions": 0,
+        "untried_action_selections": 0,
+        "unseen_state_decision_rate": 0.0,
+        "untried_action_selection_rate": 0.0,
     }
 
     pd.DataFrame([row]).to_csv(csv_path, index=False)
@@ -189,6 +204,11 @@ def test_final_model_metrics_ignore_untrained_baseline_replicates(tmp_path):
         "first_correct_classification_hand": None,
         "first_classification_action_count": None,
         "first_correct_classification_action_count": None,
+        "policy_decisions": 0,
+        "unseen_state_decisions": 0,
+        "untried_action_selections": 0,
+        "unseen_state_decision_rate": 0.0,
+        "untried_action_selection_rate": 0.0,
     }
     baseline_row = {
         **final_row,
