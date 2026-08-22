@@ -75,7 +75,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=float,
         default=None,
         help=(
-            "Optional legacy multiplier overriding the default 95% "
+            "Optional legacy multiplier overriding the default 95%% "
             "Student-t confidence interval in charts."
         ),
     )
