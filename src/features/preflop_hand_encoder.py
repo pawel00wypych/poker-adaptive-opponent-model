@@ -1,6 +1,5 @@
 from typing import Sequence
 
-
 RANK_TO_VALUE = {
     "2": 2,
     "3": 3,

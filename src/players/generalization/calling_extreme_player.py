@@ -5,7 +5,6 @@ from src.players.base.player_template import PlayerTemplate
 from src.poker.betting import call_cost
 from src.poker.round_state_utils import get_player_stack
 
-
 WEAK_HAND_STRENGTH_BIN = 0
 MEDIUM_HAND_STRENGTH_BIN = 2
 STRONG_HAND_STRENGTH_BIN = 3

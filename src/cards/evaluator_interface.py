@@ -14,7 +14,8 @@ class EvaluatorInterface:
         hand = [cls.decode_str_to_card(c) for c in community]
         # HandEvaluator.eval_hand() returns integer in this
         # format:
-        # [ hand strength bits ][ hand rank high ][ hand rank low ][ hole high ][ hole low ]
+        # [ hand strength bits ][ hand rank high ][ hand rank low ]
+    # [ hole high ][ hole low ]
         score = HandEvaluator.eval_hand(hole, hand)
         hand_info = HandEvaluator.gen_hand_rank_info(hole, hand)
         hand_info['score'] = score

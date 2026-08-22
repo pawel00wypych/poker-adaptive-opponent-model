@@ -65,7 +65,8 @@ class PlayerTemplate(BasePokerPlayer):
         if self.hand_start_stack is None:
             raise RuntimeError(
                 "hand_start_stack is not set. "
-                "receive_round_start_message() must be called before reward calculation."
+                "receive_round_start_message() must be called before "
+                "reward calculation."
             )
 
         reward = final_stack - self.hand_start_stack
@@ -147,4 +148,6 @@ class PlayerTemplate(BasePokerPlayer):
             if action["action"] == name:
                 return action
 
-        raise ValueError(f"There is no action={name!r} in valid_actions={valid_actions}")
+        raise ValueError(
+            f"There is no action={name!r} in valid_actions={valid_actions}"
+        )

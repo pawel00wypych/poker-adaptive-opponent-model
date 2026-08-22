@@ -3,10 +3,12 @@ from typing import Sequence
 
 from src.experiments.training.td_cli import (
     TDTrainingCliSpec,
-    model_directory as _model_directory,
     parse_td_training_args,
     run_td_cli,
     run_td_training,
+)
+from src.experiments.training.td_cli import (
+    model_directory as _model_directory,
 )
 from src.training.q_learning_trainer import (
     Q_LEARNING_ALGORITHM_NAME,

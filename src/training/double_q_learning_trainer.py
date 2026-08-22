@@ -1,15 +1,27 @@
 from src.agents.double_q_learning_agent import DoubleQLearningAgent
 from src.training.td_trainer import (
     TDTrainingSpec,
-    build_episode_opponent as _build_episode_opponent,
     build_td_metadata,
-    build_training_player as _build_training_player,
-    default_checkpoint_directory as _default_checkpoint_directory,
-    default_model_path as _default_model_path,
-    checkpoint_model_name as _checkpoint_model_name,
     format_duration,
-    model_run_name as _model_run_name,
     run_td_model_training,
+)
+from src.training.td_trainer import (
+    build_episode_opponent as _build_episode_opponent,
+)
+from src.training.td_trainer import (
+    build_training_player as _build_training_player,
+)
+from src.training.td_trainer import (
+    checkpoint_model_name as _checkpoint_model_name,
+)
+from src.training.td_trainer import (
+    default_checkpoint_directory as _default_checkpoint_directory,
+)
+from src.training.td_trainer import (
+    default_model_path as _default_model_path,
+)
+from src.training.td_trainer import (
+    model_run_name as _model_run_name,
 )
 
 DOUBLE_Q_LEARNING_ALGORITHM_NAME = "double_q_learning"

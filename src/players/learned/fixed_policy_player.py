@@ -1,14 +1,14 @@
 from src.features.state_encoder import StateEncoder
 from src.players.base.player_template import PlayerTemplate
+from src.players.constants import PLAYER_NAME_FIXED_POLICY
 from src.poker.action_mapper import ActionMapper
 from src.poker.betting import to_decision_actions
 from src.poker.constants import POLICY_TYPES
 from src.poker.round_state_utils import (
     get_player_stack,
-    is_small_blind,
     get_round_count,
+    is_small_blind,
 )
-from src.players.constants import PLAYER_NAME_FIXED_POLICY
 
 
 class FixedPolicyPlayer(PlayerTemplate):
