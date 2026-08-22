@@ -4,6 +4,7 @@ from src.rl.action_selection import (
 )
 from src.rl.constants import (
     ALGORITHM_KEY,
+    ALGORITHM_SARSA,
     METADATA_KEY,
     Q_TABLE_KEY,
     VISIT_COUNTS_KEY,
@@ -29,6 +30,8 @@ class SarsaAgent:
     the terminal reward in big blinds. Non-terminal SARSA targets use the
     actual next action from the stored trajectory instead of max_a Q(s', a).
     """
+
+    ALGORITHM_ID = ALGORITHM_SARSA
 
     def __init__(
         self,
@@ -243,7 +246,7 @@ class SarsaAgent:
         metadata: dict | None = None,
     ) -> None:
         payload = {
-            ALGORITHM_KEY: "sarsa",
+            ALGORITHM_KEY: self.ALGORITHM_ID,
             Q_TABLE_KEY: TabularPolicy.to_plain_q_table(
                 self.q_table
             ),
@@ -270,6 +273,7 @@ class SarsaAgent:
         payload = load_model_payload(
             path=path,
             model_name="SARSA",
+            expected_algorithm=cls.ALGORITHM_ID,
         )
 
         agent = cls(

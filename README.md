@@ -91,9 +91,15 @@ relevant packages, for example `src/rl/constants.py`, `src/poker/constants.py`,
 
 ## Requirements
 
-- Python 3.11
+- Python 3.11 (enforced — see below)
 - pip
 - Git
+
+The supported interpreter is checked at import time in `src/__init__.py` and
+declared as `requires-python = ">=3.11,<3.12"` in `pyproject.toml`. Running any
+command or test on a different Python version fails immediately with an
+explanatory error rather than producing results that silently differ between
+versions.
 
 ## Installation
 

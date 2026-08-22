@@ -3,6 +3,7 @@ import math
 from src.rl.action_selection import select_epsilon_greedy_action
 from src.rl.constants import (
     ALGORITHM_KEY,
+    ALGORITHM_MONTE_CARLO,
     METADATA_KEY,
     Q_TABLE_KEY,
     VISIT_COUNTS_KEY,
@@ -34,6 +35,7 @@ class MonteCarloAgent:
     """
 
     SUPPORTED_ALPHA_MODES = set(SUPPORTED_ALPHA_MODES)
+    ALGORITHM_ID = ALGORITHM_MONTE_CARLO
 
     def __init__(
         self,
@@ -209,9 +211,7 @@ class MonteCarloAgent:
         metadata: dict | None = None,
     ) -> None:
         payload = {
-            ALGORITHM_KEY: (
-                "first_visit_monte_carlo_control"
-            ),
+            ALGORITHM_KEY: self.ALGORITHM_ID,
             Q_TABLE_KEY: TabularPolicy.to_plain_q_table(
                 self.q_table
             ),
@@ -238,6 +238,7 @@ class MonteCarloAgent:
         payload = load_model_payload(
             path=path,
             model_name="Monte Carlo",
+            expected_algorithm=cls.ALGORITHM_ID,
         )
 
         agent = cls(

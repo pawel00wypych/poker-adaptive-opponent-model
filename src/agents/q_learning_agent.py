@@ -5,6 +5,7 @@ from src.rl.action_selection import (
 )
 from src.rl.constants import (
     ALGORITHM_KEY,
+    ALGORITHM_Q_LEARNING,
     METADATA_KEY,
     Q_TABLE_KEY,
     VISIT_COUNTS_KEY,
@@ -30,6 +31,8 @@ class QLearningAgent:
     Intermediate transitions use reward 0.0. The final transition uses the
     terminal reward in big blinds.
     """
+
+    ALGORITHM_ID = ALGORITHM_Q_LEARNING
 
     def __init__(
         self,
@@ -252,7 +255,7 @@ class QLearningAgent:
         metadata: dict | None = None,
     ) -> None:
         payload = {
-            ALGORITHM_KEY: "q_learning",
+            ALGORITHM_KEY: self.ALGORITHM_ID,
             Q_TABLE_KEY: TabularPolicy.to_plain_q_table(
                 self.q_table
             ),
@@ -279,6 +282,7 @@ class QLearningAgent:
         payload = load_model_payload(
             path=path,
             model_name="Q-learning",
+            expected_algorithm=cls.ALGORITHM_ID,
         )
 
         agent = cls(
