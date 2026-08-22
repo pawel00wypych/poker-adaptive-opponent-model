@@ -16,14 +16,17 @@ def html_page(title: str, body: str) -> str:
   <meta charset=\"utf-8\">
   <title>{escape(title)}</title>
   <style>
-    body {{ font-family: Arial, sans-serif; margin: 32px; line-height: 1.45; color: #222; }}
+    body {{ font-family: Arial, sans-serif; margin: 32px;
+           line-height: 1.45; color: #222; }}
     h1, h2, h3 {{ margin-top: 1.2em; }}
-    table {{ border-collapse: collapse; margin: 16px 0; width: 100%; font-size: 0.92rem; }}
+    table {{ border-collapse: collapse; margin: 16px 0;
+            width: 100%; font-size: 0.92rem; }}
     th, td {{ border: 1px solid #ddd; padding: 6px 8px; text-align: right; }}
     th:first-child, td:first-child {{ text-align: left; }}
     th {{ background: #f3f3f3; }}
     .note {{ background: #f7f7f7; border-left: 4px solid #999; padding: 10px 14px; }}
-    .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 18px; }}
+    .grid {{ display: grid; gap: 18px;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }}
     .plot {{ border: 1px solid #ddd; padding: 12px; background: #fff; }}
     .plot img {{ max-width: 100%; height: auto; display: block; }}
     code {{ background: #f2f2f2; padding: 1px 4px; }}

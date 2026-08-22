@@ -1,10 +1,10 @@
 import pytest
 
+from src.evaluation.diagnostics.q_table_comparator import build_selected_targets
 from src.experiments.diagnostics.compare_selected_q_tables import (
     parse_args,
     should_compare_pair,
 )
-from src.evaluation.diagnostics.q_table_comparator import build_selected_targets
 
 
 def test_parse_args_accepts_general_q_table_comparison_arguments():

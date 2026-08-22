@@ -1,5 +1,5 @@
-from src.players.base.player_template import PlayerTemplate
 from src.features.state_encoder import StateEncoder
+from src.players.base.player_template import PlayerTemplate
 from src.players.constants import PLAYER_NAME_GENERAL_POLICY
 from src.poker.action_mapper import ActionMapper
 from src.poker.betting import to_decision_actions

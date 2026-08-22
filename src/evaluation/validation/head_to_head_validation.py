@@ -516,7 +516,9 @@ def validate_always_raise_head_to_head_stress_test(
                     "mean_profit_bb": mean_profit_bb,
                     "bust_rate": bust_rate,
                     "stress_loss_threshold_bb": thresholds.always_raise_stress_loss_bb,
-                    "stress_bust_rate_threshold": thresholds.always_raise_stress_bust_rate,
+                    "stress_bust_rate_threshold": (
+                        thresholds.always_raise_stress_bust_rate
+                    ),
                 },
             )
         )

@@ -8,16 +8,21 @@ from pypokerengine.api.game import (
 )
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
-from src.players.learned.specialist_policy_player import (
-    SpecialistPolicyPlayer,
-)
 from src.config import GameConfig, TrainingConfig
-from src.experiments.constants import MODEL_TYPE_SPECIALIST
 from src.experiments.cli_utils import (
     parse_specialist_training_args,
 )
+from src.experiments.constants import MODEL_TYPE_SPECIALIST
+from src.players.learned.specialist_policy_player import (
+    SpecialistPolicyPlayer,
+)
 from src.players.opponents.factory import (
     build_opponent,
+)
+from src.poker.constants import (
+    OPPONENT_TYPE_AGGRESSIVE,
+    OPPONENT_TYPE_CALLING,
+    OPPONENT_TYPE_TIGHT,
 )
 from src.training.checkpoint_utils import (
     build_checkpoint_episodes,
@@ -31,11 +36,6 @@ from src.training.random_utils import (
 )
 from src.training.training_metadata import (
     save_json,
-)
-from src.poker.constants import (
-    OPPONENT_TYPE_AGGRESSIVE,
-    OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_TIGHT,
 )
 
 

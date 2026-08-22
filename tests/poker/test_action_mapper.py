@@ -21,7 +21,9 @@ def test_raise_min_action_mapping():
         {"action": "raise", "amount": {"min": 20, "max": 100}},
     ]
 
-    action, amount = ActionMapper.to_engine_action(ActionMapper.RAISE_MIN, valid_actions)
+    action, amount = ActionMapper.to_engine_action(
+        ActionMapper.RAISE_MIN, valid_actions
+    )
 
     assert action == "raise"
     assert amount == 20
@@ -34,7 +36,9 @@ def test_invalid_raise_falls_back_to_call():
         {"action": "raise", "amount": {"min": -1, "max": -1}},
     ]
 
-    action, amount = ActionMapper.to_engine_action(ActionMapper.RAISE_MIN, valid_actions)
+    action, amount = ActionMapper.to_engine_action(
+        ActionMapper.RAISE_MIN, valid_actions
+    )
 
     assert action == "call"
     assert amount == 10

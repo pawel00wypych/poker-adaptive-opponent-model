@@ -1,5 +1,4 @@
 import pytest
-
 from pypokerengine.engine.card import Card
 from pypokerengine.engine.hand_evaluator import HandEvaluator
 

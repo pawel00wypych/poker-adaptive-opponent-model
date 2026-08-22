@@ -2,6 +2,7 @@ from collections import Counter
 
 from src.features.state_encoder import StateEncoder
 from src.players.base.player_template import PlayerTemplate
+from src.players.constants import PLAYER_NAME_ORACLE_MC
 from src.poker.action_mapper import ActionMapper
 from src.poker.betting import to_decision_actions
 from src.poker.constants import (
@@ -10,10 +11,9 @@ from src.poker.constants import (
 )
 from src.poker.round_state_utils import (
     get_player_stack,
-    is_small_blind,
     get_round_count,
+    is_small_blind,
 )
-from src.players.constants import PLAYER_NAME_ORACLE_MC
 
 
 class OraclePlayer(PlayerTemplate):

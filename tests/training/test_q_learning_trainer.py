@@ -24,6 +24,15 @@ def test_model_run_name_rejects_unknown_model_type():
         model_run_name("other")
 
 
+def test_default_q_learning_model_paths_are_separate_from_other_algorithms():
+    assert default_model_path(MODEL_TYPE_GENERAL_POLICY) == str(
+        Path("results/models/q_learning/general_policy/final.pkl")
+    )
+    assert default_checkpoint_directory(OPPONENT_TYPE_CALLING) == str(
+        Path("results/models/q_learning/specialist_calling/checkpoints")
+    )
+
+
 def test_build_q_learning_metadata_contains_algorithm_fields():
     class GameConfigStub:
         max_round = 100

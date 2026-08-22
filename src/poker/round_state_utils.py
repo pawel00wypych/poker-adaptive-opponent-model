@@ -1,7 +1,10 @@
 from typing import Any
 
 
-def get_player_seat(round_state: dict[str, Any], player_uuid: str) -> dict[str, Any] | None:
+def get_player_seat(
+    round_state: dict[str, Any],
+    player_uuid: str,
+) -> dict[str, Any] | None:
     """
     Returns player's seat information from PyPokerEngine round_state.
 

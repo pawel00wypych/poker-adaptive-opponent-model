@@ -116,7 +116,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=1,
         help=(
-            "Number of model bundles evaluated in parallel. Use 1 for the most predictable run."
+            "Number of model bundles evaluated in parallel. Use 1 for the "
+            "most predictable run."
         ),
     )
 
@@ -244,7 +245,8 @@ def main() -> None:
         f"training_run_dir={training_run_dir}\n"
         f"q_learning_run_dir={args.q_learning_run_dir or 'not provided'}\n"
         f"sarsa_run_dir={args.sarsa_run_dir or 'not provided'}\n"
-        f"double_q_learning_run_dir={args.double_q_learning_run_dir or 'not provided'}\n"
+        f"double_q_learning_run_dir="
+        f"{args.double_q_learning_run_dir or 'not provided'}\n"
         f"bundles={len(bundles)}\n"
         f"training_episodes={sorted({bundle.episode for bundle in bundles})}\n"
         f"seeds={args.seeds or 'auto'}\n"

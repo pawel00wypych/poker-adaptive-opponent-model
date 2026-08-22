@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 
 from src.agents.double_q_learning_agent import (
-    DoubleQLearningAgent,
     UPDATE_Q1,
     UPDATE_Q2,
+    DoubleQLearningAgent,
 )
 from src.poker.action_mapper import ActionMapper
 
@@ -128,7 +128,8 @@ def test_double_q_learning_randomly_selects_update_table(monkeypatch):
     assert updated_table == UPDATE_Q1
 
 
-def test_double_q_learning_non_terminal_q1_update_uses_q1_to_select_and_q2_to_evaluate():
+def test_double_q_learning_non_terminal_q1_update_uses_q1_to_select_and_q2_to_evaluate(
+):
     agent = DoubleQLearningAgent(
         alpha=0.5,
         gamma=0.9,
@@ -158,7 +159,8 @@ def test_double_q_learning_non_terminal_q1_update_uses_q1_to_select_and_q2_to_ev
     )
 
 
-def test_double_q_learning_non_terminal_q2_update_uses_q2_to_select_and_q1_to_evaluate():
+def test_double_q_learning_non_terminal_q2_update_uses_q2_to_select_and_q1_to_evaluate(
+):
     agent = DoubleQLearningAgent(
         alpha=0.5,
         gamma=0.9,
