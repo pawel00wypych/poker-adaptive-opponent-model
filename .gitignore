@@ -34,3 +34,5 @@ dist/
 # Local logs and scratch files
 *.log
 *.tmp
+
+*.md

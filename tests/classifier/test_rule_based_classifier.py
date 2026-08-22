@@ -25,14 +25,14 @@ def test_classifier_detects_aggressive_opponent():
     assert classifier.classify(stats) == "aggressive"
 
 
-def test_classifier_detects_tight_opponent():
+def test_classifier_detects_tight_opponent_with_moderate_fold_rate():
     classifier = RuleBasedOpponentClassifier(min_actions=5)
     stats = build_stats(["call", "call", "call", "fold", "fold"])
 
     assert classifier.classify(stats) == "tight"
 
 
-def test_classifier_detects_tight_opponent():
+def test_classifier_detects_tight_opponent_with_high_fold_rate():
     classifier = RuleBasedOpponentClassifier(min_actions=5)
     stats = build_stats(["fold", "fold", "fold", "fold", "call", "raise"])
 

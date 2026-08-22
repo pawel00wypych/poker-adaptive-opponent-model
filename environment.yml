@@ -4,8 +4,14 @@ channels:
 dependencies:
   - python=3.11
   - pip
+  # jinja2 is required by pandas for DataFrame.to_latex().
+  - jinja2
   - matplotlib
   - numpy
   - pandas
   - pytest
+  - ruff
+  - scipy
   - tabulate
+  - pip:
+      - git+https://github.com/ishikota/PyPokerEngine.git@a52a048a15da276005eca4acae96fb6eeb4dc034
