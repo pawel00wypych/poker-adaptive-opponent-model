@@ -22,6 +22,12 @@ class ActionMapper:
         action_by_name = {item["action"]: item for item in valid_actions}
 
         if action_id == ActionMapper.FOLD:
+            if ActionMapper._is_free_call(valid_actions):
+                # Folding for free is strictly dominated. A policy trained
+                # before fold masking can still request it, so it is redirected
+                # to the free check instead of surrendering the hand.
+                return ActionMapper._fallback_call(valid_actions)
+
             fold = action_by_name.get("fold")
             if fold is not None:
                 return "fold", fold["amount"]
@@ -53,10 +59,17 @@ class ActionMapper:
 
     @staticmethod
     def get_legal_action_ids(valid_actions: list[dict[str, Any]]) -> list[int]:
+        """Return legal action ids for the given actions.
+
+        ``valid_actions`` is expected to carry the real call cost, as produced
+        by :func:`src.poker.betting.to_decision_actions`. Fold is omitted when
+        staying in the hand is free, because giving up a hand for nothing is
+        strictly dominated and would otherwise consume exploration budget.
+        """
         available = {item["action"] for item in valid_actions}
         legal = []
 
-        if "fold" in available:
+        if "fold" in available and not ActionMapper._is_free_call(valid_actions):
             legal.append(ActionMapper.FOLD)
 
         if "call" in available:
@@ -75,6 +88,15 @@ class ActionMapper:
                 legal.append(ActionMapper.RAISE_MIN)
 
         return legal or [ActionMapper.CALL]
+
+    @staticmethod
+    def _is_free_call(valid_actions: list[dict[str, Any]]) -> bool:
+        for item in valid_actions:
+            if item["action"] == "call":
+                amount = item["amount"]
+                return isinstance(amount, int) and amount <= 0
+
+        return False
 
     @staticmethod
     def _fallback_call(valid_actions: list[dict[str, Any]]) -> tuple[str, int]:

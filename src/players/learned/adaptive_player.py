@@ -6,6 +6,7 @@ from src.classifier.rule_based_classifier import (
     RuleBasedOpponentClassifier,
 )
 from src.poker.action_mapper import ActionMapper
+from src.poker.betting import to_decision_actions
 from src.poker.constants import (
     OPPONENT_TYPE_OTHER,
     OPPONENT_TYPE_UNKNOWN,
@@ -110,6 +111,12 @@ class AdaptivePlayer(PlayerTemplate):
             self.opponent_stats
         )
 
+        decision_actions = to_decision_actions(
+            valid_actions,
+            round_state,
+            self.uuid,
+        )
+
         self.current_opponent_type = predicted_type
 
         self._record_classification(
@@ -147,7 +154,7 @@ class AdaptivePlayer(PlayerTemplate):
 
         state = StateEncoder.encode(
             player_stack=my_stack,
-            valid_actions=valid_actions,
+            valid_actions=decision_actions,
             round_state=round_state,
             hole_cards=hole_card,
             opponent_type=self.active_policy_type,
@@ -155,7 +162,7 @@ class AdaptivePlayer(PlayerTemplate):
 
         action_id = active_agent.act(
             state,
-            valid_actions,
+            decision_actions,
         )
 
         action, amount = ActionMapper.to_engine_action(
@@ -167,7 +174,7 @@ class AdaptivePlayer(PlayerTemplate):
             active_agent.remember(
                 state,
                 action_id,
-                valid_actions=valid_actions,
+                valid_actions=decision_actions,
             )
 
         if self.verbose:
