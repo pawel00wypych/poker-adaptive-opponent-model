@@ -15,6 +15,8 @@ class GameConfig:
 
 @dataclass(frozen=True)
 class TrainingConfig:
+    # Every algorithm shares this budget so that comparisons measure the
+    # algorithm rather than how many episodes each one happened to get.
     episodes: int = 7_500
     alpha: float = 0.1
     alpha_mode: str = ALPHA_MODE_CONSTANT

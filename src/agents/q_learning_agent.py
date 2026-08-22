@@ -11,6 +11,7 @@ from src.rl.constants import (
     VISIT_COUNTS_KEY,
 )
 from src.rl.decision_diagnostics import DecisionDiagnostics
+from src.rl.learning_rate import resolve_learning_rate, validate_alpha_mode
 from src.rl.model_io import (
     load_model_metadata,
     load_model_payload,
@@ -18,6 +19,7 @@ from src.rl.model_io import (
 )
 from src.rl.tabular_policy import TabularPolicy
 from src.rl.types import ActionId, State, ValidActions
+from src.training.constants import ALPHA_MODE_CONSTANT
 
 
 class QLearningAgent:
@@ -41,6 +43,7 @@ class QLearningAgent:
         gamma: float = 1.0,
         epsilon: float = 0.5,
         epsilon_min: float = 0.05,
+        alpha_mode: str = ALPHA_MODE_CONSTANT,
     ):
         if not 0 < alpha <= 1:
             raise ValueError(
@@ -62,7 +65,10 @@ class QLearningAgent:
                 "epsilon_min must be in range [0, 1]"
             )
 
+        validate_alpha_mode(alpha_mode)
+
         self.alpha = alpha
+        self.alpha_mode = alpha_mode
         self.gamma = gamma
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
@@ -157,7 +163,7 @@ class QLearningAgent:
         if not self.training:
             return
 
-        self.policy.increment_visit_count(
+        visits = self.policy.increment_visit_count(
             state,
             action_id,
         )
@@ -174,7 +180,13 @@ class QLearningAgent:
             done=done,
         )
 
-        updated_value = old_value + self.alpha * (
+        learning_rate = resolve_learning_rate(
+            alpha=self.alpha,
+            alpha_mode=self.alpha_mode,
+            visits=visits,
+        )
+
+        updated_value = old_value + learning_rate * (
             target - old_value
         )
 
@@ -199,11 +211,11 @@ class QLearningAgent:
             self.episode.clear()
             return
 
-        for index, (
-            state,
-            action_id,
-            _legal_action_ids,
-        ) in enumerate(self.episode):
+        # Replay backwards so the terminal reward reaches every state
+        # visited in the hand. Iterating forwards moved it a single
+        # step per hand, which starves long trajectories.
+        for index in reversed(range(len(self.episode))):
+            state, action_id, _legal_action_ids = self.episode[index]
             is_terminal_transition = index == len(self.episode) - 1
 
             next_state = None
@@ -279,6 +291,7 @@ class QLearningAgent:
             "alpha": self.alpha,
             "gamma": self.gamma,
             "epsilon_min": self.epsilon_min,
+            "alpha_mode": self.alpha_mode,
             METADATA_KEY: metadata or {},
         }
 
@@ -305,6 +318,10 @@ class QLearningAgent:
             epsilon_min=payload.get(
                 "epsilon_min",
                 0.05,
+            ),
+            alpha_mode=payload.get(
+                "alpha_mode",
+                ALPHA_MODE_CONSTANT,
             ),
         )
 
