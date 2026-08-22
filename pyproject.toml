@@ -1,3 +1,11 @@
+[project]
+name = "poker-adaptive-opponent-model"
+version = "0.1.0"
+description = "Adaptive opponent modelling in heads-up poker with tabular RL."
+# Enforced at runtime by src/__init__.py so that a mismatched interpreter
+# cannot silently produce results.
+requires-python = ">=3.11,<3.12"
+
 [tool.ruff]
 # Set the maximum line length to 88 (standard for Black-compatible formatting)
 line-length = 88
