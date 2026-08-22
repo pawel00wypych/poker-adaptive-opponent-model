@@ -1,4 +1,3 @@
-import math
 
 from src.rl.action_selection import select_epsilon_greedy_action
 from src.rl.constants import (
@@ -9,6 +8,7 @@ from src.rl.constants import (
     VISIT_COUNTS_KEY,
 )
 from src.rl.decision_diagnostics import DecisionDiagnostics
+from src.rl.learning_rate import resolve_learning_rate, validate_alpha_mode
 from src.rl.model_io import (
     load_model_metadata,
     load_model_payload,
@@ -17,8 +17,6 @@ from src.rl.model_io import (
 from src.rl.tabular_policy import TabularPolicy
 from src.training.constants import (
     ALPHA_MODE_CONSTANT,
-    ALPHA_MODE_SQRT_VISIT,
-    ALPHA_MODE_VISIT_COUNT,
     SUPPORTED_ALPHA_MODES,
 )
 
@@ -41,6 +39,7 @@ class MonteCarloAgent:
     def __init__(
         self,
         alpha: float = 0.1,
+        gamma: float = 1.0,
         epsilon: float = 0.5,
         epsilon_min: float = 0.05,
         alpha_mode: str = ALPHA_MODE_CONSTANT,
@@ -48,6 +47,11 @@ class MonteCarloAgent:
         if not 0 < alpha <= 1:
             raise ValueError(
                 "alpha must be in range (0, 1]"
+            )
+
+        if not 0 <= gamma <= 1:
+            raise ValueError(
+                "gamma must be in range [0, 1]"
             )
 
         if not 0 <= epsilon <= 1:
@@ -60,12 +64,10 @@ class MonteCarloAgent:
                 "epsilon_min must be in range [0, 1]"
             )
 
-        if alpha_mode not in self.SUPPORTED_ALPHA_MODES:
-            raise ValueError(
-                f"Unsupported alpha_mode: {alpha_mode}"
-            )
+        validate_alpha_mode(alpha_mode)
 
         self.alpha = alpha
+        self.gamma = gamma
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
         self.alpha_mode = alpha_mode
@@ -141,8 +143,12 @@ class MonteCarloAgent:
         self,
         reward: float,
     ) -> None:
-        """
-        Update all first-visited state-action pairs from one poker hand.
+        """Update all first-visited state-action pairs from one poker hand.
+
+        The environment pays out only at the end of a hand, so the return of a
+        visited pair is the terminal reward discounted by how many decisions
+        still followed it. With the default gamma of 1.0 every first visit
+        receives the full terminal reward.
 
         Epsilon is intentionally not changed here because this method is
         called once per poker hand, not once per training game.
@@ -152,8 +158,9 @@ class MonteCarloAgent:
             return
 
         visited: set[tuple[tuple, int]] = set()
+        final_index = len(self.episode) - 1
 
-        for state, action_id in self.episode:
+        for index, (state, action_id) in enumerate(self.episode):
             state_action = (
                 state,
                 action_id,
@@ -164,15 +171,20 @@ class MonteCarloAgent:
 
             visited.add(state_action)
 
-            self.policy.increment_visit_count(
+            visits = self.policy.increment_visit_count(
                 state,
                 action_id,
             )
 
-            learning_rate = self._learning_rate(
-                state,
-                action_id,
+            learning_rate = resolve_learning_rate(
+                alpha=self.alpha,
+                alpha_mode=self.alpha_mode,
+                visits=visits,
             )
+
+            discounted_return = (
+                self.gamma ** (final_index - index)
+            ) * reward
 
             old_value = (
                 self.q_table[state][action_id]
@@ -181,7 +193,7 @@ class MonteCarloAgent:
             self.q_table[state][action_id] = (
                 old_value
                 + learning_rate
-                * (reward - old_value)
+                * (discounted_return - old_value)
             )
 
         self.episode.clear()
@@ -197,25 +209,10 @@ class MonteCarloAgent:
         state: tuple,
         action_id: int,
     ) -> float:
-        if self.alpha_mode == ALPHA_MODE_CONSTANT:
-            return self.alpha
-
-        visits = self.visit_counts[state][action_id]
-
-        if visits <= 0:
-            raise ValueError(
-                "visit count must be positive before "
-                "calculating visit-count alpha"
-            )
-
-        if self.alpha_mode == ALPHA_MODE_VISIT_COUNT:
-            return 1.0 / visits
-
-        if self.alpha_mode == ALPHA_MODE_SQRT_VISIT:
-            return 1.0 / math.sqrt(visits)
-
-        raise ValueError(
-            f"Unsupported alpha_mode: {self.alpha_mode}"
+        return resolve_learning_rate(
+            alpha=self.alpha,
+            alpha_mode=self.alpha_mode,
+            visits=self.visit_counts[state][action_id],
         )
 
     def save(
@@ -233,6 +230,7 @@ class MonteCarloAgent:
             ),
             "epsilon": self.epsilon,
             "alpha": self.alpha,
+            "gamma": self.gamma,
             "epsilon_min": self.epsilon_min,
             "alpha_mode": self.alpha_mode,
             METADATA_KEY: metadata or {},
@@ -256,6 +254,7 @@ class MonteCarloAgent:
 
         agent = cls(
             alpha=payload.get("alpha", 0.1),
+            gamma=payload.get("gamma", 1.0),
             epsilon=payload.get("epsilon", 0.0),
             epsilon_min=payload.get(
                 "epsilon_min",

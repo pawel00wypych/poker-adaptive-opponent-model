@@ -183,6 +183,24 @@ The project currently compares four tabular reinforcement-learning algorithms.
 All of them use the same environment, state representation, action mapping,
 legal-action handling and reward definition.
 
+### Equal-conditions protocol
+
+A comparison between algorithms is only meaningful if nothing else differs, so
+the following are shared rather than set per algorithm:
+
+- **Episode budget.** Every trainer defaults to `TrainingConfig.episodes`, and
+  the final benchmarks additionally verify that all evaluated models report the
+  same `completed_episodes`.
+- **Learning-rate schedule.** All four agents accept `--alpha-mode`
+  (`constant`, `visit_count`, `sqrt_visit`) through one shared implementation.
+- **Discounting.** All four accept `gamma`, undiscounted by default. For Monte
+  Carlo it discounts the terminal reward by the number of decisions that
+  followed the visit, which is the same meaning the TD agents use.
+- **Credit assignment.** The environment pays out only at the end of a hand, so
+  the temporal-difference agents replay the remembered trajectory backwards.
+  Replaying it forwards would move the reward a single step per hand and would
+  penalise long trajectories for reasons unrelated to the algorithm.
+
 ### Monte Carlo
 
 Monte Carlo is the original baseline used in the project. It updates action
