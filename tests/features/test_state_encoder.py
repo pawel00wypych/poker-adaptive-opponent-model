@@ -1,5 +1,6 @@
 import pytest
 
+from src.evaluation.constants import STATE_V2_FIELDS
 from src.features.hand_strength_encoder import (
     HandStrengthEncoder,
 )
@@ -45,7 +46,6 @@ def test_preflop_state_encoding_with_premium_hand():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "DA"],
-        opponent_type="unknown",
     )
 
     assert state == (
@@ -55,7 +55,6 @@ def test_preflop_state_encoding_with_premium_hand():
         0,
         3,
         3,
-        0,
     )
 
 
@@ -96,7 +95,6 @@ def test_flop_state_encoding_with_aggressive_opponent():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["H9", "H8"],
-        opponent_type="aggressive",
     )
 
     assert state == (
@@ -106,7 +104,6 @@ def test_flop_state_encoding_with_aggressive_opponent():
         2,
         2,
         0,
-        1,
     )
 
 
@@ -143,7 +140,6 @@ def test_state_encoding_with_weak_hand():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["H7", "D2"],
-        opponent_type="tight",
     )
 
     assert state == (
@@ -153,7 +149,6 @@ def test_state_encoding_with_weak_hand():
         0,
         3,
         3,
-        2,
     )
 
 
@@ -195,7 +190,6 @@ def test_state_encoding_with_free_check():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["SK", "DQ"],
-        opponent_type="other",
     )
 
     assert state == (
@@ -205,7 +199,6 @@ def test_state_encoding_with_free_check():
         1,
         0,
         1,
-        3,
     )
 
 
@@ -248,7 +241,6 @@ def test_state_encoding_on_river():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["C4", "D4"],
-        opponent_type="tight",
     )
 
     assert state == (
@@ -258,7 +250,6 @@ def test_state_encoding_on_river():
         3,
         2,
         0,
-        2,
     )
 
 
@@ -291,7 +282,6 @@ def test_state_encoding_without_call_action():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "SK"],
-        opponent_type="other",
     )
 
     assert state == (
@@ -300,7 +290,6 @@ def test_state_encoding_without_call_action():
         PokerContextEncoder.NO_PAIR_CONTEXT,
         0,
         0,
-        3,
         3,
     )
 
@@ -342,7 +331,6 @@ def test_state_encoding_with_top_pair():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "DQ"],
-        opponent_type="calling",
     )
 
     assert state == (
@@ -352,7 +340,6 @@ def test_state_encoding_with_top_pair():
         1,
         2,
         2,
-        4,
     )
 
 
@@ -393,7 +380,6 @@ def test_state_encoding_with_overpair():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "DA"],
-        opponent_type="calling",
     )
 
     assert state == (
@@ -403,7 +389,6 @@ def test_state_encoding_with_overpair():
         1,
         2,
         2,
-        4,
     )
 
 
@@ -444,7 +429,6 @@ def test_state_encoding_with_two_pair_or_better():
         valid_actions=valid_actions,
         round_state=round_state,
         hole_cards=["HA", "DK"],
-        opponent_type="calling",
     )
 
     assert state == (
@@ -454,18 +438,7 @@ def test_state_encoding_with_two_pair_or_better():
         1,
         2,
         2,
-        4,
     )
-
-
-def test_state_encoder_rejects_unknown_opponent_type():
-    with pytest.raises(
-        ValueError,
-        match="Unsupported opponent type",
-    ):
-        StateEncoder._opponent_type_id(
-            "calling_station"
-        )
 
 
 def test_state_encoder_rejects_invalid_community_card_count():
@@ -497,27 +470,89 @@ def test_state_encoder_rejects_invalid_community_card_count():
                 },
             },
             hole_cards=["CA", "CK"],
-            opponent_type="unknown",
         )
 
 
 @pytest.mark.parametrize(
-    ("opponent_type", "expected_id"),
-    [
-        ("unknown", 0),
-        ("aggressive", 1),
-        ("tight", 2),
-        ("other", 3),
-        ("calling", 4),
-    ],
+    "policy_type",
+    ["unknown", "tight", "aggressive", "calling"],
 )
-def test_state_encoder_maps_supported_opponent_types(
-    opponent_type,
-    expected_id,
-):
-    assert (
-        StateEncoder._opponent_type_id(
-            opponent_type
-        )
-        == expected_id
+def test_state_encoding_is_independent_of_the_active_policy(policy_type):
+    """The opponent type was a function of the acting policy, never a signal.
+
+    Each policy owns a separate Q-table and always encoded its own type, so the
+    field was constant within any table. Encoding must not depend on which
+    policy happens to be acting.
+    """
+    from src.agents.monte_carlo_agent import MonteCarloAgent
+    from src.players.learned.fixed_policy_player import FixedPolicyPlayer
+
+    valid_actions = [
+        {"action": "fold", "amount": 0},
+        {"action": "call", "amount": 10},
+    ]
+    round_state = {
+        "street": "flop",
+        "community_card": ["CA", "SK", "D2"],
+        "pot": {"main": {"amount": 40}},
+        "action_histories": {"flop": []},
+        "seats": [
+            {
+                "name": "tested",
+                "uuid": "uuid-tested",
+                "stack": 200,
+                "state": "participating",
+            }
+        ],
+    }
+
+    agent = MonteCarloAgent(alpha=0.1, epsilon=0.0, epsilon_min=0.0)
+    agent.eval()
+    player = FixedPolicyPlayer(agent=agent, policy_type=policy_type)
+    player.uuid = "uuid-tested"
+
+    captured = {}
+    original_encode = StateEncoder.encode
+
+    def capture(**kwargs):
+        state = original_encode(**kwargs)
+        captured["state"] = state
+        return state
+
+    import src.players.learned.fixed_policy_player as module
+
+    module.StateEncoder = type("Spy", (), {"encode": staticmethod(capture)})
+    try:
+        player.declare_action(valid_actions, ["HA", "DQ"], round_state)
+    finally:
+        module.StateEncoder = StateEncoder
+
+    assert captured["state"] == (1, 1, 4, 1, 2, 2)
+
+
+def test_encoded_state_has_six_fields():
+    state = StateEncoder.encode(
+        player_stack=100,
+        valid_actions=[{"action": "call", "amount": 10}],
+        round_state={
+            "community_card": [],
+            "pot": {"main": {"amount": 15}},
+        },
+        hole_cards=["HA", "DA"],
     )
+
+    assert len(state) == len(STATE_V2_FIELDS) == 6
+
+
+def test_encode_no_longer_accepts_an_opponent_type():
+    with pytest.raises(TypeError):
+        StateEncoder.encode(
+            player_stack=100,
+            valid_actions=[{"action": "call", "amount": 10}],
+            round_state={
+                "community_card": [],
+                "pot": {"main": {"amount": 15}},
+            },
+            hole_cards=["HA", "DA"],
+            opponent_type="calling",
+        )

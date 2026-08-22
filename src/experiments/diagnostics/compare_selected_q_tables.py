@@ -9,7 +9,6 @@ from src.evaluation.diagnostics.q_table_comparator import (
     find_largest_disagreements,
     load_q_table,
     save_json,
-    strip_opponent_type,
     summarize_q_table,
     validate_targets_exist,
 )
@@ -201,10 +200,7 @@ def main() -> None:
         for target in targets
     }
 
-    abstract_q_tables = {
-        name: strip_opponent_type(q_table)
-        for name, q_table in q_tables.items()
-    }
+    abstract_q_tables = q_tables
 
     summaries = []
 

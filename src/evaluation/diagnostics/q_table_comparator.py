@@ -190,20 +190,6 @@ def build_selected_targets(
     return targets
 
 
-def strip_opponent_type(
-    q_table: dict[tuple, list[float]],
-) -> dict[tuple, list[float]]:
-    stripped = {}
-
-    for state, q_values in q_table.items():
-        if len(state) < 2:
-            stripped[state] = q_values
-        else:
-            stripped[state[:-1]] = q_values
-
-    return stripped
-
-
 def load_q_table(path: str | Path) -> dict[tuple, list[float]]:
     model_path = Path(path)
 

@@ -102,7 +102,6 @@ class OraclePlayer(PlayerTemplate):
             valid_actions=decision_actions,
             round_state=round_state,
             hole_cards=hole_card,
-            opponent_type=self.active_policy_type,
         )
 
         action_id = active_agent.act(

@@ -1,6 +1,5 @@
 from src.players.base.player_template import PlayerTemplate
 from src.features.state_encoder import StateEncoder
-from src.poker.constants import OPPONENT_TYPE_UNKNOWN
 from src.players.constants import PLAYER_NAME_GENERAL_POLICY
 from src.poker.action_mapper import ActionMapper
 from src.poker.betting import to_decision_actions
@@ -45,7 +44,6 @@ class GeneralPolicyPlayer(PlayerTemplate):
             valid_actions=decision_actions,
             round_state=round_state,
             hole_cards=hole_card,
-            opponent_type=OPPONENT_TYPE_UNKNOWN,
         )
 
         action_id = self.agent.act(state, decision_actions)

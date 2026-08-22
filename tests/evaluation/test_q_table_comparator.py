@@ -12,7 +12,7 @@ from src.evaluation.diagnostics.q_table_comparator import (
     is_tied_best,
     load_q_table,
     normalize_q_table,
-    strip_opponent_type,
+
     summarize_q_table,
     validate_targets_exist,
 )
@@ -275,23 +275,10 @@ def test_compare_q_tables_counts_action_agreement(tmp_path):
     assert comparison.right_policy_type == "calling"
 
 
-def test_strip_opponent_type_removes_last_state_element():
-    q_table = {
-        (0, 4, 0, 0, 3, 3, 0): [1.0, 0.0, 0.0],
-        (1, 2, 4, 1, 2, 2, 0): [0.0, 1.0, 0.0],
-    }
-
-    stripped = strip_opponent_type(q_table)
-
-    assert stripped == {
-        (0, 4, 0, 0, 3, 3): [1.0, 0.0, 0.0],
-        (1, 2, 4, 1, 2, 2): [0.0, 1.0, 0.0],
-    }
-
-
-def test_compare_q_tables_after_stripping_opponent_type_has_common_states(
+def test_compare_q_tables_of_different_policies_share_states(
     tmp_path,
 ):
+    """Policies now encode identical states, so no stripping is needed."""
     left_target, right_target = build_selected_targets(
         training_run_directory=tmp_path,
         checkpoint_episode=2000,
@@ -300,18 +287,18 @@ def test_compare_q_tables_after_stripping_opponent_type_has_common_states(
     )
 
     unknown = {
-        (0, 4, 0, 0, 3, 3, 0): [0.0, 1.0, 0.0],
+        (0, 4, 0, 0, 3, 3): [0.0, 1.0, 0.0],
     }
 
     calling = {
-        (0, 4, 0, 0, 3, 3, 6): [0.0, 0.0, 1.0],
+        (0, 4, 0, 0, 3, 3): [0.0, 0.0, 1.0],
     }
 
     comparison = compare_q_tables(
         left_target=left_target,
-        left_q_table=strip_opponent_type(unknown),
+        left_q_table=unknown,
         right_target=right_target,
-        right_q_table=strip_opponent_type(calling),
+        right_q_table=calling,
     )
 
     assert comparison.common_states == 1
