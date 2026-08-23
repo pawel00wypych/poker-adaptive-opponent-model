@@ -12,6 +12,10 @@ class GameConfig:
     initial_stack: int = 200
     small_blind_amount: int = 5
 
+    @property
+    def big_blind_amount(self) -> int:
+        return self.small_blind_amount * 2
+
 
 @dataclass(frozen=True)
 class TrainingConfig:

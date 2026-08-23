@@ -75,7 +75,7 @@ class CallingPlayer(PlayerTemplate):
         return call_action["action"], call_action["amount"]
 
     def receive_game_start_message(self, game_info):
-        self.reset_tracking()
+        super().receive_game_start_message(game_info)
 
     def receive_game_update_message(self, action, round_state):
         pass
