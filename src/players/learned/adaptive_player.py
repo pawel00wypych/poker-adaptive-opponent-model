@@ -74,13 +74,28 @@ class AdaptivePlayer(PlayerTemplate):
             )
         )
 
+        self.classification_counts = Counter()
+        self.policy_usage_counts = Counter()
+
+        self._reset_classification_metrics()
+
+    def _reset_classification_metrics(self) -> None:
+        """Return every per-game classification metric to its initial value.
+
+        This is the single definition of that state, called from both
+        ``__init__`` and ``receive_game_start_message``. Keeping two hand-written
+        copies is what let the two ``*_action_count`` fields drift: they were
+        initialised but never reset, so ``mean_first_classification_action_count``
+        leaked a previous game's value whenever a player instance was reused -
+        which is exactly what the evaluators do.
+        """
         self.opponent_stats = OpponentStats()
 
         self.current_opponent_type = OPPONENT_TYPE_UNKNOWN
         self.active_policy_type = OPPONENT_TYPE_UNKNOWN
 
-        self.classification_counts = Counter()
-        self.policy_usage_counts = Counter()
+        self.classification_counts.clear()
+        self.policy_usage_counts.clear()
 
         self.classified_decisions = 0
         self.correct_classifications = 0
@@ -331,24 +346,7 @@ class AdaptivePlayer(PlayerTemplate):
         for agent in self.agents.values():
             agent.reset_decision_diagnostics()
 
-        self.current_opponent_type = OPPONENT_TYPE_UNKNOWN
-        self.active_policy_type = OPPONENT_TYPE_UNKNOWN
-
-        self.opponent_stats = OpponentStats()
-
-        self.classification_counts.clear()
-        self.policy_usage_counts.clear()
-
-        self.classified_decisions = 0
-        self.correct_classifications = 0
-        self.incorrect_classifications = 0
-        self.unknown_classifications = 0
-        self.other_classifications = 0
-
-        self.policy_switches = 0
-
-        self.first_classification_hand = None
-        self.first_correct_classification_hand = None
+        self._reset_classification_metrics()
 
     def receive_game_update_message(
         self,

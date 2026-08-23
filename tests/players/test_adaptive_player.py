@@ -822,3 +822,152 @@ def test_adaptive_player_updates_all_policies_that_acted_before_switch(
     assert player.total_reward_bb == 3.0
     assert player.stack == 230
     assert player.hand_start_stack is None
+
+
+CLASSIFICATION_METRIC_FIELDS = (
+    "opponent_stats",
+    "current_opponent_type",
+    "active_policy_type",
+    "classification_counts",
+    "policy_usage_counts",
+    "classified_decisions",
+    "correct_classifications",
+    "incorrect_classifications",
+    "unknown_classifications",
+    "other_classifications",
+    "policy_switches",
+    "first_classification_hand",
+    "first_correct_classification_hand",
+    "first_classification_action_count",
+    "first_correct_classification_action_count",
+)
+
+
+def _dirty_every_classification_metric(player):
+    """Put every per-game classification field into a non-initial state."""
+    player.current_opponent_type = "tight"
+    player.active_policy_type = "tight"
+    player.classification_counts["tight"] = 7
+    player.policy_usage_counts["tight"] = 7
+    player.classified_decisions = 9
+    player.correct_classifications = 5
+    player.incorrect_classifications = 4
+    player.unknown_classifications = 2
+    player.other_classifications = 1
+    player.policy_switches = 6
+    player.first_classification_hand = 3
+    player.first_correct_classification_hand = 4
+    player.first_classification_action_count = 11
+    player.first_correct_classification_action_count = 12
+    player.opponent_stats.update_action("fold", paid=0)
+
+
+def test_game_start_resets_every_classification_metric(adaptive_agents):
+    """A reused player must start each game indistinguishable from a fresh one.
+
+    The evaluators reuse player instances across games, so anything left behind
+    here leaks straight into the reported metrics.
+    """
+    player = create_player(adaptive_agents)
+    reference = create_player(adaptive_agents)
+
+    _dirty_every_classification_metric(player)
+    player.receive_game_start_message(None)
+
+    for field in CLASSIFICATION_METRIC_FIELDS:
+        if field == "opponent_stats":
+            assert (
+                player.opponent_stats.total_actions
+                == reference.opponent_stats.total_actions
+            ), field
+            continue
+
+        assert getattr(player, field) == getattr(reference, field), field
+
+
+def test_first_classification_action_counts_do_not_leak(adaptive_agents):
+    """The specific fields that drifted.
+
+    mean_first_classification_action_count is an experiment-9 metric, so a stale
+    value here is reported as if it were measured in the new game.
+    """
+    player = create_player(adaptive_agents)
+    player.first_classification_action_count = 11
+    player.first_correct_classification_action_count = 12
+
+    player.receive_game_start_message(None)
+
+    assert player.first_classification_action_count is None
+    assert player.first_correct_classification_action_count is None
+
+
+def test_init_and_game_start_touch_the_same_attributes(adaptive_agents):
+    """Stops the two reset lists drifting apart a third time.
+
+    __init__ and receive_game_start_message must produce identical state; if a
+    future field is added to only one of them, this fails immediately.
+    """
+    fresh = create_player(adaptive_agents)
+
+    reused = create_player(adaptive_agents)
+    _dirty_every_classification_metric(reused)
+    reused.receive_game_start_message(None)
+
+    fresh_state = {
+        name: value
+        for name, value in vars(fresh).items()
+        if name not in {"agents", "classifier", "opponent_stats"}
+    }
+    reused_state = {
+        name: value
+        for name, value in vars(reused).items()
+        if name not in {"agents", "classifier", "opponent_stats"}
+    }
+
+    assert reused_state == fresh_state
+
+
+def test_every_classification_field_is_covered_by_the_guard(adaptive_agents):
+    """Guards the guard.
+
+    If a new classification metric is introduced and not added to
+    CLASSIFICATION_METRIC_FIELDS, the reset test above would silently stop
+    covering it. This is a meta-test: it passes on unfixed code too, because
+    its job is to stop the real tests rotting, not to detect the original bug.
+    """
+    player = create_player(adaptive_agents)
+
+    infrastructure = {
+        "agents",
+        "classifier",
+        "expected_opponent_type",
+        "verbose",
+        "log_interval",
+        "player_name",
+        "uuid",
+        "hands_played",
+        "total_profit",
+        "stack",
+        "initial_stack",
+        "hand_start_stack",
+        "total_reward_bb",
+        "hole_card",
+        "uuid_to_index",
+        "my_index",
+        "small_blind_amount",
+        "rng",
+    }
+    tracked = {name for name in vars(player) if name not in infrastructure}
+
+    unguarded = tracked - set(CLASSIFICATION_METRIC_FIELDS)
+    stale = set(CLASSIFICATION_METRIC_FIELDS) - tracked
+
+    assert not unguarded, (
+        f"new attribute(s) {sorted(unguarded)} are not covered by the reset "
+        "tests. Add them to CLASSIFICATION_METRIC_FIELDS if they are per-game "
+        "classification state, or to the infrastructure set if they are not."
+    )
+    assert not stale, (
+        f"CLASSIFICATION_METRIC_FIELDS lists {sorted(stale)}, which the player "
+        "no longer has."
+    )
