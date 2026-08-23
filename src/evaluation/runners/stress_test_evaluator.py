@@ -1,10 +1,8 @@
 import csv
-import random
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
 from pypokerengine.api.game import (
     setup_config,
     start_poker,
@@ -48,6 +46,7 @@ from src.evaluation.runners.model_evaluator import (
     load_sarsa_adaptive_agents,
     load_sarsa_eval_agent,
 )
+from src.rl.rng import attach_rng, derive_game_streams, seed_engine_stream
 
 STRESS_TEST_EVALUATION_TYPE = "stress_test"
 
@@ -175,11 +174,6 @@ def build_stress_tested_player(
     )
 
 
-def set_stress_test_seed(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-
-
 def build_stress_test_seed(
     *,
     eval_seed_base: int,
@@ -235,7 +229,9 @@ def evaluate_single_stress_test_game(
         matchup_game_index=matchup_game_index,
     )
 
-    set_stress_test_seed(game_seed)
+    streams = derive_game_streams(game_seed)
+
+    seed_engine_stream(streams.deck_seed)
 
     config = setup_config(
         max_round=game_config.max_round,
@@ -249,6 +245,9 @@ def evaluate_single_stress_test_game(
     )
 
     opponent = build_stress_test_opponent(opponent_name)
+
+    attach_rng(tested_player, streams.agent)
+    attach_rng(opponent, streams.opponent)
 
     registered_opponent_name = stress_test_opponent_registration_name(
         tested_agent_name=tested_agent_name,

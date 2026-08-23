@@ -1,3 +1,5 @@
+import random
+
 from src.rl.action_selection import (
     get_legal_action_ids,
     select_best_legal_action,
@@ -80,6 +82,7 @@ class QLearningAgent:
         self.episode: list[tuple[State, ActionId, tuple[ActionId, ...]]] = []
         self.training = True
         self.diagnostics = DecisionDiagnostics()
+        self.rng: random.Random = random
 
     def reset_decision_diagnostics(self) -> None:
         self.diagnostics.reset()
@@ -118,6 +121,7 @@ class QLearningAgent:
             valid_actions=valid_actions,
             epsilon=self.epsilon,
             training=self.training,
+            rng=self.rng,
         )
 
         self.diagnostics.record(
@@ -267,6 +271,7 @@ class QLearningAgent:
         best_next_action = select_best_legal_action(
             q_values=q_values,
             legal_action_ids=legal_action_ids,
+            rng=self.rng,
         )
 
         return float(

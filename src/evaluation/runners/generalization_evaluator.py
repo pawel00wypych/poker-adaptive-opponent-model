@@ -4,7 +4,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
 from pypokerengine.api.game import (
     setup_config,
     start_poker,
@@ -60,6 +59,7 @@ from src.players.generalization.generalization_opponents import (
     get_generalization_opponent_base_type,
     was_generalization_opponent_seen_during_training,
 )
+from src.rl.rng import attach_rng, derive_game_streams, seed_engine_stream
 
 GENERALIZATION_EVALUATION_TYPE = "generalization"
 GENERALIZATION_TRAINING_SCOPE = "base_opponents"
@@ -196,11 +196,6 @@ def build_generalization_tested_player(
     )
 
 
-def set_generalization_seed(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-
-
 def build_generalization_seed(
     *,
     eval_seed_base: int,
@@ -253,7 +248,9 @@ def evaluate_single_generalization_game(
         matchup_game_index=matchup_game_index,
     )
 
-    set_generalization_seed(game_seed)
+    streams = derive_game_streams(game_seed)
+
+    seed_engine_stream(streams.deck_seed)
 
     config = setup_config(
         max_round=game_config.max_round,
@@ -269,8 +266,11 @@ def evaluate_single_generalization_game(
 
     opponent = build_generalization_opponent(
         opponent_name=opponent_name,
-        rng=random.Random(game_seed + 97),
+        rng=streams.opponent,
     )
+
+    attach_rng(tested_player, streams.agent)
+    attach_rng(opponent, streams.opponent)
 
     config.register_player(
         name=tested_agent_name,

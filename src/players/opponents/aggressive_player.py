@@ -15,8 +15,9 @@ class AggressivePlayer(PlayerTemplate):
     nothing.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, rng: random.Random | None = None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.rng = rng if rng is not None else random
 
     def declare_action(self, valid_actions, hole_card, round_state):
         action, amount = self._choose_action(
@@ -37,7 +38,7 @@ class AggressivePlayer(PlayerTemplate):
 
         player_hand_info = EvaluatorInterface.evaluate(hole_card,
                                                        round_state['community_card'])
-        rand_num = random.random() * 100 + 1  # [1, 101)
+        rand_num = self.rng.random() * 100 + 1  # [1, 101)
 
         if round_state["street"] == "preflop":
             if player_hand_info["score"] > 23433 and rand_num >= 2:
