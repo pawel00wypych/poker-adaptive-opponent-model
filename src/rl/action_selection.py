@@ -17,17 +17,23 @@ def get_legal_action_ids(
 def select_best_legal_action(
     q_values: Sequence[float] | np.ndarray,
     legal_action_ids: Sequence[ActionId],
+    rng: random.Random | None = None,
 ) -> ActionId:
     """
     Select one legal action with the highest Q-value.
 
     Ties are intentionally broken randomly to preserve the previous Monte
-    Carlo behavior.
+    Carlo behavior. ``rng`` defaults to the global ``random`` module only so
+    that existing callers keep working; production callers must pass a private
+    stream, because drawing from the global module perturbs the engine's deck
+    shuffles. See ``src/rl/rng.py``.
     """
     if not legal_action_ids:
         raise ValueError(
             "legal_action_ids must not be empty"
         )
+
+    source = random if rng is None else rng
 
     legal_q_values = {
         action_id: q_values[action_id]
@@ -44,7 +50,7 @@ def select_best_legal_action(
         if value == max_q_value
     ]
 
-    return random.choice(best_actions)
+    return source.choice(best_actions)
 
 
 def select_epsilon_greedy_action(
@@ -52,6 +58,7 @@ def select_epsilon_greedy_action(
     valid_actions: ValidActions,
     epsilon: float,
     training: bool = True,
+    rng: random.Random | None = None,
 ) -> ActionId:
     """
     Select a legal action using epsilon-greedy exploration.
@@ -64,12 +71,15 @@ def select_epsilon_greedy_action(
             "epsilon must be in range [0, 1]"
         )
 
+    source = random if rng is None else rng
+
     legal_action_ids = get_legal_action_ids(valid_actions)
 
-    if training and random.random() < epsilon:
-        return random.choice(legal_action_ids)
+    if training and source.random() < epsilon:
+        return source.choice(legal_action_ids)
 
     return select_best_legal_action(
         q_values=q_values,
         legal_action_ids=legal_action_ids,
+        rng=rng,
     )

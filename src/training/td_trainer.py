@@ -1,3 +1,4 @@
+import random
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,11 @@ from src.players.opponents.factory import (
     build_training_opponent,
 )
 from src.poker.constants import TRAINING_OPPONENT_TYPES
+from src.rl.rng import (
+    attach_rng,
+    derive_episode_streams,
+    seed_engine_stream,
+)
 from src.training.checkpoint_utils import (
     build_checkpoint_episodes,
     build_checkpoint_path,
@@ -221,12 +227,13 @@ def build_episode_opponent(
     model_type: str,
     episode_index: int,
     error_label: str = "TD",
+    rng: random.Random | None = None,
 ):
     if model_type == MODEL_TYPE_GENERAL_POLICY:
-        return build_training_opponent(episode_index)
+        return build_training_opponent(episode_index, rng=rng)
 
     if model_type in TRAINING_OPPONENT_TYPES:
-        return model_type, build_opponent(model_type)
+        return model_type, build_opponent(model_type, rng=rng)
 
     raise ValueError(
         f"Unsupported {error_label} model type: {model_type}"
@@ -383,6 +390,9 @@ def run_td_model_training(
 
         episode_start = perf_counter()
 
+        streams = derive_episode_streams(training_seed, episode_index)
+        seed_engine_stream(streams.deck_seed)
+
         config = setup_config(
             max_round=game_config.max_round,
             initial_stack=game_config.initial_stack,
@@ -401,8 +411,12 @@ def run_td_model_training(
             model_type=model_type,
             episode_index=episode_index,
             error_label=spec.display_name,
+            rng=streams.opponent,
         )
         opponent_counter[opponent_name] += 1
+
+        attach_rng(player, streams.agent)
+        attach_rng(opponent, streams.opponent)
 
         config.register_player(
             name=spec.registered_player_name,

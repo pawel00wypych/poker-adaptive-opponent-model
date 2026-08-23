@@ -1,3 +1,5 @@
+import random
+
 from src.rl.action_selection import (
     get_legal_action_ids,
     select_epsilon_greedy_action,
@@ -79,6 +81,7 @@ class SarsaAgent:
         self.episode: list[tuple[State, ActionId, tuple[ActionId, ...]]] = []
         self.training = True
         self.diagnostics = DecisionDiagnostics()
+        self.rng: random.Random = random
 
     def reset_decision_diagnostics(self) -> None:
         self.diagnostics.reset()
@@ -117,6 +120,7 @@ class SarsaAgent:
             valid_actions=valid_actions,
             epsilon=self.epsilon,
             training=self.training,
+            rng=self.rng,
         )
 
         self.diagnostics.record(

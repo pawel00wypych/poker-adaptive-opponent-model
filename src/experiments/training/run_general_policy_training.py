@@ -18,6 +18,11 @@ from src.players.learned.general_policy_player import (
 from src.players.opponents.factory import (
     build_training_opponent,
 )
+from src.rl.rng import (
+    attach_rng,
+    derive_episode_streams,
+    seed_engine_stream,
+)
 from src.training.checkpoint_utils import (
     build_checkpoint_episodes,
     build_checkpoint_path,
@@ -174,6 +179,9 @@ def run_general_policy_training(
 
         episode_start = perf_counter()
 
+        streams = derive_episode_streams(training_seed, episode_index)
+        seed_engine_stream(streams.deck_seed)
+
         config = setup_config(
             max_round=game_config.max_round,
             initial_stack=game_config.initial_stack,
@@ -190,10 +198,13 @@ def run_general_policy_training(
         )
 
         opponent_name, opponent = (
-            build_training_opponent(episode_index)
+            build_training_opponent(episode_index, rng=streams.opponent)
         )
 
         opponent_counter[opponent_name] += 1
+
+        attach_rng(player, streams.agent)
+        attach_rng(opponent, streams.opponent)
 
         config.register_player(
             name="policy_general_mc",

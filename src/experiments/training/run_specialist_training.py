@@ -24,6 +24,11 @@ from src.poker.constants import (
     OPPONENT_TYPE_CALLING,
     OPPONENT_TYPE_TIGHT,
 )
+from src.rl.rng import (
+    attach_rng,
+    derive_episode_streams,
+    seed_engine_stream,
+)
 from src.training.checkpoint_utils import (
     build_checkpoint_episodes,
     build_checkpoint_path,
@@ -255,6 +260,9 @@ def run_specialist_training(
 
         episode_start = perf_counter()
 
+        streams = derive_episode_streams(training_seed, episode_index)
+        seed_engine_stream(streams.deck_seed)
+
         config = setup_config(
             max_round=game_config.max_round,
             initial_stack=(
@@ -274,8 +282,12 @@ def run_specialist_training(
         )
 
         opponent = build_opponent(
-            opponent_type
+            opponent_type,
+            rng=streams.opponent,
         )
+
+        attach_rng(specialist_player, streams.agent)
+        attach_rng(opponent, streams.opponent)
 
         config.register_player(
             name="specialist_mc",
