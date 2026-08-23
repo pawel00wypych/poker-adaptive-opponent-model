@@ -1,12 +1,10 @@
 import csv
 import json
-import random
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-import numpy as np
 from pypokerengine.api.game import (
     setup_config,
     start_poker,
@@ -35,7 +33,7 @@ from src.poker.constants import (
     OPPONENT_TYPE_UNKNOWN,
 )
 from src.rl.decision_diagnostics import merge_decision_diagnostics
-from src.rl.rng import attach_rng, derive_game_streams
+from src.rl.rng import attach_rng, derive_game_streams, seed_engine_stream
 
 
 @dataclass(frozen=True)
@@ -740,11 +738,6 @@ def get_decision_diagnostics(player) -> dict:
     }
 
 
-def set_evaluation_seed(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-
-
 def build_game_seed(
     eval_seed_base: int,
     model_seed: int,
@@ -850,7 +843,7 @@ def evaluate_single_game(
 
     streams = derive_game_streams(game_seed)
 
-    set_evaluation_seed(streams.deck_seed)
+    seed_engine_stream(streams.deck_seed)
 
     config = setup_config(
         max_round=game_config.max_round,

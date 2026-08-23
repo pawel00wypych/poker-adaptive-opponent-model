@@ -1,10 +1,8 @@
 import csv
-import random
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
 from pypokerengine.api.game import (
     setup_config,
     start_poker,
@@ -44,7 +42,7 @@ from src.evaluation.runners.model_evaluator import (
     load_sarsa_adaptive_agents,
     load_sarsa_eval_agent,
 )
-from src.rl.rng import attach_rng, derive_game_streams
+from src.rl.rng import attach_rng, derive_game_streams, seed_engine_stream
 
 CROSS_PLAY_EVALUATION_TYPE = "cross_play"
 
@@ -186,11 +184,6 @@ def build_cross_play_player(
     )
 
 
-def set_cross_play_seed(seed: int) -> None:
-    random.seed(seed)
-    np.random.seed(seed)
-
-
 def build_cross_play_seed(
     *,
     eval_seed_base: int,
@@ -251,7 +244,7 @@ def evaluate_single_cross_play_game(
 
     streams = derive_game_streams(game_seed)
 
-    set_cross_play_seed(streams.deck_seed)
+    seed_engine_stream(streams.deck_seed)
 
     config = setup_config(
         max_round=game_config.max_round,
