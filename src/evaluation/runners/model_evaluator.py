@@ -15,6 +15,7 @@ from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.agents.q_learning_agent import QLearningAgent
 from src.agents.sarsa_agent import SarsaAgent
 from src.config import GameConfig
+from src.evaluation.algorithm_metadata import ALGORITHM_VALIDATION_SPECS
 from src.evaluation.constants import MODEL_DIRECTORIES
 from src.evaluation.player_factory import (
     EvaluationAgentLoaders,
@@ -34,6 +35,11 @@ from src.poker.constants import (
 )
 from src.rl.decision_diagnostics import merge_decision_diagnostics
 from src.rl.rng import attach_rng, derive_game_streams, seed_engine_stream
+from src.training.constants import (
+    ALGORITHM_KEY_DOUBLE_Q_LEARNING,
+    ALGORITHM_KEY_Q_LEARNING,
+    ALGORITHM_KEY_SARSA,
+)
 
 
 @dataclass(frozen=True)
@@ -912,6 +918,68 @@ def evaluate_single_game(
     raise RuntimeError("Tested player result not found in game result.")
 
 
+AGENT_REQUIRED_ALGORITHM = {
+    agent: spec.algorithm_key
+    for spec in ALGORITHM_VALIDATION_SPECS
+    for agent in (
+        spec.adaptive_agent,
+        spec.oracle_agent,
+        spec.general_policy_agent,
+        *spec.specialist_agents,
+    )
+}
+
+# Monte Carlo paths are required fields on ModelBundle, so they are always
+# present. The TD algorithms are optional and only resolvable when their run
+# directory was supplied.
+ALGORITHM_AVAILABILITY_CHECKS = {
+    ALGORITHM_KEY_Q_LEARNING: "has_q_learning_models",
+    ALGORITHM_KEY_SARSA: "has_sarsa_models",
+    ALGORITHM_KEY_DOUBLE_Q_LEARNING: "has_double_q_learning_models",
+}
+
+
+def bundle_supports_agent(bundle: ModelBundle, agent_name: str) -> bool:
+    """Whether this bundle carries the models the agent needs.
+
+    Requesting an agent whose algorithm was never trained raises deep inside
+    the loaders, which turns a missing ``--q-learning-run-dir`` into a crash
+    partway through an evaluation rather than a clear decision up front.
+    """
+    algorithm_key = AGENT_REQUIRED_ALGORITHM.get(agent_name)
+
+    if algorithm_key is None:
+        return True
+
+    check = ALGORITHM_AVAILABILITY_CHECKS.get(algorithm_key)
+
+    if check is None:
+        return True
+
+    return bool(getattr(bundle, check)())
+
+
+def partition_agents_by_support(
+    bundle: ModelBundle,
+    agents: Iterable[str],
+) -> tuple[tuple[str, ...], dict[str, str]]:
+    """Split requested agents into those this bundle can evaluate and the rest.
+
+    The second element maps a skipped agent to the algorithm whose models are
+    missing, so the caller can say which run directory would fix it.
+    """
+    supported: list[str] = []
+    skipped: dict[str, str] = {}
+
+    for agent_name in agents:
+        if bundle_supports_agent(bundle, agent_name):
+            supported.append(agent_name)
+        else:
+            skipped[agent_name] = AGENT_REQUIRED_ALGORITHM[agent_name]
+
+    return tuple(supported), skipped
+
+
 def evaluate_training_opponent_bundle(
     *,
     bundle: ModelBundle,
@@ -922,7 +990,12 @@ def evaluate_training_opponent_bundle(
 
     game_id = 0
 
-    for tested_agent_name in config.tested_agents:
+    tested_agents, _ = partition_agents_by_support(
+        bundle,
+        config.tested_agents,
+    )
+
+    for tested_agent_name in tested_agents:
         for opponent_name in config.opponents:
             for matchup_game_index in range(config.games_per_matchup):
                 row = evaluate_single_game(

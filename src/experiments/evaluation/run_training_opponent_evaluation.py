@@ -7,9 +7,14 @@ from concurrent.futures import (
 from pathlib import Path
 from time import perf_counter
 
+from src.evaluation.algorithm_metadata import (
+    ADAPTIVE_AGENTS,
+    GENERAL_POLICY_AGENTS,
+    ORACLE_ALGORITHM_AGENTS,
+)
 from src.evaluation.constants import (
-    ADAPTIVE_MC_AGENT,
-    POLICY_GENERAL_MC_AGENT,
+    ALWAYS_CALL_AGENT,
+    ALWAYS_RAISE_AGENT,
     RULE_BASED_AGENT,
     SUPPORTED_TESTED_AGENTS,
 )
@@ -17,9 +22,24 @@ from src.evaluation.runners.model_evaluator import (
     TrainingOpponentEvaluationConfig,
     discover_final_model_bundles,
     evaluate_training_opponent_bundle,
+    partition_agents_by_support,
     write_rows,
 )
 from src.poker.constants import TRAINING_OPPONENT_TYPES
+
+# Experiment 1 of finalny_zestaw_eksperymentow.md: the four adaptive agents,
+# their oracle benchmarks, the four non-adaptive general policies, and the
+# three sanity baselines. Defaulting to a narrower set meant running the
+# documented experiment required undocumented flags, and made an incomplete
+# result set easy to produce by accident.
+DEFAULT_TRAINING_OPPONENT_AGENTS = (
+    *ADAPTIVE_AGENTS,
+    *ORACLE_ALGORITHM_AGENTS,
+    *GENERAL_POLICY_AGENTS,
+    RULE_BASED_AGENT,
+    ALWAYS_CALL_AGENT,
+    ALWAYS_RAISE_AGENT,
+)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -92,11 +112,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--agents",
         choices=sorted(SUPPORTED_TESTED_AGENTS),
         nargs="+",
-        default=[
-            POLICY_GENERAL_MC_AGENT,
-            ADAPTIVE_MC_AGENT,
-            RULE_BASED_AGENT,
-        ],
+        default=list(DEFAULT_TRAINING_OPPONENT_AGENTS),
+        help=(
+            "Tested agents. Defaults to the full experiment-1 set from the "
+            "guidelines. Agents whose algorithm was not trained are skipped "
+            "with a notice, or rejected under --fail-on-incomplete."
+        ),
     )
 
     parser.add_argument(
@@ -176,6 +197,8 @@ def save_summary(
     training_episodes: list[int],
     row_count: int,
     duration_seconds: float,
+    evaluated_agents: tuple[str, ...],
+    skipped_agents: dict[str, str],
 ) -> None:
     summary_path = output_path.with_suffix(".summary.json")
 
@@ -189,7 +212,9 @@ def save_summary(
         "training_episodes": training_episodes,
         "seeds": arguments.seeds,
         "games": arguments.games,
-        "agents": arguments.agents,
+        "requested_agents": arguments.agents,
+        "evaluated_agents": list(evaluated_agents),
+        "skipped_agents": skipped_agents,
         "opponents": arguments.opponents,
         "workers": arguments.workers,
         "eval_seed_base": arguments.eval_seed_base,
@@ -208,6 +233,63 @@ def save_summary(
             indent=2,
             ensure_ascii=False,
         )
+
+
+RUN_DIRECTORY_FLAG_FOR_ALGORITHM = {
+    "q_learning": "--q-learning-run-dir",
+    "sarsa": "--sarsa-run-dir",
+    "double_q_learning": "--double-q-learning-run-dir",
+}
+
+
+def resolve_agent_support(
+    *,
+    bundles,
+    requested_agents: tuple[str, ...],
+    fail_on_incomplete: bool,
+) -> tuple[tuple[str, ...], dict[str, str]]:
+    """Report which requested agents every bundle can actually evaluate.
+
+    An agent is only kept when *every* bundle supports it, so the result set
+    stays rectangular - a seed that silently contributed fewer agents than the
+    others would skew any comparison across seeds.
+    """
+    evaluated = tuple(
+        agent
+        for agent in requested_agents
+        if all(
+            agent in partition_agents_by_support(bundle, requested_agents)[0]
+            for bundle in bundles
+        )
+    )
+
+    skipped: dict[str, str] = {}
+    for bundle in bundles:
+        _, bundle_skipped = partition_agents_by_support(bundle, requested_agents)
+        skipped.update(bundle_skipped)
+
+    if not skipped:
+        return evaluated, skipped
+
+    lines = [
+        f"  {agent} needs {algorithm} models "
+        f"({RUN_DIRECTORY_FLAG_FOR_ALGORITHM.get(algorithm, 'a run directory')})"
+        for agent, algorithm in sorted(skipped.items())
+    ]
+    message = "Some requested agents have no trained models:\n" + "\n".join(lines)
+
+    if fail_on_incomplete:
+        raise SystemExit(message)
+
+    print(f"{message}\nSkipping them. Pass --fail-on-incomplete to treat this "
+          "as an error instead.")
+
+    if not evaluated:
+        raise SystemExit(
+            "No requested agent can be evaluated with the supplied models."
+        )
+
+    return evaluated, skipped
 
 
 def main() -> None:
@@ -243,6 +325,12 @@ def main() -> None:
         output_path=output_path,
     )
 
+    evaluated_agents, skipped_agents = resolve_agent_support(
+        bundles=bundles,
+        requested_agents=tuple(args.agents),
+        fail_on_incomplete=args.fail_on_incomplete,
+    )
+
     print(
         "Training-opponent evaluation started\n"
         f"training_run_dir={training_run_dir}\n"
@@ -254,7 +342,8 @@ def main() -> None:
         f"training_episodes={sorted({bundle.episode for bundle in bundles})}\n"
         f"seeds={args.seeds or 'auto'}\n"
         f"games_per_matchup={args.games}\n"
-        f"agents={args.agents}\n"
+        f"requested_agents={args.agents}\n"
+        f"evaluated_agents={list(evaluated_agents)}\n"
         f"opponents={args.opponents}\n"
         f"workers={args.workers}\n"
         f"output={output_path}"
@@ -311,6 +400,8 @@ def main() -> None:
         training_episodes=sorted({bundle.episode for bundle in bundles}),
         row_count=len(all_rows),
         duration_seconds=duration_seconds,
+        evaluated_agents=evaluated_agents,
+        skipped_agents=skipped_agents,
     )
 
     print(
