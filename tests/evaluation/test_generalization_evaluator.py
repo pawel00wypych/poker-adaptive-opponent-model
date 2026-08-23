@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from src.evaluation.constants import POLICY_CALLING_AGENT
 from src.evaluation.runners.generalization_evaluator import (
     ADAPTIVE_MC_AGENT,
     ALWAYS_CALL_AGENT,
@@ -12,7 +13,6 @@ from src.evaluation.runners.generalization_evaluator import (
     ORACLE_MC_AGENT,
     ORACLE_Q_LEARNING_AGENT,
     ORACLE_SARSA_AGENT,
-    POLICY_CALLING_AGENT,
     POLICY_GENERAL_MC_AGENT,
     RULE_BASED_AGENT,
     GeneralizationEvaluationConfig,

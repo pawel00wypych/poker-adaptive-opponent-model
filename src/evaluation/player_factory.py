@@ -10,8 +10,8 @@ from src.evaluation.constants import (
     ADAPTIVE_SARSA_AGENT,
     ALWAYS_CALL_AGENT,
     ALWAYS_RAISE_AGENT,
-    CROSS_POLICY_AGENT_TO_POLICY_TYPE,
     DOUBLE_Q_LEARNING_POLICY_AGENT_TO_POLICY_TYPE,
+    MONTE_CARLO_POLICY_AGENT_TO_POLICY_TYPE,
     ORACLE_DOUBLE_Q_LEARNING_AGENT,
     ORACLE_MC_AGENT,
     ORACLE_Q_LEARNING_AGENT,
@@ -143,7 +143,7 @@ def build_evaluation_player(
 
     fixed_policy_sources = (
         (
-            CROSS_POLICY_AGENT_TO_POLICY_TYPE,
+            MONTE_CARLO_POLICY_AGENT_TO_POLICY_TYPE,
             bundle.agent_paths,
             loaders.load_monte_carlo_agent,
         ),
