@@ -29,12 +29,18 @@ METRIC_DESCRIPTIONS = {
     "ended_by_round_limit_rate": (
         "Percentage of games that ended by reaching the configured round limit."
     ),
-    "standard_error": "Estimated uncertainty of mean_profit_bb for a group of games.",
-    "ci_95_lower": (
-        "Lower bound of the approximate 95% confidence interval for mean_profit_bb."
+    "game_standard_error": (
+        "Descriptive spread of mean_profit_bb across individual games. Treats "
+        "games from one trained model as independent, so it is too narrow to "
+        "support a claim - use the across-seeds columns for that."
     ),
-    "ci_95_upper": (
-        "Upper bound of the approximate 95% confidence interval for mean_profit_bb."
+    "game_ci_95_lower": (
+        "Lower bound of a normal-approximation interval over games. Descriptive "
+        "only; not a basis for inference."
+    ),
+    "game_ci_95_upper": (
+        "Upper bound of a normal-approximation interval over games. Descriptive "
+        "only; not a basis for inference."
     ),
     "mean_profit_bb_std_across_seeds": (
         "Sample standard deviation of per-seed mean profit across independent training "
@@ -42,13 +48,16 @@ METRIC_DESCRIPTIONS = {
     ),
     "mean_profit_bb_standard_error_across_seeds": (
         "Standard error of mean_profit_bb calculated from equally weighted "
-        "training-seed means."
+        "training-seed means. This is the authoritative uncertainty for "
+        "comparisons."
     ),
     "mean_profit_bb_ci_95_lower_across_seeds": (
-        "Lower bound of the 95% Student-t confidence interval across training seeds."
+        "Lower bound of the 95% Student-t confidence interval across training seeds. "
+        "This is the interval that conclusions should rest on."
     ),
     "mean_profit_bb_ci_95_upper_across_seeds": (
-        "Upper bound of the 95% Student-t confidence interval across training seeds."
+        "Upper bound of the 95% Student-t confidence interval across training seeds. "
+        "This is the interval that conclusions should rest on."
     ),
     "mean_profit_bb_ci_95_margin_across_seeds": (
         "Margin of error of the 95% Student-t confidence interval across training "
