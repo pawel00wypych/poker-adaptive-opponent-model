@@ -172,6 +172,20 @@ def _display_table(df: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def _to_markdown(df: pd.DataFrame) -> str:
+    """Render a table with missing values shown as "n/a".
+
+    Some columns are undefined for some rows rather than zero - oracle_gap_bb
+    is only defined for agents that switch policies. A bare "nan" reads like a
+    defect, and a zero would read like "no gap", so neither is acceptable in a
+    table someone is meant to interpret.
+    """
+    return df.astype(object).where(pd.notna(df), None).to_markdown(
+        index=False,
+        missingval="n/a",
+    )
+
+
 def _existing_columns(df: pd.DataFrame, columns: Iterable[str]) -> list[str]:
     return [column for column in columns if column in df.columns]
 
@@ -666,15 +680,15 @@ def render_experiment_summary_markdown(
             "",
             "## Agent ranking by opponent and final training episode",
             "",
-            _display_table(ranking_table).to_markdown(index=False),
+            _to_markdown(_display_table(ranking_table)),
             "",
             "## Baseline deltas and Oracle gap",
             "",
-            _display_table(delta_table).to_markdown(index=False),
+            _to_markdown(_display_table(delta_table)),
             "",
             "## Traffic-light quality flags",
             "",
-            _display_table(quality_table).to_markdown(index=False),
+            _to_markdown(_display_table(quality_table)),
             "",
         ]
     )

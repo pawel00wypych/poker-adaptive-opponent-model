@@ -1,7 +1,17 @@
 import json
 
 import pandas as pd
+import pytest
 
+from src.evaluation.constants import (
+    ADAPTIVE_MC_AGENT,
+    ORACLE_MC_AGENT,
+    ORACLE_Q_LEARNING_AGENT,
+    POLICY_GENERAL_MC_AGENT,
+    POLICY_TIGHT_AGENT,
+    POLICY_TIGHT_Q_LEARNING_AGENT,
+    RULE_BASED_AGENT,
+)
 from src.evaluation.metrics.oracle_gap import ORACLE_GAP_BB_COLUMN
 from src.evaluation.metrics.seed_statistics import (
     SEED_CI_LOWER_COLUMN,
@@ -18,6 +28,7 @@ from src.evaluation.reporting.experiment_summary import (
     add_quality_flags,
     build_agent_ranking,
     build_experiment_summary,
+    generate_main_findings,
     write_experiment_summary_outputs,
 )
 from src.experiments.reporting.create_experiment_summary import (
@@ -405,3 +416,135 @@ def test_create_experiment_summary_parser_accepts_thresholds():
     assert args.include_charts is False
     assert args.chart_ci_multiplier == 2.0
     assert thresholds.max_std_across_seeds_bb == 7.0
+
+
+def _summary_with_all_agent_kinds(tmp_path):
+    """Build a summary containing one agent of each kind, all vs the same opponent.
+
+    Goes through the real CSV -> metrics -> ranking pipeline rather than a
+    shortcut, so the assertions cover what the reports actually produce.
+    """
+    rows = []
+    for agent, profit in (
+        (ORACLE_MC_AGENT, 10.0),
+        (ORACLE_Q_LEARNING_AGENT, 10.0),
+        (ADAPTIVE_MC_AGENT, 6.0),
+        (POLICY_GENERAL_MC_AGENT, 4.0),
+        (POLICY_TIGHT_AGENT, 8.0),
+        (POLICY_TIGHT_Q_LEARNING_AGENT, 8.0),
+        (RULE_BASED_AGENT, 2.0),
+    ):
+        add_group(
+            rows,
+            agent=agent,
+            opponent="tight",
+            profit_by_seed=(profit, profit),
+        )
+
+    path = tmp_path / "results.csv"
+    pd.DataFrame(rows).to_csv(path, index=False)
+
+    _, summary_table, _, _ = build_experiment_summary(path, SummaryThresholds())
+    return summary_table
+
+
+def _gap_for(summary, agent):
+    row = summary[summary["agent_name"] == agent]
+    assert not row.empty, agent
+    return row.iloc[0][ORACLE_GAP_BB_COLUMN]
+
+
+@pytest.mark.parametrize(
+    "agent",
+    [POLICY_GENERAL_MC_AGENT, POLICY_TIGHT_AGENT, POLICY_TIGHT_Q_LEARNING_AGENT],
+)
+def test_oracle_gap_is_not_computed_for_non_switching_agents(agent, tmp_path):
+    """The guidelines say the Oracle gap is meaningless for these agents.
+
+    They play one policy for the whole game and never classify anything, so
+    "how much is lost to imperfect classification" has no interpretation.
+    """
+    summary = _summary_with_all_agent_kinds(tmp_path)
+
+    assert pd.isna(_gap_for(summary, agent))
+
+
+def test_oracle_gap_is_still_computed_for_adaptive_agents(tmp_path):
+    """Guards against over-correcting: the metric must survive where it means
+    something."""
+    summary = _summary_with_all_agent_kinds(tmp_path)
+
+    assert _gap_for(summary, ADAPTIVE_MC_AGENT) == pytest.approx(4.0)
+
+
+def test_oracle_gap_is_zero_against_the_oracle_itself(tmp_path):
+    summary = _summary_with_all_agent_kinds(tmp_path)
+
+    assert _gap_for(summary, ORACLE_MC_AGENT) == pytest.approx(0.0)
+
+
+def test_baselines_never_had_an_oracle_gap(tmp_path):
+    summary = _summary_with_all_agent_kinds(tmp_path)
+
+    assert pd.isna(_gap_for(summary, RULE_BASED_AGENT))
+
+
+def test_only_policy_switching_agents_map_to_an_oracle():
+    from src.evaluation.algorithm_metadata import ADAPTIVE_AGENTS
+    from src.evaluation.constants import (
+        AGENT_TO_ORACLE_AGENT,
+        FIXED_SPECIALIST_AGENTS,
+        ORACLE_AGENTS,
+    )
+
+    assert set(AGENT_TO_ORACLE_AGENT) == set(ADAPTIVE_AGENTS) | set(ORACLE_AGENTS)
+    assert not set(AGENT_TO_ORACLE_AGENT) & set(FIXED_SPECIALIST_AGENTS)
+
+
+def test_general_policy_agents_do_not_map_to_an_oracle():
+    from src.evaluation.algorithm_metadata import GENERAL_POLICY_AGENTS
+    from src.evaluation.constants import AGENT_TO_ORACLE_AGENT
+
+    assert not set(AGENT_TO_ORACLE_AGENT) & set(GENERAL_POLICY_AGENTS)
+
+
+def test_a_missing_oracle_gap_renders_as_not_applicable():
+    """A bare "nan" reads like a defect and a 0 would read like "no gap"."""
+    from src.evaluation.reporting.experiment_summary import _to_markdown
+
+    table = pd.DataFrame(
+        [
+            {"agent_name": ADAPTIVE_MC_AGENT, ORACLE_GAP_BB_COLUMN: 2.0},
+            {"agent_name": POLICY_TIGHT_AGENT, ORACLE_GAP_BB_COLUMN: float("nan")},
+        ]
+    )
+
+    markdown = _to_markdown(table)
+
+    assert "n/a" in markdown
+    assert "nan" not in markdown
+
+
+def test_a_real_zero_gap_is_not_rendered_as_not_applicable():
+    """Zero and undefined must stay distinguishable."""
+    from src.evaluation.reporting.experiment_summary import _to_markdown
+
+    table = pd.DataFrame(
+        [{"agent_name": ORACLE_MC_AGENT, ORACLE_GAP_BB_COLUMN: 0.0}]
+    )
+
+    markdown = _to_markdown(table)
+
+    assert "n/a" not in markdown
+    assert "0" in markdown
+
+
+def test_summary_findings_ignore_rows_without_a_gap(tmp_path):
+    """Averaging NaN into the reported Oracle gap would corrupt the finding."""
+    summary = _summary_with_all_agent_kinds(tmp_path)
+    findings = generate_main_findings(summary, SummaryThresholds())
+
+    gap_findings = [f for f in findings if "Oracle gap" in f]
+
+    assert gap_findings
+    assert all("nan" not in f.lower() for f in gap_findings)
