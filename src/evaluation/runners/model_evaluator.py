@@ -35,6 +35,7 @@ from src.poker.constants import (
     OPPONENT_TYPE_UNKNOWN,
 )
 from src.rl.decision_diagnostics import merge_decision_diagnostics
+from src.rl.rng import attach_rng, derive_game_streams
 
 
 @dataclass(frozen=True)
@@ -847,7 +848,9 @@ def evaluate_single_game(
         matchup_game_index=matchup_game_index,
     )
 
-    set_evaluation_seed(game_seed)
+    streams = derive_game_streams(game_seed)
+
+    set_evaluation_seed(streams.deck_seed)
 
     config = setup_config(
         max_round=game_config.max_round,
@@ -861,7 +864,10 @@ def evaluate_single_game(
         bundle=bundle,
     )
 
-    opponent = build_opponent(opponent_name)
+    opponent = build_opponent(opponent_name, rng=streams.opponent)
+
+    attach_rng(tested_player, streams.agent)
+    attach_rng(opponent, streams.opponent)
 
     config.register_player(
         name=tested_agent_name,

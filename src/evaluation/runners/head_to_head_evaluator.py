@@ -40,6 +40,7 @@ from src.evaluation.runners.model_evaluator import (
     load_adaptive_agents,
     load_eval_agent,
 )
+from src.rl.rng import attach_rng, derive_game_streams
 
 HEAD_TO_HEAD_RULE_BASED_OPPONENT = RULE_BASED_AGENT
 HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT = ALWAYS_RAISE_AGENT
@@ -246,7 +247,9 @@ def evaluate_single_head_to_head_game(
         matchup_game_index=matchup_game_index,
     )
 
-    set_head_to_head_seed(game_seed)
+    streams = derive_game_streams(game_seed)
+
+    set_head_to_head_seed(streams.deck_seed)
 
     config = setup_config(
         max_round=game_config.max_round,
@@ -260,6 +263,9 @@ def evaluate_single_head_to_head_game(
     )
 
     opponent = build_head_to_head_opponent(opponent_name)
+
+    attach_rng(tested_player, streams.agent)
+    attach_rng(opponent, streams.opponent)
 
     config.register_player(
         name=tested_agent_name,
@@ -364,7 +370,8 @@ def evaluate_single_baseline_game(
         evaluation_replicate_id=evaluation_replicate_id,
         matchup_game_index=matchup_game_index,
     )
-    set_head_to_head_seed(game_seed)
+    streams = derive_game_streams(game_seed)
+    set_head_to_head_seed(streams.deck_seed)
 
     config = setup_config(
         max_round=game_config.max_round,
@@ -376,6 +383,10 @@ def evaluate_single_baseline_game(
         bundle=None,
     )
     opponent = build_head_to_head_opponent(opponent_name)
+
+    attach_rng(tested_player, streams.agent)
+    attach_rng(opponent, streams.opponent)
+
     registered_opponent_name = (
         f"{opponent_name}_opponent"
         if tested_agent_name == opponent_name

@@ -1,4 +1,6 @@
 
+import random
+
 from src.rl.action_selection import select_epsilon_greedy_action
 from src.rl.constants import (
     ALGORITHM_KEY,
@@ -79,6 +81,7 @@ class MonteCarloAgent:
         self.episode: list[tuple[tuple, int]] = []
         self.training = True
         self.diagnostics = DecisionDiagnostics()
+        self.rng: random.Random = random
 
     def reset_decision_diagnostics(self) -> None:
         self.diagnostics.reset()
@@ -117,6 +120,7 @@ class MonteCarloAgent:
             valid_actions=valid_actions,
             epsilon=self.epsilon,
             training=self.training,
+            rng=self.rng,
         )
 
         self.diagnostics.record(

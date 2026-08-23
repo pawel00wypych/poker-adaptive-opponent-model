@@ -48,6 +48,7 @@ from src.evaluation.runners.model_evaluator import (
     load_sarsa_adaptive_agents,
     load_sarsa_eval_agent,
 )
+from src.rl.rng import attach_rng, derive_game_streams
 
 STRESS_TEST_EVALUATION_TYPE = "stress_test"
 
@@ -235,7 +236,9 @@ def evaluate_single_stress_test_game(
         matchup_game_index=matchup_game_index,
     )
 
-    set_stress_test_seed(game_seed)
+    streams = derive_game_streams(game_seed)
+
+    set_stress_test_seed(streams.deck_seed)
 
     config = setup_config(
         max_round=game_config.max_round,
@@ -249,6 +252,9 @@ def evaluate_single_stress_test_game(
     )
 
     opponent = build_stress_test_opponent(opponent_name)
+
+    attach_rng(tested_player, streams.agent)
+    attach_rng(opponent, streams.opponent)
 
     registered_opponent_name = stress_test_opponent_registration_name(
         tested_agent_name=tested_agent_name,

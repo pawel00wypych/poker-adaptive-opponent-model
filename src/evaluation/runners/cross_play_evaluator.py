@@ -44,6 +44,7 @@ from src.evaluation.runners.model_evaluator import (
     load_sarsa_adaptive_agents,
     load_sarsa_eval_agent,
 )
+from src.rl.rng import attach_rng, derive_game_streams
 
 CROSS_PLAY_EVALUATION_TYPE = "cross_play"
 
@@ -248,7 +249,9 @@ def evaluate_single_cross_play_game(
         matchup_game_index=matchup_game_index,
     )
 
-    set_cross_play_seed(game_seed)
+    streams = derive_game_streams(game_seed)
+
+    set_cross_play_seed(streams.deck_seed)
 
     config = setup_config(
         max_round=game_config.max_round,
@@ -265,6 +268,9 @@ def evaluate_single_cross_play_game(
         agent_name=opponent_agent_name,
         bundle=bundle,
     )
+
+    attach_rng(tested_player, streams.agent)
+    attach_rng(opponent_player, streams.opponent)
 
     config.register_player(
         name=tested_agent_name,

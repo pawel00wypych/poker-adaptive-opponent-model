@@ -105,6 +105,7 @@ class DoubleQLearningAgent:
         self.episode: list[tuple[State, ActionId, tuple[ActionId, ...]]] = []
         self.training = True
         self.diagnostics = DecisionDiagnostics()
+        self.rng: random.Random = random
 
     def reset_decision_diagnostics(self) -> None:
         self.diagnostics.reset()
@@ -144,6 +145,7 @@ class DoubleQLearningAgent:
             valid_actions=valid_actions,
             epsilon=self.epsilon,
             training=self.training,
+            rng=self.rng,
         )
 
         self.diagnostics.record(
@@ -276,7 +278,7 @@ class DoubleQLearningAgent:
         self.episode.clear()
 
     def _select_update_table(self) -> str:
-        return UPDATE_Q1 if random.random() < 0.5 else UPDATE_Q2
+        return UPDATE_Q1 if self.rng.random() < 0.5 else UPDATE_Q2
 
     def _update_selected_table(
         self,
@@ -349,6 +351,7 @@ class DoubleQLearningAgent:
         best_next_action = select_best_legal_action(
             q_values=update_q_values,
             legal_action_ids=legal_action_ids,
+            rng=self.rng,
         )
 
         evaluated_next_value = evaluation_policy.get_q_value(
