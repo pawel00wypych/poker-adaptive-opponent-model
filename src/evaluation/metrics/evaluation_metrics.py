@@ -1,12 +1,39 @@
 import numpy as np
 import pandas as pd
 
+GAME_STANDARD_ERROR_COLUMN = "game_standard_error"
+GAME_CI_LOWER_COLUMN = "game_ci_95_lower"
+GAME_CI_UPPER_COLUMN = "game_ci_95_upper"
+
+GAME_LEVEL_SPREAD_COLUMNS = (
+    GAME_STANDARD_ERROR_COLUMN,
+    GAME_CI_LOWER_COLUMN,
+    GAME_CI_UPPER_COLUMN,
+)
+
 
 def calculate_grouped_evaluation_metrics(
     df: pd.DataFrame,
     group_columns: list[str],
 ) -> pd.DataFrame:
-    """Calculate per-group metrics shared by model and baseline evaluations."""
+    """Calculate per-group metrics shared by model and baseline evaluations.
+
+    **On the game-level interval columns.** ``game_standard_error``,
+    ``game_ci_95_lower`` and ``game_ci_95_upper`` are computed over individual
+    *games* using a normal approximation, ``mean +/- 1.96 * SE``. That treats
+    every game played by one trained model as an independent observation, which
+    they are not: games sharing a model share whatever that particular training
+    run happened to learn. The intervals are therefore **too narrow**.
+
+    They are kept because per-group spread is genuinely useful for spotting a
+    matchup with wild variance, but they are **descriptive only and must not
+    support a claim**. The authoritative uncertainty for any comparison is the
+    seed-level layer in ``seed_statistics.py``, which uses Student-t over seeds
+    with ``ddof=1`` and reports ``mean_profit_bb_*_across_seeds``.
+
+    The ``game_`` prefix exists so the two cannot be confused in a table where
+    they sit side by side.
+    """
 
     missing_columns = sorted(set(group_columns).difference(df.columns))
     if missing_columns:
@@ -123,14 +150,16 @@ def calculate_grouped_evaluation_metrics(
 
     grouped["bb_per_100"] = grouped["total_profit_bb"] / grouped["total_hands"] * 100
 
-    grouped["standard_error"] = grouped["std_profit_bb"] / np.sqrt(grouped["games"])
-
-    grouped["ci_95_lower"] = (
-        grouped["mean_profit_bb"] - 1.96 * grouped["standard_error"]
+    grouped[GAME_STANDARD_ERROR_COLUMN] = grouped["std_profit_bb"] / np.sqrt(
+        grouped["games"]
     )
 
-    grouped["ci_95_upper"] = (
-        grouped["mean_profit_bb"] + 1.96 * grouped["standard_error"]
+    grouped[GAME_CI_LOWER_COLUMN] = (
+        grouped["mean_profit_bb"] - 1.96 * grouped[GAME_STANDARD_ERROR_COLUMN]
+    )
+
+    grouped[GAME_CI_UPPER_COLUMN] = (
+        grouped["mean_profit_bb"] + 1.96 * grouped[GAME_STANDARD_ERROR_COLUMN]
     )
 
     total_evaluated = (

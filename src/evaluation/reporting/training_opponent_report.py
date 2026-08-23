@@ -5,6 +5,9 @@ from pathlib import Path
 import pandas as pd
 
 from src.evaluation.metrics.evaluation_metrics import (
+    GAME_CI_LOWER_COLUMN,
+    GAME_CI_UPPER_COLUMN,
+    GAME_STANDARD_ERROR_COLUMN,
     calculate_final_model_metrics,
 )
 from src.evaluation.metrics.seed_statistics import (
@@ -126,9 +129,11 @@ def _relevant_metrics() -> list[str]:
         "bb_per_100",
         "win_rate",
         "bust_rate",
-        "standard_error",
-        "ci_95_lower",
-        "ci_95_upper",
+        # Descriptive per-game spread. Too narrow to support a claim; the
+        # seed-level columns below are the authoritative ones.
+        GAME_STANDARD_ERROR_COLUMN,
+        GAME_CI_LOWER_COLUMN,
+        GAME_CI_UPPER_COLUMN,
         "mean_profit_bb_std_across_seeds",
         SEED_STANDARD_ERROR_COLUMN,
         SEED_CI_LOWER_COLUMN,

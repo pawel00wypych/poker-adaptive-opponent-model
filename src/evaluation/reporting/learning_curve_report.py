@@ -11,6 +11,11 @@ import pandas as pd
 
 from src.evaluation.algorithm_metadata import ADAPTIVE_AGENTS
 from src.evaluation.constants import ORACLE_AGENTS
+from src.evaluation.metrics.evaluation_metrics import (
+    GAME_CI_LOWER_COLUMN,
+    GAME_CI_UPPER_COLUMN,
+    GAME_STANDARD_ERROR_COLUMN,
+)
 from src.evaluation.metrics.learning_curve_metrics import (
     calculate_learning_curve_metrics,
 )
@@ -235,9 +240,9 @@ def metric_glossary_html() -> str:
         "bb_per_100",
         "win_rate",
         "bust_rate",
-        "standard_error",
-        "ci_95_lower",
-        "ci_95_upper",
+        GAME_STANDARD_ERROR_COLUMN,
+        GAME_CI_LOWER_COLUMN,
+        GAME_CI_UPPER_COLUMN,
         "mean_profit_bb_std_across_seeds",
         SEED_STANDARD_ERROR_COLUMN,
         SEED_CI_LOWER_COLUMN,
@@ -261,9 +266,9 @@ def metric_glossary_markdown() -> str:
         "bb_per_100",
         "win_rate",
         "bust_rate",
-        "standard_error",
-        "ci_95_lower",
-        "ci_95_upper",
+        GAME_STANDARD_ERROR_COLUMN,
+        GAME_CI_LOWER_COLUMN,
+        GAME_CI_UPPER_COLUMN,
         "mean_profit_bb_std_across_seeds",
         SEED_STANDARD_ERROR_COLUMN,
         SEED_CI_LOWER_COLUMN,
