@@ -30,7 +30,6 @@ Q_LEARNING_DISPLAY_NAME = "Q-learning"
 Q_LEARNING_TRAINING_SPEC = TDTrainingSpec(
     algorithm_name=Q_LEARNING_ALGORITHM_NAME,
     display_name=Q_LEARNING_DISPLAY_NAME,
-    model_root_directory="results/models/q_learning",
     agent_factory=QLearningAgent,
     player_name_suffix="q_learning",
     registered_player_name="q_learning",

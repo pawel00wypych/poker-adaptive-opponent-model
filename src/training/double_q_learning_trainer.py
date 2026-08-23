@@ -30,7 +30,6 @@ DOUBLE_Q_LEARNING_DISPLAY_NAME = "Double Q-learning"
 DOUBLE_Q_LEARNING_TRAINING_SPEC = TDTrainingSpec(
     algorithm_name=DOUBLE_Q_LEARNING_ALGORITHM_NAME,
     display_name=DOUBLE_Q_LEARNING_DISPLAY_NAME,
-    model_root_directory="results/models/double_q_learning",
     agent_factory=DoubleQLearningAgent,
     player_name_suffix="double_q_learning",
     registered_player_name="double_q_learning",

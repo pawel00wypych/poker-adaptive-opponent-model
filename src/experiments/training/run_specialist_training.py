@@ -46,6 +46,7 @@ from src.training.checkpoint_utils import (
     build_checkpoint_episodes,
     build_checkpoint_path,
 )
+from src.training.constants import ALGORITHM_KEY_MONTE_CARLO
 from src.training.epsilon_schedule import (
     calculate_epsilon,
 )
@@ -88,6 +89,7 @@ def get_default_model_path(
         model_root_directory=training_config.model_root_directory,
         seed=seed,
         model_type=opponent_type,
+            algorithm_key=ALGORITHM_KEY_MONTE_CARLO,
         error_label="Monte Carlo specialist",
     )
 
@@ -226,6 +228,7 @@ def run_specialist_training(
             model_root_directory=training_config.model_root_directory,
             seed=training_seed,
             model_type=opponent_type,
+            algorithm_key=ALGORITHM_KEY_MONTE_CARLO,
             error_label="Monte Carlo specialist",
         )
     )

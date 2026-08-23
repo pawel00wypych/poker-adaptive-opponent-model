@@ -20,7 +20,10 @@ from src.poker.constants import (
     OPPONENT_TYPE_TIGHT,
     OPPONENT_TYPE_UNKNOWN,
 )
-from src.training.constants import MODEL_TYPE_GENERAL_POLICY
+from src.training.constants import (
+    ALGORITHM_KEY_MONTE_CARLO,
+    MODEL_TYPE_GENERAL_POLICY,
+)
 from src.training.double_q_learning_trainer import (
     default_model_path as double_q_learning_model_path,
 )
@@ -49,6 +52,7 @@ def _monte_carlo_path(model_type, seed=42):
             model_root_directory=config.model_root_directory,
             seed=seed,
             model_type=model_type,
+            algorithm_key=ALGORITHM_KEY_MONTE_CARLO,
         )
 
     return get_default_model_path(config, model_type, seed)
@@ -96,7 +100,9 @@ def test_no_default_output_path_points_at_a_checkpoint(model_type):
 def test_monte_carlo_defaults_land_exactly_where_the_evaluator_looks():
     """The end-to-end property: every policy the evaluator resolves is produced."""
     config = TrainingConfig()
-    seed_directory = Path(config.model_root_directory) / "seed_42"
+    seed_directory = (
+        Path(config.model_root_directory) / ALGORITHM_KEY_MONTE_CARLO / "seed_42"
+    )
     expected = build_final_policy_paths(seed_directory=seed_directory)
 
     produced = {
@@ -130,13 +136,19 @@ def test_checkpoint_defaults_are_also_seeded_and_per_policy():
     which resolves seed_<n>/<policy>/checkpoints/."""
     path = Path(
         default_checkpoint_directory_path(
-            model_root_directory="results/models/monte_carlo",
+            model_root_directory="results/models",
             seed=7,
             model_type=OPPONENT_TYPE_TIGHT,
+            algorithm_key=ALGORITHM_KEY_MONTE_CARLO,
         )
     )
 
-    assert path.parts[-3:] == ("seed_7", "specialist_tight", "checkpoints")
+    assert path.parts[-4:] == (
+        "monte_carlo",
+        "seed_7",
+        "specialist_tight",
+        "checkpoints",
+    )
 
 
 def test_different_seeds_do_not_share_a_directory():

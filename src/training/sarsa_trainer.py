@@ -30,7 +30,6 @@ SARSA_DISPLAY_NAME = "SARSA"
 SARSA_TRAINING_SPEC = TDTrainingSpec(
     algorithm_name=SARSA_ALGORITHM_NAME,
     display_name=SARSA_DISPLAY_NAME,
-    model_root_directory="results/models/sarsa",
     agent_factory=SarsaAgent,
     player_name_suffix="sarsa",
     registered_player_name="sarsa",

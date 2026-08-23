@@ -67,10 +67,18 @@ class TabularTDAgent(Protocol):
 class TDTrainingSpec:
     algorithm_name: str
     display_name: str
-    model_root_directory: str
     agent_factory: Callable[..., TabularTDAgent]
     player_name_suffix: str
     registered_player_name: str
+
+    @property
+    def algorithm_key(self) -> str:
+        """Directory segment for this algorithm's artefacts.
+
+        Equal to ``algorithm_name``; named separately so a future change to the
+        reported algorithm name cannot silently move every model file.
+        """
+        return self.algorithm_name
 
 
 def format_duration(seconds: float) -> str:
@@ -97,11 +105,15 @@ def default_model_path(
     spec: TDTrainingSpec,
     model_type: str,
     seed: int,
+    training_config: TrainingConfig | None = None,
 ) -> str:
+    config = training_config or TrainingConfig()
+
     return default_final_model_path(
-        model_root_directory=spec.model_root_directory,
+        model_root_directory=config.model_root_directory,
         seed=seed,
         model_type=model_type,
+        algorithm_key=spec.algorithm_key,
         error_label=spec.display_name,
     )
 
@@ -111,11 +123,15 @@ def default_checkpoint_directory(
     spec: TDTrainingSpec,
     model_type: str,
     seed: int,
+    training_config: TrainingConfig | None = None,
 ) -> str:
+    config = training_config or TrainingConfig()
+
     return default_checkpoint_directory_path(
-        model_root_directory=spec.model_root_directory,
+        model_root_directory=config.model_root_directory,
         seed=seed,
         model_type=model_type,
+        algorithm_key=spec.algorithm_key,
         error_label=spec.display_name,
     )
 

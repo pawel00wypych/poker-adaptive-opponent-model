@@ -44,6 +44,7 @@ from src.training.checkpoint_utils import (
     build_checkpoint_episodes,
     build_checkpoint_path,
 )
+from src.training.constants import ALGORITHM_KEY_MONTE_CARLO
 from src.training.epsilon_schedule import calculate_epsilon
 from src.training.model_paths import (
     default_checkpoint_directory_path,
@@ -172,6 +173,7 @@ def run_general_policy_training(
             model_root_directory=training_config.model_root_directory,
             seed=training_seed,
             model_type=MODEL_TYPE_GENERAL_POLICY,
+            algorithm_key=ALGORITHM_KEY_MONTE_CARLO,
             error_label="Monte Carlo",
         )
     )
@@ -183,6 +185,7 @@ def run_general_policy_training(
             model_root_directory=training_config.model_root_directory,
             seed=training_seed,
             model_type=MODEL_TYPE_GENERAL_POLICY,
+            algorithm_key=ALGORITHM_KEY_MONTE_CARLO,
             error_label="Monte Carlo",
         )
     )
