@@ -521,10 +521,9 @@ of robust poker strategy.
 - Opponent variants are scripted behavioural approximations, not human-level
   poker opponents.
 - The engine gives no postflop positional alternation: the small blind opens
-  every street, including the flop, turn and river. Real heads-up play has the
-  big blind open postflop, so the small blind acts last and holds the
-  positional advantage. Position is encoded in the state as `is_small_blind`,
-  but conclusions about positional play do not transfer to real poker.
+  every street, including the flop, turn and river. See
+  [No postflop positional alternation](#no-postflop-positional-alternation)
+  below.
 - The always-raise baseline shows that some scripted opponents can be exploited
   by simple aggression.
 - `strong_calling` remains vulnerable to trivial aggression in some evaluations.
@@ -535,6 +534,55 @@ of robust poker strategy.
   multiple seeds and enough evaluation games.
 - Performance against predefined opponents or variants does not imply
   performance against human players.
+
+### No postflop positional alternation
+
+This is the environment limitation with the widest consequences for how the
+results may be interpreted, so it is stated separately rather than as one bullet
+among many.
+
+**What the engine does.** `PyPokerEngine` decides who acts first in
+`round_manager.py`, in `__start_street`, before branching on which street is
+starting:
+
+```python
+next_player_pos = state["table"].next_ask_waiting_player_pos(
+    state["table"].sb_pos() - 1
+)
+```
+
+That line runs unconditionally for every street, so the small blind opens all of
+them.
+
+**Measured.** 40 games x 12 hands, recording which player acted first on each
+street:
+
+```text
+street      small blind   big blind   total
+preflop             480           0     480
+flop                480           0     480
+turn                480           0     480
+river               480           0     480
+```
+
+**How real heads-up differs.** In heads-up Texas Hold'em the small blind (who is
+also the button) acts first preflop but **last** on every postflop street. Acting
+last is a well-known structural advantage, because the player sees the opponent's
+action before committing chips.
+
+**Consequence for the results.** The agent in these experiments never
+experiences acting last postflop. Position is encoded in the state as
+`is_small_blind` and the feature is informative *within this environment* -
+`tests/poker/test_round_state_utils.py` shows it alternates between hands - but
+any conclusion about positional play does not transfer to real poker. Claims in
+the thesis about how the agent uses position must be scoped to this environment.
+
+**Not worked around deliberately.** Patching the engine would make the results
+incomparable with the unmodified library the project declares as a dependency,
+and would put a hand-written betting-order rule on the critical path of every
+experiment. `tests/poker/test_round_state_utils.py::
+test_small_blind_opens_every_street` pins the current behaviour so that this
+section has to be revisited if the engine is ever upgraded or replaced.
 
 ## Research Hypothesis
 

@@ -83,8 +83,14 @@ def is_small_blind(round_state: dict[str, Any], player_uuid: str) -> bool:
 
     In this engine the small blind opens every street, including postflop, so
     posting it is the same thing as acting first for the whole hand. Real
-    heads-up play alternates - the big blind opens postflop - which is a
-    documented limitation of the environment rather than of this helper.
+    heads-up play alternates - the big blind opens postflop, leaving the small
+    blind to act last and hold the positional advantage.
+
+    That is a documented limitation of the environment rather than of this
+    helper. See "No postflop positional alternation" in README.md for the
+    measurement, the engine line responsible, and what it means for which
+    conclusions the results can support. The behaviour is pinned by
+    ``tests/poker/test_round_state_utils.py::test_small_blind_opens_every_street``.
     """
     small_blind_pos = round_state.get("small_blind_pos")
 
