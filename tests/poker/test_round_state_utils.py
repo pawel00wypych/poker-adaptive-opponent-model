@@ -167,3 +167,147 @@ def test_position_alternates_between_hands_in_a_real_game():
     start_poker(config, verbose=0)
 
     assert observed == {True, False}
+
+
+def test_small_blind_opens_every_street():
+    """Characterisation test: pins the engine's acting order.
+
+    This test passes on unfixed code too, and that is the point - it does not
+    fix anything. PyPokerEngine decides who acts first in ``__start_street``
+    before branching on the street:
+
+        next_player_pos = state["table"].next_ask_waiting_player_pos(
+            state["table"].sb_pos() - 1
+        )
+
+    so the small blind opens the flop, turn and river as well as preflop. Real
+    heads-up play has the big blind open postflop, which means the agent never
+    experiences acting last with information.
+
+    If this test ever fails, the environment has changed and the README section
+    "No postflop positional alternation" - along with any positional claim in
+    the thesis - has to be revisited.
+    """
+    from collections import Counter, defaultdict
+
+    from pypokerengine.api.game import setup_config, start_poker
+
+    from src.players.base.player_template import PlayerTemplate
+    from src.poker.round_state_utils import is_small_blind
+    from src.rl.rng import derive_game_streams, seed_engine_stream
+
+    first_actor = defaultdict(Counter)
+    street_state = {}
+
+    class Probe(PlayerTemplate):
+        def receive_street_start_message(self, street, round_state):
+            street_state["street"] = street
+            street_state["opened"] = False
+
+        def declare_action(self, valid_actions, hole_card, round_state):
+            street = street_state.get("street")
+
+            if street is not None and not street_state.get("opened"):
+                street_state["opened"] = True
+                position = (
+                    "small_blind"
+                    if is_small_blind(round_state, self.uuid)
+                    else "big_blind"
+                )
+                first_actor[street][position] += 1
+
+            call = next(item for item in valid_actions if item["action"] == "call")
+            return call["action"], call["amount"]
+
+        def receive_game_update_message(self, action, round_state):
+            pass
+
+        def receive_round_result_message(self, winners, hand_info, round_state):
+            pass
+
+    for seed in range(8):
+        streams = derive_game_streams(seed)
+        seed_engine_stream(streams.deck_seed)
+
+        config = setup_config(
+            max_round=10,
+            initial_stack=100_000,
+            small_blind_amount=5,
+        )
+        config.register_player(name="p1", algorithm=Probe(player_name="p1"))
+        config.register_player(name="p2", algorithm=Probe(player_name="p2"))
+        start_poker(config, verbose=0)
+
+    for street in ("preflop", "flop", "turn", "river"):
+        observed = first_actor[street]
+        assert sum(observed.values()) > 0, f"no {street} was observed"
+        assert observed["big_blind"] == 0, (
+            f"the big blind opened {street} {observed['big_blind']} time(s); "
+            "the engine has gained positional alternation and the README "
+            "limitation section is now wrong"
+        )
+
+
+def test_the_agent_never_acts_last_postflop():
+    """States the consequence directly, in the terms the thesis has to use.
+
+    Acting last with information is the structural advantage of position in real
+    heads-up poker. In this environment the small blind never has it.
+    """
+    from pypokerengine.api.game import setup_config, start_poker
+
+    from src.players.base.player_template import PlayerTemplate
+    from src.poker.round_state_utils import is_small_blind
+    from src.rl.rng import derive_game_streams, seed_engine_stream
+
+    decisions = []
+
+    class Probe(PlayerTemplate):
+        def declare_action(self, valid_actions, hole_card, round_state):
+            decisions.append(
+                (
+                    round_state.get("round_count"),
+                    round_state.get("street"),
+                    "small_blind"
+                    if is_small_blind(round_state, self.uuid)
+                    else "big_blind",
+                )
+            )
+            call = next(item for item in valid_actions if item["action"] == "call")
+            return call["action"], call["amount"]
+
+        def receive_game_update_message(self, action, round_state):
+            pass
+
+        def receive_round_result_message(self, winners, hand_info, round_state):
+            pass
+
+    for seed in range(8):
+        streams = derive_game_streams(seed)
+        seed_engine_stream(streams.deck_seed)
+
+        config = setup_config(
+            max_round=10,
+            initial_stack=100_000,
+            small_blind_amount=5,
+        )
+        config.register_player(name="p1", algorithm=Probe(player_name="p1"))
+        config.register_player(name="p2", algorithm=Probe(player_name="p2"))
+        start_poker(config, verbose=0)
+
+    # Last decision taken within each (hand, street) group.
+    closers = {}
+    for hand, street, position in decisions:
+        closers[(hand, street)] = position
+
+    postflop = {
+        position
+        for (_, street), position in closers.items()
+        if street in {"flop", "turn", "river"}
+    }
+
+    assert postflop, "no postflop street was completed"
+    assert postflop == {"big_blind"}, (
+        f"postflop streets were closed by {sorted(postflop)}; real heads-up "
+        "play has the small blind close them, and this engine does not"
+    )
