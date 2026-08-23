@@ -3,6 +3,29 @@ from pypokerengine.players import BasePokerPlayer
 from src.config import GameConfig
 
 
+def _read_small_blind_amount(game_info) -> int | None:
+    """Pull the small blind out of the engine's game_info, or None.
+
+    Returning None rather than a default keeps "the engine never told us" and
+    "the engine told us the default" distinguishable, so a player that was
+    never started cannot silently look like a correctly configured one.
+    """
+    if not isinstance(game_info, dict):
+        return None
+
+    rule = game_info.get("rule")
+    if not isinstance(rule, dict):
+        return None
+
+    small_blind_amount = rule.get("small_blind_amount")
+    if isinstance(small_blind_amount, bool):
+        return None
+    if not isinstance(small_blind_amount, int) or small_blind_amount <= 0:
+        return None
+
+    return small_blind_amount
+
+
 class PlayerTemplate(BasePokerPlayer):
     """Base poker player with shared round tracking and evaluation utilities."""
 
@@ -30,10 +53,25 @@ class PlayerTemplate(BasePokerPlayer):
         self.hole_card = []
         self.uuid_to_index = None
         self.my_index = None
+        self.small_blind_amount = None
 
     @property
     def big_blind_amount(self):
-        return GameConfig.small_blind_amount * 2
+        """Big blind of the game actually being played.
+
+        The engine reports the blind structure in ``game_info`` at game start,
+        so that is what gets used. Reading ``GameConfig.small_blind_amount`` off
+        the class instead returns the dataclass *default*, which silently
+        decouples every BB-denominated reward from the real blinds - and
+        ``mean_profit_bb`` and ``bb_per_100`` are the primary reported metrics.
+
+        Before a game starts - and in unit tests that build a player directly -
+        there is nothing to read, so the configured default applies.
+        """
+        if self.small_blind_amount is None:
+            return GameConfig().big_blind_amount
+
+        return self.small_blind_amount * 2
 
     @property
     def player_uuid(self) -> str | None:
@@ -119,6 +157,7 @@ class PlayerTemplate(BasePokerPlayer):
 
     def receive_game_start_message(self, game_info):
         self.reset_tracking_stats()
+        self.small_blind_amount = _read_small_blind_amount(game_info)
 
     def receive_round_start_message(self, round_count, hole_card, seats):
         self.hole_card = hole_card

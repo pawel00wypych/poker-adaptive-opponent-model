@@ -291,7 +291,7 @@ def evaluate_single_cross_play_game(
     classifier_metrics = get_classifier_metrics(tested_player)
     decision_diagnostics = get_decision_diagnostics(tested_player)
 
-    big_blind = game_config.small_blind_amount * 2
+    big_blind = game_config.big_blind_amount
 
     for player_result in result["players"]:
         if player_result["name"] == tested_agent_name:

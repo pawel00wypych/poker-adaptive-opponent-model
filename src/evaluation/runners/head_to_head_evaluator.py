@@ -286,7 +286,7 @@ def evaluate_single_head_to_head_game(
     classifier_metrics = get_classifier_metrics(tested_player)
     decision_diagnostics = get_decision_diagnostics(tested_player)
 
-    big_blind = game_config.small_blind_amount * 2
+    big_blind = game_config.big_blind_amount
 
     for player_result in result["players"]:
         if player_result["name"] == tested_agent_name:
@@ -403,7 +403,7 @@ def evaluate_single_baseline_game(
     ended_by_round_limit = not ended_by_bust and hands_played >= game_config.max_round
     classifier_metrics = get_classifier_metrics(tested_player)
     decision_diagnostics = get_decision_diagnostics(tested_player)
-    big_blind = game_config.small_blind_amount * 2
+    big_blind = game_config.big_blind_amount
 
     for player_result in result["players"]:
         if player_result["name"] == tested_agent_name:
