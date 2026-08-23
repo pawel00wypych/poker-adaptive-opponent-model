@@ -10,14 +10,29 @@ from src.evaluation.constants import (
     ADAPTIVE_MC_AGENT,
     ADAPTIVE_Q_LEARNING_AGENT,
     ADAPTIVE_SARSA_AGENT,
+    AGGRESSIVE_POLICY,
+    CALLING_POLICY,
     ORACLE_DOUBLE_Q_LEARNING_AGENT,
     ORACLE_MC_AGENT,
     ORACLE_Q_LEARNING_AGENT,
     ORACLE_SARSA_AGENT,
+    POLICY_AGGRESSIVE_AGENT,
+    POLICY_AGGRESSIVE_DOUBLE_Q_LEARNING_AGENT,
+    POLICY_AGGRESSIVE_Q_LEARNING_AGENT,
+    POLICY_AGGRESSIVE_SARSA_AGENT,
+    POLICY_CALLING_AGENT,
+    POLICY_CALLING_DOUBLE_Q_LEARNING_AGENT,
+    POLICY_CALLING_Q_LEARNING_AGENT,
+    POLICY_CALLING_SARSA_AGENT,
     POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
     POLICY_GENERAL_MC_AGENT,
     POLICY_GENERAL_Q_LEARNING_AGENT,
     POLICY_GENERAL_SARSA_AGENT,
+    POLICY_TIGHT_AGENT,
+    POLICY_TIGHT_DOUBLE_Q_LEARNING_AGENT,
+    POLICY_TIGHT_Q_LEARNING_AGENT,
+    POLICY_TIGHT_SARSA_AGENT,
+    TIGHT_POLICY,
 )
 
 ALGORITHM_MONTE_CARLO = "Monte Carlo"
@@ -38,6 +53,11 @@ class AlgorithmValidationSpec:
     adaptive_agent: str
     oracle_agent: str
     general_policy_agent: str
+    specialist_agent_by_policy: dict[str, str]
+
+    @property
+    def specialist_agents(self) -> tuple[str, ...]:
+        return tuple(self.specialist_agent_by_policy.values())
 
 
 ALGORITHM_VALIDATION_SPECS = (
@@ -47,6 +67,11 @@ ALGORITHM_VALIDATION_SPECS = (
         adaptive_agent=ADAPTIVE_MC_AGENT,
         oracle_agent=ORACLE_MC_AGENT,
         general_policy_agent=POLICY_GENERAL_MC_AGENT,
+        specialist_agent_by_policy={
+            TIGHT_POLICY: POLICY_TIGHT_AGENT,
+            AGGRESSIVE_POLICY: POLICY_AGGRESSIVE_AGENT,
+            CALLING_POLICY: POLICY_CALLING_AGENT,
+        },
     ),
     AlgorithmValidationSpec(
         algorithm_key=ALGORITHM_KEY_Q_LEARNING,
@@ -54,6 +79,11 @@ ALGORITHM_VALIDATION_SPECS = (
         adaptive_agent=ADAPTIVE_Q_LEARNING_AGENT,
         oracle_agent=ORACLE_Q_LEARNING_AGENT,
         general_policy_agent=POLICY_GENERAL_Q_LEARNING_AGENT,
+        specialist_agent_by_policy={
+            TIGHT_POLICY: POLICY_TIGHT_Q_LEARNING_AGENT,
+            AGGRESSIVE_POLICY: POLICY_AGGRESSIVE_Q_LEARNING_AGENT,
+            CALLING_POLICY: POLICY_CALLING_Q_LEARNING_AGENT,
+        },
     ),
     AlgorithmValidationSpec(
         algorithm_key=ALGORITHM_KEY_SARSA,
@@ -61,6 +91,11 @@ ALGORITHM_VALIDATION_SPECS = (
         adaptive_agent=ADAPTIVE_SARSA_AGENT,
         oracle_agent=ORACLE_SARSA_AGENT,
         general_policy_agent=POLICY_GENERAL_SARSA_AGENT,
+        specialist_agent_by_policy={
+            TIGHT_POLICY: POLICY_TIGHT_SARSA_AGENT,
+            AGGRESSIVE_POLICY: POLICY_AGGRESSIVE_SARSA_AGENT,
+            CALLING_POLICY: POLICY_CALLING_SARSA_AGENT,
+        },
     ),
     AlgorithmValidationSpec(
         algorithm_key=ALGORITHM_KEY_DOUBLE_Q_LEARNING,
@@ -68,6 +103,11 @@ ALGORITHM_VALIDATION_SPECS = (
         adaptive_agent=ADAPTIVE_DOUBLE_Q_LEARNING_AGENT,
         oracle_agent=ORACLE_DOUBLE_Q_LEARNING_AGENT,
         general_policy_agent=POLICY_GENERAL_DOUBLE_Q_LEARNING_AGENT,
+        specialist_agent_by_policy={
+            TIGHT_POLICY: POLICY_TIGHT_DOUBLE_Q_LEARNING_AGENT,
+            AGGRESSIVE_POLICY: POLICY_AGGRESSIVE_DOUBLE_Q_LEARNING_AGENT,
+            CALLING_POLICY: POLICY_CALLING_DOUBLE_Q_LEARNING_AGENT,
+        },
     ),
 )
 
@@ -93,10 +133,17 @@ GENERAL_POLICY_AGENT_TO_ALGORITHM = {
     for spec in ALGORITHM_VALIDATION_SPECS
 }
 
+SPECIALIST_AGENT_TO_ALGORITHM = {
+    agent: spec.algorithm_name
+    for spec in ALGORITHM_VALIDATION_SPECS
+    for agent in spec.specialist_agents
+}
+
 AGENT_TO_ALGORITHM = {
     **ADAPTIVE_AGENT_TO_ALGORITHM,
     **ORACLE_AGENT_TO_ALGORITHM,
     **GENERAL_POLICY_AGENT_TO_ALGORITHM,
+    **SPECIALIST_AGENT_TO_ALGORITHM,
 }
 
 ADAPTIVE_AGENTS = tuple(

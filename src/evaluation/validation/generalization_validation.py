@@ -5,15 +5,14 @@ from collections.abc import Iterable
 import pandas as pd
 
 from src.evaluation.algorithm_metadata import (
-    ALGORITHM_MONTE_CARLO,
     AlgorithmValidationSpec,
     available_algorithm_specs,
 )
 from src.evaluation.constants import (
-    POLICY_AGGRESSIVE_AGENT,
-    POLICY_CALLING_AGENT,
-    POLICY_TIGHT_AGENT,
+    AGGRESSIVE_POLICY,
+    CALLING_POLICY,
     RULE_BASED_AGENT,
+    TIGHT_POLICY,
 )
 from src.evaluation.metrics.oracle_gap import (
     ORACLE_GAP_BB_COLUMN,
@@ -663,74 +662,81 @@ def validate_generalization_matching_specialists(
     final_rows: pd.DataFrame,
     thresholds: ValidationThresholds,
 ) -> list[ValidationCheckResult]:
+    """Check that each family's specialist transfers to that family's variant.
+
+    Runs for every algorithm that appears in the results. Only the algorithms
+    actually present are checked, so a Monte-Carlo-only run does not produce
+    spurious missing-row failures for the TD algorithms.
+    """
     results: list[ValidationCheckResult] = []
-    base_type_to_specialist = {
-        OPPONENT_TYPE_CALLING: POLICY_CALLING_AGENT,
-        OPPONENT_TYPE_AGGRESSIVE: POLICY_AGGRESSIVE_AGENT,
-        OPPONENT_TYPE_TIGHT: POLICY_TIGHT_AGENT,
-    }
-    variant_to_specialist = {
-        opponent_name: base_type_to_specialist[base_type]
-        for opponent_name, base_type in GENERALIZATION_OPPONENT_TO_BASE_TYPE.items()
-    }
 
-    for opponent_name, specialist_agent in variant_to_specialist.items():
-        row = _find_row(
-            final_rows,
-            specialist_agent,
-            opponent_name,
-        )
-        check_name = (
-            "Monte Carlo: Matching specialist transfer "
-            f"for {specialist_agent} vs {opponent_name}"
-        )
+    for spec in available_algorithm_specs(final_rows):
+        base_type_to_specialist = {
+            OPPONENT_TYPE_CALLING: spec.specialist_agent_by_policy[CALLING_POLICY],
+            OPPONENT_TYPE_AGGRESSIVE: spec.specialist_agent_by_policy[
+                AGGRESSIVE_POLICY
+            ],
+            OPPONENT_TYPE_TIGHT: spec.specialist_agent_by_policy[TIGHT_POLICY],
+        }
+        variant_to_specialist = {
+            opponent_name: base_type_to_specialist[base_type]
+            for opponent_name, base_type in (
+                GENERALIZATION_OPPONENT_TO_BASE_TYPE.items()
+            )
+        }
 
-        if row is None:
+        for opponent_name, specialist_agent in variant_to_specialist.items():
+            row = _find_row(
+                final_rows,
+                specialist_agent,
+                opponent_name,
+            )
+            check_name = (
+                f"{spec.algorithm_name}: Matching specialist transfer "
+                f"for {specialist_agent} vs {opponent_name}"
+            )
+
+            if row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "generalization_specialist_transfer",
+                        specialist_agent,
+                        opponent_name,
+                        spec.algorithm_name,
+                    )
+                )
+                continue
+
+            mean_profit_bb = float(row["mean_profit_bb"])
+            status = (
+                STATUS_PASS
+                if mean_profit_bb >= thresholds.min_head_to_head_mean_profit_bb
+                else STATUS_WARNING
+            )
+
             results.append(
-                _missing_row_result(
-                    check_name,
-                    "generalization_specialist_transfer",
-                    specialist_agent,
-                    opponent_name,
-                    ALGORITHM_MONTE_CARLO,
+                ValidationCheckResult(
+                    check_name=check_name,
+                    status=status,
+                    category="generalization_specialist_transfer",
+                    algorithm_name=spec.algorithm_name,
+                    agent_name=specialist_agent,
+                    opponent_name=opponent_name,
+                    training_episode=_training_episode(row),
+                    observed_value=mean_profit_bb,
+                    threshold=thresholds.min_head_to_head_mean_profit_bb,
+                    message=(
+                        f"{specialist_agent} vs {opponent_name}: "
+                        f"mean_profit_bb={_format_float(mean_profit_bb)}."
+                    ),
+                    details={
+                        "algorithm": spec.algorithm_name,
+                        "mean_profit_bb": mean_profit_bb,
+                        "expected_family_specialist": True,
+                    },
                 )
             )
-            continue
-
-        mean_profit_bb = float(row["mean_profit_bb"])
-        status = (
-            STATUS_PASS
-            if mean_profit_bb >= thresholds.min_head_to_head_mean_profit_bb
-            else STATUS_WARNING
-        )
-
-        results.append(
-            ValidationCheckResult(
-                check_name=check_name,
-                status=status,
-                category="generalization_specialist_transfer",
-                algorithm_name=ALGORITHM_MONTE_CARLO,
-                agent_name=specialist_agent,
-                opponent_name=opponent_name,
-                training_episode=_training_episode(row),
-                observed_value=mean_profit_bb,
-                threshold=thresholds.min_head_to_head_mean_profit_bb,
-                message=(
-                    f"{specialist_agent} vs {opponent_name}: "
-                    f"mean_profit_bb={_format_float(mean_profit_bb)}."
-                ),
-                details={
-                    "algorithm": ALGORITHM_MONTE_CARLO,
-                    "mean_profit_bb": mean_profit_bb,
-                    "expected_family_specialist": True,
-                    "note": (
-                        "Only Monte Carlo fixed specialists are public "
-                        "tested agents. TD specialists are used through "
-                        "adaptive/oracle agents."
-                    ),
-                },
-            )
-        )
 
     return results
 
