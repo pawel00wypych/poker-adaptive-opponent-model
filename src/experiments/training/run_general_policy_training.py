@@ -1,3 +1,20 @@
+"""Monte Carlo general-policy training.
+
+This script deliberately does not reuse ``src/training/td_trainer.py``, even
+though the two episode loops look similar. Monte Carlo updates in batch once a
+hand is over, while the TD algorithms update after every step, so a shared loop
+would have to branch on the update rule at the point where the two differ most.
+Keeping them separate is a judgement that an accidental change to the training
+protocol is more costly here than the duplication is.
+
+The price is that the metadata schemas can drift. ``build_metadata`` below must
+stay a superset of ``build_td_metadata`` for every algorithm-independent key -
+otherwise the model files stop being able to evidence that the compared
+algorithms were trained under equal conditions, which is the central claim the
+thesis rests on. ``tests/experiments/test_general_policy_training_metadata.py``
+enforces that automatically.
+"""
+
 from collections import Counter
 from pathlib import Path
 from time import perf_counter
@@ -55,6 +72,25 @@ def build_metadata(
     total_hands: int,
     opponent_counter: Counter,
 ) -> dict:
+    """Build the sidecar metadata for a Monte Carlo general-policy model.
+
+    The schema must stay a superset of ``build_td_metadata`` for every
+    algorithm-independent key, because the thesis compares Monte Carlo against
+    the TD algorithms and the model files are the only durable evidence of the
+    conditions each one was trained under.
+    """
+    mean_hands_per_episode = (
+        total_hands / completed_episodes
+        if completed_episodes > 0
+        else 0.0
+    )
+
+    hands_per_second = (
+        total_hands / duration_seconds
+        if duration_seconds > 0
+        else 0.0
+    )
+
     return {
         "algorithm": MonteCarloAgent.ALGORITHM_ID,
         "model_type": MODEL_TYPE_GENERAL_POLICY,
@@ -66,9 +102,12 @@ def build_metadata(
         "alpha_mode": alpha_mode,
         "current_epsilon": agent.epsilon,
         "alpha": agent.alpha,
+        "gamma": agent.gamma,
         "epsilon_min": agent.epsilon_min,
         "states": len(agent.q_table),
         "total_hands": total_hands,
+        "mean_hands_per_episode": mean_hands_per_episode,
+        "hands_per_second": hands_per_second,
         "opponents": dict(opponent_counter),
         "max_round": game_config.max_round,
         "initial_stack": game_config.initial_stack,
@@ -285,6 +324,11 @@ def run_general_policy_training(
             agent.save(
                 checkpoint_path,
                 metadata=metadata,
+            )
+
+            save_json(
+                Path(checkpoint_path).with_suffix(".json"),
+                metadata,
             )
 
     training_duration = (
