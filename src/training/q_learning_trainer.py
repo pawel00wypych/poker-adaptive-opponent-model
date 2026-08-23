@@ -44,17 +44,19 @@ def model_run_name(model_type: str) -> str:
     )
 
 
-def default_model_path(model_type: str) -> str:
+def default_model_path(model_type: str, seed: int) -> str:
     return _default_model_path(
         spec=Q_LEARNING_TRAINING_SPEC,
         model_type=model_type,
+        seed=seed,
     )
 
 
-def default_checkpoint_directory(model_type: str) -> str:
+def default_checkpoint_directory(model_type: str, seed: int) -> str:
     return _default_checkpoint_directory(
         spec=Q_LEARNING_TRAINING_SPEC,
         model_type=model_type,
+        seed=seed,
     )
 
 

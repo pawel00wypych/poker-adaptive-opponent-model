@@ -25,11 +25,11 @@ def test_model_run_name_rejects_unknown_model_type():
 
 
 def test_default_double_q_learning_model_paths_are_separate_from_other_algorithms():
-    assert default_model_path(MODEL_TYPE_GENERAL_POLICY) == str(
-        Path("results/models/double_q_learning/general_policy/final.pkl")
+    assert default_model_path(MODEL_TYPE_GENERAL_POLICY, seed=42) == str(
+        Path("results/models/double_q_learning/seed_42/general_policy/final.pkl")
     )
-    assert default_checkpoint_directory(OPPONENT_TYPE_CALLING) == str(
-        Path("results/models/double_q_learning/specialist_calling/checkpoints")
+    assert default_checkpoint_directory(OPPONENT_TYPE_CALLING, seed=42) == str(
+        Path("results/models/double_q_learning/seed_42/specialist_calling/checkpoints")
     )
 
 

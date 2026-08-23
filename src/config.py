@@ -38,22 +38,8 @@ class TrainingConfig:
         7_500,
     )
 
-    general_policy_model_path: str = (
-        "results/models/monte_carlo_general_policy.pkl"
-    )
-
-    tight_model_path: str = (
-        "results/models/monte_carlo_vs_tight.pkl"
-    )
-
-    aggressive_model_path: str = (
-        "results/models/monte_carlo_vs_aggressive.pkl"
-    )
-
-    calling_model_path: str = (
-        "results/models/checkpoints/monte_carlo_vs_calling_episodes_7500_seed_42.pkl"
-    )
-
-    checkpoint_directory: str = (
-        "results/models/checkpoints"
-    )
+    # Root of the Monte Carlo artefact tree. The seed and policy directories
+    # are appended by src/training/model_paths.py so that a default run lands
+    # where the evaluators look. The TD algorithms have equivalent roots on
+    # their TDTrainingSpec.
+    model_root_directory: str = "results/models/monte_carlo"

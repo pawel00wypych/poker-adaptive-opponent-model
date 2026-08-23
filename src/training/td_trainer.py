@@ -32,6 +32,11 @@ from src.training.constants import (
     MODEL_TYPE_SPECIALIST,
 )
 from src.training.epsilon_schedule import calculate_epsilon
+from src.training.model_paths import (
+    default_checkpoint_directory_path,
+    default_final_model_path,
+    policy_directory_name,
+)
 from src.training.random_utils import set_global_seed
 from src.training.training_metadata import save_json
 
@@ -84,29 +89,20 @@ def model_run_name(
     *,
     error_label: str = "TD",
 ) -> str:
-    if model_type == MODEL_TYPE_GENERAL_POLICY:
-        return MODEL_TYPE_GENERAL_POLICY
-
-    if model_type in TRAINING_OPPONENT_TYPES:
-        return f"specialist_{model_type}"
-
-    raise ValueError(
-        f"Unsupported {error_label} model type: {model_type}"
-    )
+    return policy_directory_name(model_type, error_label=error_label)
 
 
 def default_model_path(
     *,
     spec: TDTrainingSpec,
     model_type: str,
+    seed: int,
 ) -> str:
-    return str(
-        Path(spec.model_root_directory)
-        / model_run_name(
-            model_type,
-            error_label=spec.display_name,
-        )
-        / "final.pkl"
+    return default_final_model_path(
+        model_root_directory=spec.model_root_directory,
+        seed=seed,
+        model_type=model_type,
+        error_label=spec.display_name,
     )
 
 
@@ -114,14 +110,13 @@ def default_checkpoint_directory(
     *,
     spec: TDTrainingSpec,
     model_type: str,
+    seed: int,
 ) -> str:
-    return str(
-        Path(spec.model_root_directory)
-        / model_run_name(
-            model_type,
-            error_label=spec.display_name,
-        )
-        / "checkpoints"
+    return default_checkpoint_directory_path(
+        model_root_directory=spec.model_root_directory,
+        seed=seed,
+        model_type=model_type,
+        error_label=spec.display_name,
     )
 
 
@@ -334,6 +329,7 @@ def run_td_model_training(
         else default_model_path(
             spec=spec,
             model_type=model_type,
+            seed=training_seed,
         )
     )
 
@@ -343,6 +339,7 @@ def run_td_model_training(
         else default_checkpoint_directory(
             spec=spec,
             model_type=model_type,
+            seed=training_seed,
         )
     )
 
