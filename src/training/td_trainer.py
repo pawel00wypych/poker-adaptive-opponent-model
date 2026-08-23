@@ -32,6 +32,11 @@ from src.training.constants import (
     MODEL_TYPE_SPECIALIST,
 )
 from src.training.epsilon_schedule import calculate_epsilon
+from src.training.model_paths import (
+    default_checkpoint_directory_path,
+    default_final_model_path,
+    policy_directory_name,
+)
 from src.training.random_utils import set_global_seed
 from src.training.training_metadata import save_json
 
@@ -62,10 +67,18 @@ class TabularTDAgent(Protocol):
 class TDTrainingSpec:
     algorithm_name: str
     display_name: str
-    model_root_directory: str
     agent_factory: Callable[..., TabularTDAgent]
     player_name_suffix: str
     registered_player_name: str
+
+    @property
+    def algorithm_key(self) -> str:
+        """Directory segment for this algorithm's artefacts.
+
+        Equal to ``algorithm_name``; named separately so a future change to the
+        reported algorithm name cannot silently move every model file.
+        """
+        return self.algorithm_name
 
 
 def format_duration(seconds: float) -> str:
@@ -84,29 +97,24 @@ def model_run_name(
     *,
     error_label: str = "TD",
 ) -> str:
-    if model_type == MODEL_TYPE_GENERAL_POLICY:
-        return MODEL_TYPE_GENERAL_POLICY
-
-    if model_type in TRAINING_OPPONENT_TYPES:
-        return f"specialist_{model_type}"
-
-    raise ValueError(
-        f"Unsupported {error_label} model type: {model_type}"
-    )
+    return policy_directory_name(model_type, error_label=error_label)
 
 
 def default_model_path(
     *,
     spec: TDTrainingSpec,
     model_type: str,
+    seed: int,
+    training_config: TrainingConfig | None = None,
 ) -> str:
-    return str(
-        Path(spec.model_root_directory)
-        / model_run_name(
-            model_type,
-            error_label=spec.display_name,
-        )
-        / "final.pkl"
+    config = training_config or TrainingConfig()
+
+    return default_final_model_path(
+        model_root_directory=config.model_root_directory,
+        seed=seed,
+        model_type=model_type,
+        algorithm_key=spec.algorithm_key,
+        error_label=spec.display_name,
     )
 
 
@@ -114,14 +122,17 @@ def default_checkpoint_directory(
     *,
     spec: TDTrainingSpec,
     model_type: str,
+    seed: int,
+    training_config: TrainingConfig | None = None,
 ) -> str:
-    return str(
-        Path(spec.model_root_directory)
-        / model_run_name(
-            model_type,
-            error_label=spec.display_name,
-        )
-        / "checkpoints"
+    config = training_config or TrainingConfig()
+
+    return default_checkpoint_directory_path(
+        model_root_directory=config.model_root_directory,
+        seed=seed,
+        model_type=model_type,
+        algorithm_key=spec.algorithm_key,
+        error_label=spec.display_name,
     )
 
 
@@ -334,6 +345,7 @@ def run_td_model_training(
         else default_model_path(
             spec=spec,
             model_type=model_type,
+            seed=training_seed,
         )
     )
 
@@ -343,6 +355,7 @@ def run_td_model_training(
         else default_checkpoint_directory(
             spec=spec,
             model_type=model_type,
+            seed=training_seed,
         )
     )
 

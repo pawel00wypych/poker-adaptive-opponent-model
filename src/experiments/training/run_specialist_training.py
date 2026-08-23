@@ -37,11 +37,6 @@ from src.players.learned.specialist_policy_player import (
 from src.players.opponents.factory import (
     build_opponent,
 )
-from src.poker.constants import (
-    OPPONENT_TYPE_AGGRESSIVE,
-    OPPONENT_TYPE_CALLING,
-    OPPONENT_TYPE_TIGHT,
-)
 from src.rl.rng import (
     attach_rng,
     derive_episode_streams,
@@ -51,8 +46,13 @@ from src.training.checkpoint_utils import (
     build_checkpoint_episodes,
     build_checkpoint_path,
 )
+from src.training.constants import ALGORITHM_KEY_MONTE_CARLO
 from src.training.epsilon_schedule import (
     calculate_epsilon,
+)
+from src.training.model_paths import (
+    default_checkpoint_directory_path,
+    default_final_model_path,
 )
 from src.training.random_utils import (
     set_global_seed,
@@ -83,23 +83,15 @@ def format_duration(seconds: float) -> str:
 def get_default_model_path(
     training_config: TrainingConfig,
     opponent_type: str,
+    seed: int,
 ) -> str:
-    model_paths = {
-        OPPONENT_TYPE_TIGHT: training_config.tight_model_path,
-        OPPONENT_TYPE_AGGRESSIVE: (
-            training_config.aggressive_model_path
-        ),
-        OPPONENT_TYPE_CALLING: (
-            training_config.calling_model_path
-        ),
-    }
-
-    try:
-        return model_paths[opponent_type]
-    except KeyError as error:
-        raise ValueError(
-            f"Unsupported opponent type: {opponent_type}"
-        ) from error
+    return default_final_model_path(
+        model_root_directory=training_config.model_root_directory,
+        seed=seed,
+        model_type=opponent_type,
+            algorithm_key=ALGORITHM_KEY_MONTE_CARLO,
+        error_label="Monte Carlo specialist",
+    )
 
 
 def build_training_metadata(
@@ -225,13 +217,20 @@ def run_specialist_training(
         else get_default_model_path(
             training_config,
             opponent_type,
+            training_seed,
         )
     )
 
     selected_checkpoint_directory = (
         checkpoint_directory
         if checkpoint_directory is not None
-        else training_config.checkpoint_directory
+        else default_checkpoint_directory_path(
+            model_root_directory=training_config.model_root_directory,
+            seed=training_seed,
+            model_type=opponent_type,
+            algorithm_key=ALGORITHM_KEY_MONTE_CARLO,
+            error_label="Monte Carlo specialist",
+        )
     )
 
     selected_checkpoint_episodes = tuple(

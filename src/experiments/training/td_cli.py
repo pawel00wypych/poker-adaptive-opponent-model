@@ -4,7 +4,11 @@ from pathlib import Path
 from time import perf_counter
 from typing import Callable, Sequence
 
-from src.config import TrainingConfig
+from src.config import (
+    DEFAULT_TRAINING_CONFIG_PRESET,
+    TRAINING_CONFIG_PRESETS,
+    training_config_for,
+)
 from src.experiments.constants import MODEL_TYPES
 from src.training.constants import (
     ALPHA_MODE_CONSTANT,
@@ -36,12 +40,24 @@ def parse_td_training_args(
     )
 
     parser.add_argument(
+        "--config",
+        choices=sorted(TRAINING_CONFIG_PRESETS),
+        default=DEFAULT_TRAINING_CONFIG_PRESET,
+        help=(
+            "Training budget preset. 'final' is the full experiment; "
+            "'verification' is a short rehearsal that exercises the same "
+            "code path and artefact layout. Individual flags override it."
+        ),
+    )
+
+    parser.add_argument(
         "--episodes",
         type=int,
-        default=TrainingConfig.episodes,
+        default=None,
         help=(
-            "Number of training episodes per model. Shared with the Monte "
-            "Carlo suite so budgets stay comparable."
+            "Number of training episodes per model. Defaults to the selected "
+            "--config preset, shared with the Monte Carlo suite so budgets "
+            "stay comparable."
         ),
     )
 
@@ -49,10 +65,11 @@ def parse_td_training_args(
         "--seeds",
         type=int,
         nargs="+",
-        default=[42],
+        default=None,
         help=(
             "Random seeds used for independent "
-            f"{spec.display_name} runs."
+            f"{spec.display_name} runs. Defaults to the selected --config "
+            "preset. Seed-level statistics are undefined below two seeds."
         ),
     )
 
@@ -169,12 +186,34 @@ def parse_td_training_args(
     )
 
     args = parser.parse_args()
+    apply_training_config_preset(args)
     validate_td_training_args(
         parser=parser,
         args=args,
     )
 
     return args
+
+
+def apply_training_config_preset(args: argparse.Namespace) -> None:
+    """Fill unset budget arguments from the chosen preset.
+
+    Explicit flags win, so a preset is a starting point rather than a
+    constraint. ``episodes`` and ``seeds`` both come from the same
+    ``TrainingConfig`` the Monte Carlo suite uses, which is what keeps the four
+    algorithms comparable.
+    """
+    config = training_config_for(args.config)
+    args.training_config = config
+
+    if args.episodes is None:
+        args.episodes = config.episodes
+
+    if args.seeds is None:
+        args.seeds = list(config.seeds)
+
+    if args.checkpoint_episodes is None:
+        args.checkpoint_episodes = list(config.checkpoint_episodes)
 
 
 def validate_td_training_args(
@@ -227,6 +266,17 @@ def validate_td_training_args(
         ):
             parser.error(
                 "--checkpoint-episodes must not contain duplicates"
+            )
+
+        # The Monte Carlo suite rejects this too. Silently dropping the
+        # out-of-range checkpoints would make the same flags produce different
+        # diagnostics depending on which algorithm was run.
+        if any(
+            episode > args.episodes
+            for episode in args.checkpoint_episodes
+        ):
+            parser.error(
+                "Checkpoint episodes cannot exceed --episodes"
             )
 
 

@@ -30,7 +30,6 @@ SARSA_DISPLAY_NAME = "SARSA"
 SARSA_TRAINING_SPEC = TDTrainingSpec(
     algorithm_name=SARSA_ALGORITHM_NAME,
     display_name=SARSA_DISPLAY_NAME,
-    model_root_directory="results/models/sarsa",
     agent_factory=SarsaAgent,
     player_name_suffix="sarsa",
     registered_player_name="sarsa",
@@ -44,17 +43,19 @@ def model_run_name(model_type: str) -> str:
     )
 
 
-def default_model_path(model_type: str) -> str:
+def default_model_path(model_type: str, seed: int) -> str:
     return _default_model_path(
         spec=SARSA_TRAINING_SPEC,
         model_type=model_type,
+        seed=seed,
     )
 
 
-def default_checkpoint_directory(model_type: str) -> str:
+def default_checkpoint_directory(model_type: str, seed: int) -> str:
     return _default_checkpoint_directory(
         spec=SARSA_TRAINING_SPEC,
         model_type=model_type,
+        seed=seed,
     )
 
 

@@ -14,7 +14,11 @@ from pathlib import Path
 from time import perf_counter
 from typing import Sequence
 
-from src.config import TrainingConfig
+from src.config import (
+    DEFAULT_TRAINING_CONFIG_PRESET,
+    TRAINING_CONFIG_PRESETS,
+    training_config_for,
+)
 from src.experiments.constants import (
     MODEL_TYPE_GENERAL_POLICY,
     MODEL_TYPES,
@@ -93,20 +97,36 @@ def parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--config",
+        choices=sorted(TRAINING_CONFIG_PRESETS),
+        default=DEFAULT_TRAINING_CONFIG_PRESET,
+        help=(
+            "Training budget preset. 'final' is the full experiment; "
+            "'verification' is a short rehearsal that exercises the same "
+            "code path and artefact layout. Individual flags override it."
+        ),
+    )
+
+    parser.add_argument(
         "--seeds",
         type=int,
         nargs="+",
-        default=[42, 123, 456, 789, 2026],
-        help="Random seeds used for independent runs.",
+        default=None,
+        help=(
+            "Random seeds used for independent runs. Defaults to the selected "
+            "--config preset, shared with the temporal-difference trainers so "
+            "every algorithm gets the same seeds."
+        ),
     )
 
     parser.add_argument(
         "--episodes",
         type=int,
-        default=TrainingConfig.episodes,
+        default=None,
         help=(
-            "Maximum number of episodes in each training run. Shared with the "
-            "temporal-difference trainers so budgets stay comparable."
+            "Maximum number of episodes in each training run. Defaults to the "
+            "selected --config preset, shared with the temporal-difference "
+            "trainers so budgets stay comparable."
         ),
     )
 
@@ -114,10 +134,10 @@ def parse_args() -> argparse.Namespace:
         "--checkpoint-episodes",
         type=int,
         nargs="+",
-        default=list(TrainingConfig.checkpoint_episodes),
+        default=None,
         help=(
-            "Episode counts saved as model checkpoints. Defaults stay inside "
-            "the default episode budget so the suite starts without flags."
+            "Episode counts saved as model checkpoints. Defaults to the "
+            "selected --config preset, so the suite starts without flags."
         ),
     )
 
@@ -193,6 +213,18 @@ def parse_args() -> argparse.Namespace:
     )
 
     args = parser.parse_args()
+
+    config = training_config_for(args.config)
+    args.training_config = config
+
+    if args.episodes is None:
+        args.episodes = config.episodes
+
+    if args.seeds is None:
+        args.seeds = list(config.seeds)
+
+    if args.checkpoint_episodes is None:
+        args.checkpoint_episodes = list(config.checkpoint_episodes)
 
     if args.episodes <= 0:
         parser.error(

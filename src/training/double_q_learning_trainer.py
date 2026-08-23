@@ -30,7 +30,6 @@ DOUBLE_Q_LEARNING_DISPLAY_NAME = "Double Q-learning"
 DOUBLE_Q_LEARNING_TRAINING_SPEC = TDTrainingSpec(
     algorithm_name=DOUBLE_Q_LEARNING_ALGORITHM_NAME,
     display_name=DOUBLE_Q_LEARNING_DISPLAY_NAME,
-    model_root_directory="results/models/double_q_learning",
     agent_factory=DoubleQLearningAgent,
     player_name_suffix="double_q_learning",
     registered_player_name="double_q_learning",
@@ -44,17 +43,19 @@ def model_run_name(model_type: str) -> str:
     )
 
 
-def default_model_path(model_type: str) -> str:
+def default_model_path(model_type: str, seed: int) -> str:
     return _default_model_path(
         spec=DOUBLE_Q_LEARNING_TRAINING_SPEC,
         model_type=model_type,
+        seed=seed,
     )
 
 
-def default_checkpoint_directory(model_type: str) -> str:
+def default_checkpoint_directory(model_type: str, seed: int) -> str:
     return _default_checkpoint_directory(
         spec=DOUBLE_Q_LEARNING_TRAINING_SPEC,
         model_type=model_type,
+        seed=seed,
     )
 
 
