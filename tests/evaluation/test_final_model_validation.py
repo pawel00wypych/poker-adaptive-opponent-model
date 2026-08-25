@@ -36,13 +36,21 @@ def test_validation_rejects_multiple_training_episodes_as_mixed_input(tmp_path):
     final_rows = pd.read_csv(single_path)
     earlier_rows = final_rows.copy()
     earlier_rows["training_episode"] = 1000
+    earlier_rows["game_id"] += 10_000
+    earlier_rows["matchup_game_index"] += 10_000
+    earlier_rows["evaluation_seed"] += 10_000
     pd.concat([earlier_rows, final_rows], ignore_index=True).to_csv(
         csv_path,
         index=False,
     )
 
-    with pytest.raises(ValueError, match="exactly one training episode"):
-        validate_evaluation_results(csv_path)
+    report = validate_evaluation_results(csv_path)
+
+    assert not report.technically_valid
+    pipeline_check = next(
+        check for check in report.checks if check.check_id == "aggregation_pipeline"
+    )
+    assert "exactly one training episode" in pipeline_check.details["error"]
 
 
 def test_validation_rejects_learning_curve_checkpoint_rows(tmp_path):
@@ -55,8 +63,14 @@ def test_validation_rejects_learning_curve_checkpoint_rows(tmp_path):
     rows["training_episode"] = None
     rows.to_csv(csv_path, index=False)
 
-    with pytest.raises(ValueError, match="non-final model sources"):
-        validate_evaluation_results(csv_path)
+    report = validate_evaluation_results(csv_path)
+
+    assert not report.technically_valid
+    source_check = next(
+        check for check in report.checks if check.check_id == "final_model_rows"
+    )
+    assert source_check.status == "FAIL"
+    assert source_check.details["invalid_model_sources"] == ["checkpoint"]
 
 
 def test_validation_report_serializes_final_model_selection(tmp_path):

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
-from typing import cast
 
 import pandas as pd
 
@@ -25,25 +23,20 @@ from src.evaluation.metrics.paired_seed_statistics import (
     PairedSeedStatisticsError,
     calculate_paired_seed_statistics,
 )
+from src.evaluation.validation.config import ValidationThresholds
+from src.evaluation.validation.models import (
+    STATUS_FAIL,
+    STATUS_PASS,
+    STATUS_SKIPPED,
+    STATUS_WARNING,
+    CheckKind,
+    ValidationCheckResult,
+    ValidationReport,
+)
 from src.poker.constants import (
     OPPONENT_TYPE_AGGRESSIVE,
     OPPONENT_TYPE_CALLING,
     TRAINING_OPPONENT_TYPES,
-)
-
-STATUS_PASS = "PASS"
-
-STATUS_WARNING = "WARNING"
-
-STATUS_FAIL = "FAIL"
-
-STATUS_SKIPPED = "SKIPPED"
-
-VALIDATION_STATUSES = (
-    STATUS_PASS,
-    STATUS_WARNING,
-    STATUS_FAIL,
-    STATUS_SKIPPED,
 )
 
 VALIDATION_MODE_TRAINING_OPPONENT = "training-opponent"
@@ -99,112 +92,6 @@ GENERALIZATION_CORE_AGENTS = (
 GENERALIZATION_SPECIALIST_AGENTS = FIXED_SPECIALIST_AGENTS
 
 
-def _missing_values_as_none(value: object) -> object:
-    if isinstance(value, dict):
-        return {key: _missing_values_as_none(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_missing_values_as_none(item) for item in value]
-    if isinstance(value, tuple):
-        return tuple(_missing_values_as_none(item) for item in value)
-    if pd.api.types.is_scalar(value) and bool(pd.isna(value)):
-        return None
-    return value
-
-
-@dataclass(frozen=True)
-class ValidationThresholds:
-    min_adaptive_delta_vs_rule_based_bb: float = 0.0
-    max_oracle_underperformance_bb: float = 1.0
-    min_tight_win_rate: float = 95.0
-    min_tight_mean_profit_bb: float = 15.0
-    min_classifier_accuracy: float = 80.0
-    min_classifier_coverage: float = 80.0
-    max_std_across_seeds_bb: float = 5.0
-    extreme_bb_per_100_threshold: float = 300.0
-    low_mean_hands_played_threshold: float = 5.0
-    always_raise_adaptive_warning_gap_bb: float = 3.0
-    high_always_raise_mean_profit_bb: float = 18.0
-    high_always_raise_win_rate: float = 95.0
-    min_head_to_head_mean_profit_bb: float = 0.0
-    max_adaptive_underperformance_vs_general_bb: float = 1.0
-    always_raise_stress_loss_bb: float = -15.0
-    always_raise_stress_bust_rate: float = 80.0
-    min_generalization_positive_variants: int = 3
-    min_generalization_adaptive_beats_general_variants: int = 3
-    min_generalization_adaptive_beats_rule_based_variants: int = 3
-    max_generalization_oracle_gap_bb: float = 3.0
-    generalization_extreme_aggressive_min_profit_bb: float = -5.0
-    generalization_extreme_aggressive_max_bust_rate: float = 85.0
-    min_seeds_per_matchup: int = 2
-    min_evaluation_replicates_per_matchup: int = 2
-    max_std_across_evaluation_replicates_bb: float = 5.0
-    max_baseline_mirror_abs_profit_bb: float = 1.0
-    max_baseline_pair_sum_abs_profit_bb: float = 2.0
-    max_cross_play_pair_sum_abs_profit_bb: float = 2.0
-
-
-@dataclass(frozen=True)
-class ValidationCheckResult:
-    check_name: str
-    status: str
-    message: str
-    category: str
-    algorithm_name: str | None = None
-    agent_name: str | None = None
-    opponent_name: str | None = None
-    training_episode: int | None = None
-    observed_value: float | None = None
-    threshold: float | None = None
-    sample_size: int | None = None
-    standard_error: float | None = None
-    ci_lower: float | None = None
-    ci_upper: float | None = None
-    details: dict[str, object] | None = None
-
-    def to_dict(self) -> dict[str, object]:
-        return cast(
-            dict[str, object],
-            _missing_values_as_none(asdict(self)),
-        )
-
-
-@dataclass(frozen=True)
-class ValidationReport:
-    input_path: str
-    thresholds: ValidationThresholds
-    checks: list[ValidationCheckResult]
-    validation_mode: str = VALIDATION_MODE_TRAINING_OPPONENT
-    training_episode: int | None = None
-    model_selection: str | None = None
-
-    @property
-    def passed(self) -> bool:
-        return not any(check.status == STATUS_FAIL for check in self.checks)
-
-    def status_counts(self) -> dict[str, int]:
-        return {
-            status: sum(check.status == status for check in self.checks)
-            for status in VALIDATION_STATUSES
-        }
-
-    def to_dict(self) -> dict[str, object]:
-        return cast(
-            dict[str, object],
-            _missing_values_as_none(
-                {
-                    "input_path": self.input_path,
-                    "validation_mode": self.validation_mode,
-                    "training_episode": self.training_episode,
-                    "model_selection": self.model_selection,
-                    "passed": self.passed,
-                    "status_counts": self.status_counts(),
-                    "thresholds": asdict(self.thresholds),
-                    "checks": [check.to_dict() for check in self.checks],
-                }
-            ),
-        )
-
-
 def _format_float(value: float | None) -> str:
     if value is None or pd.isna(value):
         return "n/a"
@@ -249,6 +136,7 @@ def _paired_seed_statistics_for_check(
         return None, ValidationCheckResult(
             check_name=check_name,
             status=STATUS_FAIL,
+            check_type=CheckKind.INTEGRITY,
             category=category,
             algorithm_name=algorithm_name,
             agent_name=agent_name,
@@ -269,6 +157,7 @@ def _paired_seed_statistics_for_check(
         return None, ValidationCheckResult(
             check_name=check_name,
             status=STATUS_SKIPPED,
+            check_type=CheckKind.INTEGRITY,
             category=category,
             algorithm_name=algorithm_name,
             agent_name=agent_name,
@@ -287,6 +176,7 @@ def _paired_seed_statistics_for_check(
         return None, ValidationCheckResult(
             check_name=check_name,
             status=STATUS_FAIL,
+            check_type=CheckKind.INTEGRITY,
             category=category,
             algorithm_name=algorithm_name,
             agent_name=agent_name,
@@ -312,7 +202,7 @@ def _minimum_delta_status(
     statistics: PairedSeedStatistics,
     threshold: float,
     *,
-    underperformance_status: str = STATUS_FAIL,
+    underperformance_status: str = STATUS_WARNING,
 ) -> str:
     if statistics.ci_lower is None or statistics.ci_upper is None:
         raise ValueError("Paired confidence interval is unavailable.")
@@ -563,7 +453,8 @@ def _missing_common_training_episode_result(
     }
     return ValidationCheckResult(
         check_name=check_name,
-        status=STATUS_SKIPPED,
+        status=STATUS_FAIL,
+        check_type=CheckKind.INTEGRITY,
         category=category,
         algorithm_name=algorithm_name,
         agent_name=agent_name,
@@ -607,6 +498,7 @@ def validate_minimum_seed_coverage(
                     f"Minimum seed coverage for {agent_name} vs {opponent_name}"
                 ),
                 status=STATUS_PASS if sufficient else STATUS_FAIL,
+                check_type=CheckKind.INTEGRITY,
                 category="seed_coverage",
                 algorithm_name=algorithm_name_for_agent(agent_name),
                 agent_name=agent_name,

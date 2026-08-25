@@ -8,12 +8,13 @@ import pandas as pd
 
 from src.evaluation.reporting.html_utils import write_text
 from src.evaluation.reporting.training_opponent_report import display_agent_name
-from src.evaluation.validation.common import (
+from src.evaluation.validation.models import (
     VALIDATION_STATUSES,
+    CheckKind,
     ValidationCheckResult,
     ValidationReport,
-    _format_float,
 )
+from src.evaluation.validation.common import _format_float
 
 
 def validation_checks_to_dataframe(
@@ -25,6 +26,10 @@ def validation_checks_to_dataframe(
         return pd.DataFrame(
             columns=[
                 "check_name",
+                "check_id",
+                "check_type",
+                "blocking",
+                "hypothesis_id",
                 "status",
                 "category",
                 "algorithm_name",
@@ -48,6 +53,9 @@ def _format_report_table(df: pd.DataFrame) -> pd.DataFrame:
     table = df[
         [
             "status",
+            "check_type",
+            "blocking",
+            "hypothesis_id",
             "category",
             "algorithm_name",
             "check_name",
@@ -100,7 +108,7 @@ def render_validation_markdown(report: ValidationReport) -> str:
     lines = [
         "# Experiment validation report",
         "",
-        "This report runs automated sanity checks on evaluation results.",
+        "This report separates technical integrity checks from result diagnostics.",
         "",
         "## Input",
         "",
@@ -116,11 +124,35 @@ def render_validation_markdown(report: ValidationReport) -> str:
             if report.model_selection is not None
             else "- **Model selection:** `n/a`"
         ),
-        f"- **Overall status:** `{'PASS' if report.passed else 'FAIL'}`",
+        f"- **Report schema:** `{report.schema_version}`",
+        f"- **Technical status:** `{report.technical_status}`",
+        f"- **Technically valid:** `{str(report.technically_valid).lower()}`",
         "",
-        "## Status summary",
+        "## Summary",
         "",
         status_table.to_markdown(index=False),
+        "",
+        "### Integrity counts",
+        "",
+        pd.DataFrame(
+            [
+                {"status": status, "count": count}
+                for status, count in report.check_type_counts(
+                    CheckKind.INTEGRITY
+                ).items()
+            ]
+        ).to_markdown(index=False),
+        "",
+        "### Diagnostic counts",
+        "",
+        pd.DataFrame(
+            [
+                {"status": status, "count": count}
+                for status, count in report.check_type_counts(
+                    CheckKind.DIAGNOSTIC
+                ).items()
+            ]
+        ).to_markdown(index=False),
         "",
         "## Thresholds",
         "",
@@ -134,14 +166,29 @@ def render_validation_markdown(report: ValidationReport) -> str:
             ]
         ).to_markdown(index=False),
         "",
-        "## Checks",
-        "",
     ]
 
     if checks_df.empty:
-        lines.append("No checks were generated.")
+        lines.extend(["## Technical integrity", "", "No checks were generated."])
     else:
-        lines.append(_format_report_table(checks_df).to_markdown(index=False))
+        integrity = checks_df[
+            checks_df["check_type"] == CheckKind.INTEGRITY.value
+        ]
+        diagnostics = checks_df[
+            checks_df["check_type"] == CheckKind.DIAGNOSTIC.value
+        ]
+        lines.extend(["## Technical integrity", ""])
+        lines.append(
+            "No integrity checks were generated."
+            if integrity.empty
+            else _format_report_table(integrity).to_markdown(index=False)
+        )
+        lines.extend(["", "## Performance diagnostics", ""])
+        lines.append(
+            "No diagnostic checks were generated."
+            if diagnostics.empty
+            else _format_report_table(diagnostics).to_markdown(index=False)
+        )
 
     lines.append("")
     return "\n".join(lines)

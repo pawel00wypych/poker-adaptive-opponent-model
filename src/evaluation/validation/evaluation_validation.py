@@ -36,6 +36,7 @@ from src.evaluation.validation.common import (
     STATUS_FAIL,
     STATUS_PASS,
     STATUS_WARNING,
+    CheckKind,
     VALIDATION_MODE_BASELINE_SANITY,
     VALIDATION_MODE_CROSS_PLAY,
     VALIDATION_MODE_GENERALIZATION,
@@ -66,16 +67,22 @@ from src.evaluation.validation.cross_play_validation import (
     validate_cross_play_matchup_coverage,
     validate_cross_play_results_from_final_rows,
 )
+from src.evaluation.validation.context import (
+    EvaluationContext,
+    EvaluationManifest,
+)
 from src.evaluation.validation.generalization_validation import (
     validate_generalization_results_from_final_rows,
 )
 from src.evaluation.validation.head_to_head_validation import (
     validate_head_to_head_results_from_final_rows,
 )
+from src.evaluation.validation.integrity import validate_raw_evaluation_integrity
 from src.evaluation.validation.stress_test_validation import (
     STRESS_TEST_OPPONENTS,
     validate_stress_test_results_from_final_rows,
 )
+from src.evaluation.validation.suites import SUITES
 from src.players.constants import GENERALIZATION_OPPONENTS
 from src.poker.constants import OPPONENT_TYPE_TIGHT, TRAINING_OPPONENT_TYPES
 
@@ -175,6 +182,7 @@ def validate_expected_algorithms_present(
             ValidationCheckResult(
                 check_name=(f"{spec.algorithm_name}: Algorithm result coverage"),
                 status=status,
+                check_type=CheckKind.INTEGRITY,
                 category="algorithm_coverage",
                 algorithm_name=spec.algorithm_name,
                 message=(
@@ -282,6 +290,7 @@ def validate_required_matchups_present(
             ValidationCheckResult(
                 check_name=(f"{spec.algorithm_name}: Required matchup coverage"),
                 status=status,
+                check_type=CheckKind.INTEGRITY,
                 category="matchup_coverage",
                 algorithm_name=spec.algorithm_name,
                 message=(
@@ -397,7 +406,7 @@ def validate_adaptive_beats_rule_based(
                 status = (
                     STATUS_PASS
                     if delta >= thresholds.min_adaptive_delta_vs_rule_based_bb
-                    else STATUS_FAIL
+                    else STATUS_WARNING
                 )
                 message = (
                     "Adaptive mean profit delta vs rule-based is "
@@ -467,6 +476,158 @@ def validate_adaptive_beats_rule_based(
                 )
             )
 
+    return results
+
+
+def validate_adaptation_gain_training(
+    final_rows: pd.DataFrame,
+    thresholds: ValidationThresholds,
+    opponents: Iterable[str] = TRAINING_OPPONENT_TYPES,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+    seed_rows: pd.DataFrame | None = None,
+) -> list[ValidationCheckResult]:
+    """Report H1-linked adaptive-minus-general effects without gating validity."""
+
+    results: list[ValidationCheckResult] = []
+    for spec in _algorithm_specs(final_rows, algorithm_specs):
+        for opponent_name in opponents:
+            matchups = (
+                (spec.adaptive_agent, opponent_name),
+                (spec.general_policy_agent, opponent_name),
+            )
+            training_episode, rows = _find_rows_at_common_training_episode(
+                final_rows,
+                matchups,
+            )
+            adaptive_row, general_row = rows
+            check_name = (
+                f"{spec.algorithm_name}: Adaptive gain vs fixed general "
+                f"vs {opponent_name}"
+            )
+            if adaptive_row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "adaptation_gain_training",
+                        spec.adaptive_agent,
+                        opponent_name,
+                        spec.algorithm_name,
+                    )
+                )
+                continue
+            if general_row is None:
+                results.append(
+                    _missing_row_result(
+                        check_name,
+                        "adaptation_gain_training",
+                        spec.general_policy_agent,
+                        opponent_name,
+                        spec.algorithm_name,
+                    )
+                )
+                continue
+            if training_episode is None:
+                results.append(
+                    _missing_common_training_episode_result(
+                        check_name,
+                        "adaptation_gain_training",
+                        final_rows,
+                        matchups,
+                        algorithm_name=spec.algorithm_name,
+                        agent_name=spec.adaptive_agent,
+                        opponent_name=opponent_name,
+                    )
+                )
+                continue
+
+            paired_statistics, unavailable_result = _paired_seed_statistics_for_check(
+                seed_rows,
+                left_agent_name=spec.adaptive_agent,
+                right_agent_name=spec.general_policy_agent,
+                opponent_name=opponent_name,
+                training_episode=training_episode,
+                thresholds=thresholds,
+                check_name=check_name,
+                category="adaptation_gain_training",
+                algorithm_name=spec.algorithm_name,
+                agent_name=spec.adaptive_agent,
+            )
+            if unavailable_result is not None:
+                results.append(unavailable_result)
+                continue
+
+            if paired_statistics is None:
+                delta = float(
+                    adaptive_row["mean_profit_bb"] - general_row["mean_profit_bb"]
+                )
+                status = STATUS_PASS if delta > 0.0 else STATUS_WARNING
+                message = (
+                    "Adaptive minus fixed general mean profit is "
+                    f"{_format_float(delta)} BB/game."
+                )
+            else:
+                delta = float(paired_statistics.mean_delta)
+                status = _minimum_delta_status(
+                    paired_statistics,
+                    0.0,
+                    underperformance_status=STATUS_WARNING,
+                )
+                message = _paired_seed_message(
+                    "Adaptive minus fixed general mean profit",
+                    paired_statistics,
+                )
+
+            results.append(
+                ValidationCheckResult(
+                    check_name=check_name,
+                    check_id=(
+                        f"h1_adaptation_gain_{spec.algorithm_key}_{opponent_name}"
+                    ),
+                    hypothesis_id="H1",
+                    status=status,
+                    category="adaptation_gain_training",
+                    algorithm_name=spec.algorithm_name,
+                    agent_name=spec.adaptive_agent,
+                    opponent_name=opponent_name,
+                    training_episode=training_episode,
+                    observed_value=delta,
+                    threshold=0.0,
+                    sample_size=(
+                        paired_statistics.common_seed_count
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    standard_error=(
+                        paired_statistics.standard_error
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    ci_lower=(
+                        paired_statistics.ci_lower
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    ci_upper=(
+                        paired_statistics.ci_upper
+                        if paired_statistics is not None
+                        else None
+                    ),
+                    message=message,
+                    details={
+                        "adaptive_mean_profit_bb": float(
+                            adaptive_row["mean_profit_bb"]
+                        ),
+                        "general_mean_profit_bb": float(
+                            general_row["mean_profit_bb"]
+                        ),
+                        **(
+                            {"paired_seed_statistics": paired_statistics.to_details()}
+                            if paired_statistics is not None
+                            else {}
+                        ),
+                    },
+                )
+            )
     return results
 
 
@@ -577,6 +738,7 @@ def validate_oracle_not_worse_than_adaptive(
                 ValidationCheckResult(
                     check_name=check_name,
                     status=status,
+                    hypothesis_id="H3",
                     category="oracle_gap",
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.oracle_agent,
@@ -664,7 +826,7 @@ def validate_tight_exploitation(
         results.append(
             ValidationCheckResult(
                 check_name=check_name,
-                status=STATUS_PASS if passed else STATUS_FAIL,
+                status=STATUS_PASS if passed else STATUS_WARNING,
                 category="tight_exploitation",
                 algorithm_name=spec.algorithm_name,
                 agent_name=spec.adaptive_agent,
@@ -905,37 +1067,45 @@ def _select_final_model_rows(
     )
 
 
-def validate_evaluation_results(
-    input_path: str | Path,
-    thresholds: ValidationThresholds | None = None,
-    validation_mode: str = VALIDATION_MODE_TRAINING_OPPONENT,
-    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
-    require_all_algorithms: bool = False,
-) -> ValidationReport:
-    if validation_mode not in VALIDATION_MODES:
-        raise ValueError(
-            "Unsupported validation_mode "
-            f"{validation_mode!r}. Expected one of {VALIDATION_MODES}."
-        )
+def _integrity_failure(
+    *,
+    check_id: str,
+    message: str,
+    details: dict[str, object] | None = None,
+) -> ValidationCheckResult:
+    return ValidationCheckResult(
+        check_id=check_id,
+        check_name=message,
+        check_type=CheckKind.INTEGRITY,
+        status=STATUS_FAIL,
+        category="assessment_pipeline",
+        message=message,
+        details=details,
+    )
 
-    thresholds = thresholds or ValidationThresholds()
 
-    if validation_mode == VALIDATION_MODE_BASELINE_SANITY:
+def _build_evaluation_context(
+    *,
+    input_path: Path,
+    validation_mode: str,
+    raw_games: pd.DataFrame,
+    manifest: EvaluationManifest | None,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None,
+    require_all_algorithms: bool,
+) -> EvaluationContext:
+    if SUITES[validation_mode].baseline_only:
         replicate_metrics = calculate_baseline_replicate_metrics(input_path)
-        aggregated_replicates = aggregate_across_evaluation_replicates(
-            replicate_metrics
-        )
-        checks = validate_baseline_sanity_results_from_final_rows(
-            aggregated_replicates,
-            thresholds,
-            replicate_rows=replicate_metrics,
-        )
-        return ValidationReport(
-            input_path=str(input_path),
-            thresholds=thresholds,
-            checks=checks,
+        aggregated = aggregate_across_evaluation_replicates(replicate_metrics)
+        return EvaluationContext(
+            input_path=input_path,
             validation_mode=validation_mode,
-            training_episode=None,
+            raw_games=raw_games,
+            aggregated=aggregated,
+            seed_rows=None,
+            replicate_rows=replicate_metrics,
+            manifest=manifest,
+            algorithm_specs=(),
+            selected_training_episode=None,
             model_selection="not_applicable",
         )
 
@@ -945,11 +1115,12 @@ def validate_evaluation_results(
     validation_rows, selected_training_episode, model_selection = (
         _select_final_model_rows(aggregated)
     )
-    seed_validation_rows = None
-    if "training_episode" in metrics.columns:
-        seed_validation_rows = metrics[
-            metrics["training_episode"] == selected_training_episode
-        ].reset_index(drop=True)
+    seed_rows = (
+        metrics[metrics["training_episode"] == selected_training_episode]
+        .reset_index(drop=True)
+        if "training_episode" in metrics.columns
+        else None
+    )
     expected_specs = tuple(
         algorithm_specs
         if algorithm_specs is not None
@@ -959,246 +1130,267 @@ def validate_evaluation_results(
             else available_algorithm_specs(aggregated)
         )
     )
+    return EvaluationContext(
+        input_path=input_path,
+        validation_mode=validation_mode,
+        raw_games=raw_games,
+        aggregated=validation_rows,
+        seed_rows=seed_rows,
+        replicate_rows=None,
+        manifest=manifest,
+        algorithm_specs=expected_specs,
+        selected_training_episode=selected_training_episode,
+        model_selection=model_selection,
+    )
 
-    if validation_mode == VALIDATION_MODE_CROSS_PLAY:
-        checks = []
-        if require_all_algorithms or algorithm_specs is not None:
-            checks.extend(
-                validate_expected_algorithms_present(
-                    validation_rows,
-                    expected_specs,
-                    fail_when_missing=require_all_algorithms,
-                    validation_mode=validation_mode,
-                )
+
+def _coverage_checks(
+    context: EvaluationContext,
+    *,
+    algorithm_specs_were_selected: bool,
+    require_all_algorithms: bool,
+) -> list[ValidationCheckResult]:
+    suite = SUITES[context.validation_mode]
+    if not (
+        require_all_algorithms
+        or algorithm_specs_were_selected
+        or context.validation_mode == VALIDATION_MODE_CROSS_PLAY
+    ):
+        return []
+
+    checks: list[ValidationCheckResult] = []
+    if suite.requires_algorithm_coverage:
+        checks.extend(
+            validate_expected_algorithms_present(
+                context.aggregated,
+                context.algorithm_specs,
+                fail_when_missing=require_all_algorithms,
+                validation_mode=context.validation_mode,
             )
-        if seed_validation_rows is None:
-            checks.extend(
-                validate_cross_play_results_from_final_rows(
-                    validation_rows,
-                    thresholds,
-                    algorithm_specs=expected_specs,
-                    comparison_rows=validation_rows,
-                )
+        )
+    if suite.requires_matchup_coverage:
+        checks.extend(
+            validate_required_matchups_present(
+                context.aggregated,
+                context.algorithm_specs,
+                fail_when_missing=require_all_algorithms,
+                validation_mode=context.validation_mode,
             )
-        else:
-            checks.extend(
-                validate_cross_play_results_from_final_rows(
-                    validation_rows,
-                    thresholds,
-                    algorithm_specs=expected_specs,
-                    comparison_rows=validation_rows,
-                    seed_rows=seed_validation_rows,
-                )
-            )
-    elif validation_mode == VALIDATION_MODE_STRESS_TEST:
-        checks = []
-        if require_all_algorithms or algorithm_specs is not None:
-            checks.extend(
-                validate_expected_algorithms_present(
-                    validation_rows,
-                    expected_specs,
-                    fail_when_missing=require_all_algorithms,
-                    validation_mode=validation_mode,
-                )
-            )
-            checks.extend(
-                validate_required_matchups_present(
-                    validation_rows,
-                    expected_specs,
-                    fail_when_missing=require_all_algorithms,
-                    validation_mode=validation_mode,
-                )
-            )
-        if seed_validation_rows is None:
-            checks.extend(
-                validate_stress_test_results_from_final_rows(
-                    validation_rows,
-                    thresholds,
-                    algorithm_specs=expected_specs,
-                    comparison_rows=validation_rows,
-                )
-            )
-        else:
-            checks.extend(
-                validate_stress_test_results_from_final_rows(
-                    validation_rows,
-                    thresholds,
-                    algorithm_specs=expected_specs,
-                    comparison_rows=validation_rows,
-                    seed_rows=seed_validation_rows,
-                )
-            )
-    elif validation_mode == VALIDATION_MODE_HEAD_TO_HEAD:
-        checks = []
-        if require_all_algorithms or algorithm_specs is not None:
-            checks.extend(
-                validate_expected_algorithms_present(
-                    validation_rows,
-                    expected_specs,
-                    fail_when_missing=require_all_algorithms,
-                    validation_mode=validation_mode,
-                )
-            )
-            checks.extend(
-                validate_required_matchups_present(
-                    validation_rows,
-                    expected_specs,
-                    fail_when_missing=require_all_algorithms,
-                    validation_mode=validation_mode,
-                )
-            )
-        if seed_validation_rows is None:
-            checks.extend(
-                validate_head_to_head_results_from_final_rows(
-                    validation_rows,
-                    thresholds,
-                    algorithm_specs=expected_specs,
-                    comparison_rows=validation_rows,
-                )
-            )
-        else:
-            checks.extend(
-                validate_head_to_head_results_from_final_rows(
-                    validation_rows,
-                    thresholds,
-                    algorithm_specs=expected_specs,
-                    comparison_rows=validation_rows,
-                    seed_rows=seed_validation_rows,
-                )
-            )
-    elif validation_mode == VALIDATION_MODE_GENERALIZATION:
-        checks = []
-        if require_all_algorithms or algorithm_specs is not None:
-            checks.extend(
-                validate_expected_algorithms_present(
-                    validation_rows,
-                    expected_specs,
-                    fail_when_missing=require_all_algorithms,
-                    validation_mode=validation_mode,
-                )
-            )
-            checks.extend(
-                validate_required_matchups_present(
-                    validation_rows,
-                    expected_specs,
-                    fail_when_missing=require_all_algorithms,
-                    validation_mode=validation_mode,
-                )
-            )
-        if seed_validation_rows is None:
-            checks.extend(
-                validate_generalization_results_from_final_rows(
-                    validation_rows,
-                    thresholds,
-                    algorithm_specs=expected_specs,
-                    comparison_rows=validation_rows,
-                )
-            )
-        else:
-            checks.extend(
-                validate_generalization_results_from_final_rows(
-                    validation_rows,
-                    thresholds,
-                    algorithm_specs=expected_specs,
-                    comparison_rows=validation_rows,
-                    seed_rows=seed_validation_rows,
-                )
-            )
+        )
+    return checks
+
+
+def _run_training_opponent_suite(
+    context: EvaluationContext,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    rows = context.aggregated
+    specs = context.algorithm_specs
+    checks: list[ValidationCheckResult] = []
+    checks.extend(
+        validate_adaptation_gain_training(
+            rows,
+            thresholds,
+            algorithm_specs=specs,
+            seed_rows=context.seed_rows,
+        )
+    )
+    checks.extend(
+        validate_adaptive_beats_rule_based(
+            rows,
+            thresholds,
+            algorithm_specs=specs,
+            seed_rows=context.seed_rows,
+        )
+    )
+    checks.extend(
+        validate_oracle_not_worse_than_adaptive(
+            rows,
+            thresholds,
+            algorithm_specs=specs,
+            seed_rows=context.seed_rows,
+        )
+    )
+    checks.extend(validate_tight_exploitation(rows, thresholds, specs))
+    checks.extend(validate_classifier_quality(rows, thresholds, algorithm_specs=specs))
+    checks.extend(validate_minimum_seed_coverage(rows, thresholds))
+    checks.extend(validate_seed_stability(rows, thresholds))
+    checks.extend(validate_extreme_bb_per_100(rows, thresholds))
+    checks.extend(
+        validate_always_raise_outperforms_adaptive(
+            rows,
+            thresholds,
+            algorithm_specs=specs,
+            seed_rows=context.seed_rows,
+        )
+    )
+    checks.extend(validate_always_raise_trivial_exploit(rows, thresholds))
+    checks.extend(validate_tight_baseline_saturation(rows, thresholds, specs))
+    return checks
+
+
+def _run_generalization_suite(
+    context: EvaluationContext,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    return validate_generalization_results_from_final_rows(
+        context.aggregated,
+        thresholds,
+        algorithm_specs=context.algorithm_specs,
+        comparison_rows=context.aggregated,
+        seed_rows=context.seed_rows,
+    )
+
+
+def _run_stress_test_suite(
+    context: EvaluationContext,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    return validate_stress_test_results_from_final_rows(
+        context.aggregated,
+        thresholds,
+        algorithm_specs=context.algorithm_specs,
+        comparison_rows=context.aggregated,
+        seed_rows=context.seed_rows,
+    )
+
+
+def _run_head_to_head_suite(
+    context: EvaluationContext,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    return validate_head_to_head_results_from_final_rows(
+        context.aggregated,
+        thresholds,
+        algorithm_specs=context.algorithm_specs,
+        comparison_rows=context.aggregated,
+        seed_rows=context.seed_rows,
+    )
+
+
+def _run_cross_play_suite(
+    context: EvaluationContext,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    return validate_cross_play_results_from_final_rows(
+        context.aggregated,
+        thresholds,
+        algorithm_specs=context.algorithm_specs,
+        comparison_rows=context.aggregated,
+        seed_rows=context.seed_rows,
+    )
+
+
+def _run_baseline_sanity_suite(
+    context: EvaluationContext,
+    thresholds: ValidationThresholds,
+) -> list[ValidationCheckResult]:
+    assert context.replicate_rows is not None
+    return validate_baseline_sanity_results_from_final_rows(
+        context.aggregated,
+        thresholds,
+        replicate_rows=context.replicate_rows,
+    )
+
+
+SUITE_RUNNERS = {
+    VALIDATION_MODE_TRAINING_OPPONENT: _run_training_opponent_suite,
+    VALIDATION_MODE_GENERALIZATION: _run_generalization_suite,
+    VALIDATION_MODE_STRESS_TEST: _run_stress_test_suite,
+    VALIDATION_MODE_HEAD_TO_HEAD: _run_head_to_head_suite,
+    VALIDATION_MODE_CROSS_PLAY: _run_cross_play_suite,
+    VALIDATION_MODE_BASELINE_SANITY: _run_baseline_sanity_suite,
+}
+
+
+def validate_evaluation_results(
+    input_path: str | Path,
+    thresholds: ValidationThresholds | None = None,
+    validation_mode: str = VALIDATION_MODE_TRAINING_OPPONENT,
+    algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
+    require_all_algorithms: bool = False,
+) -> ValidationReport:
+    if validation_mode not in SUITES:
+        raise ValueError(
+            "Unsupported validation_mode "
+            f"{validation_mode!r}. Expected one of {VALIDATION_MODES}."
+        )
+
+    thresholds = thresholds or ValidationThresholds()
+    path = Path(input_path)
+    raw_games = pd.read_csv(path)
+    try:
+        manifest = EvaluationManifest.load_for_csv(path)
+    except (OSError, TypeError, ValueError) as error:
+        manifest = None
+        manifest_error = _integrity_failure(
+            check_id="manifest_load",
+            message="Cannot load the evaluation summary manifest.",
+            details={"error": str(error)},
+        )
     else:
-        specs = expected_specs
-        checks: list[ValidationCheckResult] = []
-        if require_all_algorithms or algorithm_specs is not None:
-            checks.extend(
-                validate_expected_algorithms_present(
-                    validation_rows,
-                    specs,
-                    fail_when_missing=require_all_algorithms,
-                    validation_mode=validation_mode,
-                )
-            )
-            checks.extend(
-                validate_required_matchups_present(
-                    validation_rows,
-                    specs,
-                    fail_when_missing=require_all_algorithms,
-                    validation_mode=validation_mode,
-                )
-            )
-        checks.extend(
-            validate_adaptive_beats_rule_based(
-                validation_rows,
-                thresholds,
-                algorithm_specs=specs,
-                seed_rows=seed_validation_rows,
+        manifest_error = None
+
+    integrity_checks = validate_raw_evaluation_integrity(
+        raw_games,
+        validation_mode=validation_mode,
+        requirements=thresholds.integrity_requirements,
+        manifest=manifest,
+    )
+    if manifest_error is not None:
+        integrity_checks.append(manifest_error)
+
+    if any(check.blocking for check in integrity_checks):
+        return ValidationReport(
+            input_path=str(path),
+            thresholds=thresholds,
+            checks=integrity_checks,
+            validation_mode=validation_mode,
+            training_episode=None,
+            model_selection=None,
+        )
+
+    try:
+        context = _build_evaluation_context(
+            input_path=path,
+            validation_mode=validation_mode,
+            raw_games=raw_games,
+            manifest=manifest,
+            algorithm_specs=algorithm_specs,
+            require_all_algorithms=require_all_algorithms,
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        integrity_checks.append(
+            _integrity_failure(
+                check_id="aggregation_pipeline",
+                message="Cannot build final validation aggregates.",
+                details={"error": str(error)},
             )
         )
-        checks.extend(
-            validate_oracle_not_worse_than_adaptive(
-                validation_rows,
-                thresholds,
-                algorithm_specs=specs,
-                seed_rows=seed_validation_rows,
-            )
+        return ValidationReport(
+            input_path=str(path),
+            thresholds=thresholds,
+            checks=integrity_checks,
+            validation_mode=validation_mode,
+            training_episode=None,
+            model_selection=None,
         )
-        checks.extend(
-            validate_tight_exploitation(
-                validation_rows,
-                thresholds,
-                algorithm_specs=specs,
-            )
+
+    checks = list(integrity_checks)
+    checks.extend(
+        _coverage_checks(
+            context,
+            algorithm_specs_were_selected=algorithm_specs is not None,
+            require_all_algorithms=require_all_algorithms,
         )
-        checks.extend(
-            validate_classifier_quality(
-                validation_rows,
-                thresholds,
-                algorithm_specs=specs,
-            )
-        )
-        checks.extend(
-            validate_minimum_seed_coverage(
-                validation_rows,
-                thresholds,
-            )
-        )
-        checks.extend(
-            validate_seed_stability(
-                validation_rows,
-                thresholds,
-            )
-        )
-        checks.extend(
-            validate_extreme_bb_per_100(
-                validation_rows,
-                thresholds,
-            )
-        )
-        checks.extend(
-            validate_always_raise_outperforms_adaptive(
-                validation_rows,
-                thresholds,
-                algorithm_specs=specs,
-                seed_rows=seed_validation_rows,
-            )
-        )
-        checks.extend(
-            validate_always_raise_trivial_exploit(
-                validation_rows,
-                thresholds,
-            )
-        )
-        checks.extend(
-            validate_tight_baseline_saturation(
-                validation_rows,
-                thresholds,
-                algorithm_specs=specs,
-            )
-        )
+    )
+    checks.extend(SUITE_RUNNERS[validation_mode](context, thresholds))
 
     return ValidationReport(
-        input_path=str(input_path),
+        input_path=str(path),
         thresholds=thresholds,
         checks=checks,
         validation_mode=validation_mode,
-        training_episode=selected_training_episode,
-        model_selection=model_selection,
+        training_episode=context.selected_training_episode,
+        model_selection=context.model_selection,
     )

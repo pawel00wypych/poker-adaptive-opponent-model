@@ -78,7 +78,7 @@ def write_sample_baseline_sanity_csv(path):
                 {
                     "training_run": None,
                     "model_seed": None,
-                    "model_source": "final",
+                    "model_source": None,
                     "training_episode": None,
                     "evaluation_replicate_id": replicate_id,
                     "experiment_id": f"evaluation_replicate_{replicate_id}",
@@ -191,7 +191,7 @@ def test_stress_test_mode_fails_required_matchup_coverage(tmp_path):
     assert not report.passed
 
 
-def test_stress_test_mode_fails_when_learned_agent_cannot_exploit_always_call(
+def test_stress_test_underperformance_is_a_non_blocking_diagnostic(
     tmp_path,
 ):
     csv_path = tmp_path / "stress_test.csv"
@@ -214,8 +214,8 @@ def test_stress_test_mode_fails_when_learned_agent_cannot_exploit_always_call(
         if check.check_name == "Monte Carlo: Adaptive exploits AlwaysCallPlayer"
     )
 
-    assert check.status == STATUS_FAIL
-    assert not report.passed
+    assert check.status == STATUS_WARNING
+    assert report.technically_valid
 
 
 def test_baseline_sanity_mode_validates_complete_matrix(tmp_path):
@@ -374,12 +374,16 @@ def test_baseline_sanity_rejects_legacy_model_seed_rows(tmp_path):
     )
     pd.DataFrame(rows).to_csv(csv_path, index=False)
 
-    try:
-        validate_evaluation_results(
-            csv_path,
-            validation_mode=VALIDATION_MODE_BASELINE_SANITY,
-        )
-    except ValueError as error:
-        assert "evaluation_replicate_id" in str(error)
-    else:
-        raise AssertionError("Legacy model-seed baseline rows were accepted")
+    report = validate_evaluation_results(
+        csv_path,
+        validation_mode=VALIDATION_MODE_BASELINE_SANITY,
+    )
+
+    assert not report.technically_valid
+    metadata_check = next(
+        check
+        for check in report.checks
+        if check.check_id == "replicate_metadata_values"
+    )
+    assert metadata_check.status == STATUS_FAIL
+    assert metadata_check.details["legacy_model_seed_rows"] == 2

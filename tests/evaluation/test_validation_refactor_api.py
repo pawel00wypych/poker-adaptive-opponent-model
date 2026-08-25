@@ -54,6 +54,19 @@ def make_validation_report():
     )
 
 
+def mock_raw_integrity_preflight(monkeypatch):
+    monkeypatch.setattr(
+        evaluation_validation.pd,
+        "read_csv",
+        lambda input_path: pd.DataFrame({"raw": [1]}),
+    )
+    monkeypatch.setattr(
+        evaluation_validation,
+        "validate_raw_evaluation_integrity",
+        lambda *args, **kwargs: [],
+    )
+
+
 def test_validation_package_exports_public_api():
     expected_exports = [
         "ValidationThresholds",
@@ -159,6 +172,7 @@ def test_validate_evaluation_results_dispatches_head_to_head_mode(
     tmp_path,
 ):
     calls = []
+    mock_raw_integrity_preflight(monkeypatch)
 
     monkeypatch.setattr(
         evaluation_validation,
@@ -188,6 +202,7 @@ def test_validate_evaluation_results_dispatches_head_to_head_mode(
         thresholds,
         algorithm_specs=None,
         comparison_rows=None,
+        seed_rows=None,
     ):
         calls.append(
             (
@@ -232,6 +247,7 @@ def test_validate_evaluation_results_dispatches_generalization_mode(
     tmp_path,
 ):
     calls = []
+    mock_raw_integrity_preflight(monkeypatch)
 
     monkeypatch.setattr(
         evaluation_validation,
@@ -261,6 +277,7 @@ def test_validate_evaluation_results_dispatches_generalization_mode(
         thresholds,
         algorithm_specs=None,
         comparison_rows=None,
+        seed_rows=None,
     ):
         calls.append(
             (

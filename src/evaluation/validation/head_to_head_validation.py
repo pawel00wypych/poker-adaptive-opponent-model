@@ -13,7 +13,6 @@ from src.evaluation.validation.common import (
     HEAD_TO_HEAD_ALWAYS_RAISE_OPPONENT,
     HEAD_TO_HEAD_RULE_BASED_OPPONENT,
     HEAD_TO_HEAD_SPECIALIST_AGENTS,
-    STATUS_FAIL,
     STATUS_PASS,
     STATUS_SKIPPED,
     STATUS_WARNING,
@@ -50,7 +49,6 @@ def _profit_check_result(
     category: str,
     thresholds: ValidationThresholds,
     algorithm_name: str | None = None,
-    fail_on_underperformance: bool = True,
 ) -> ValidationCheckResult:
     row = _find_row(final_rows, agent_name, opponent_name)
 
@@ -69,7 +67,7 @@ def _profit_check_result(
     if passed:
         status = STATUS_PASS
     else:
-        status = STATUS_FAIL if fail_on_underperformance else STATUS_WARNING
+        status = STATUS_WARNING
 
     return ValidationCheckResult(
         check_name=check_name,
@@ -190,7 +188,7 @@ def validate_head_to_head_specialist_rule_based_performance(
     return [
         ValidationCheckResult(
             check_name=check_name,
-            status=STATUS_PASS if passed else STATUS_FAIL,
+            status=STATUS_PASS if passed else STATUS_WARNING,
             category="head_to_head_rule_based",
             algorithm_name=ALGORITHM_MONTE_CARLO,
             agent_name=str(best_row["agent_name"]),

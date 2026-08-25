@@ -22,10 +22,6 @@ from src.evaluation.validation.baseline_sanity_validation import (
     validate_simulation_stability,
 )
 from src.evaluation.validation.common import (
-    STATUS_FAIL,
-    STATUS_PASS,
-    STATUS_SKIPPED,
-    STATUS_WARNING,
     VALIDATION_MODE_BASELINE_SANITY,
     VALIDATION_MODE_CROSS_PLAY,
     VALIDATION_MODE_GENERALIZATION,
@@ -33,15 +29,20 @@ from src.evaluation.validation.common import (
     VALIDATION_MODE_STRESS_TEST,
     VALIDATION_MODE_TRAINING_OPPONENT,
     VALIDATION_MODES,
-    VALIDATION_STATUSES,
-    ValidationCheckResult,
-    ValidationReport,
-    ValidationThresholds,
     validate_always_raise_outperforms_adaptive,
     validate_always_raise_trivial_exploit,
     validate_extreme_bb_per_100,
     validate_minimum_seed_coverage,
     validate_seed_stability,
+)
+from src.evaluation.validation.config import (
+    DiagnosticThresholds,
+    IntegrityRequirements,
+    ValidationThresholds,
+)
+from src.evaluation.validation.context import (
+    EvaluationContext,
+    EvaluationManifest,
 )
 from src.evaluation.validation.cross_play_validation import (
     validate_cross_play_classifier_coverage,
@@ -50,6 +51,7 @@ from src.evaluation.validation.cross_play_validation import (
     validate_cross_play_results_from_final_rows,
 )
 from src.evaluation.validation.evaluation_validation import (
+    validate_adaptation_gain_training,
     validate_adaptive_beats_rule_based,
     validate_classifier_quality,
     validate_evaluation_results,
@@ -76,6 +78,16 @@ from src.evaluation.validation.head_to_head_validation import (
     validate_head_to_head_rule_based_performance,
     validate_head_to_head_specialist_rule_based_performance,
 )
+from src.evaluation.validation.models import (
+    STATUS_FAIL,
+    STATUS_PASS,
+    STATUS_SKIPPED,
+    STATUS_WARNING,
+    VALIDATION_STATUSES,
+    CheckKind,
+    ValidationCheckResult,
+    ValidationReport,
+)
 from src.evaluation.validation.report_writer import (
     render_validation_markdown,
     validation_checks_to_dataframe,
@@ -100,6 +112,11 @@ __all__ = [
     "ALGORITHM_SARSA",
     "ALGORITHM_VALIDATION_SPECS",
     "BASELINE_SANITY_AGENTS",
+    "CheckKind",
+    "DiagnosticThresholds",
+    "EvaluationContext",
+    "EvaluationManifest",
+    "IntegrityRequirements",
     "STATUS_FAIL",
     "STATUS_PASS",
     "STATUS_SKIPPED",
@@ -122,6 +139,7 @@ __all__ = [
     "available_algorithm_specs",
     "complete_algorithm_specs",
     "render_validation_markdown",
+    "validate_adaptation_gain_training",
     "validate_adaptive_beats_rule_based",
     "validate_adaptive_not_worse_than_general_rule_based",
     "validate_always_raise_head_to_head_stress_test",
