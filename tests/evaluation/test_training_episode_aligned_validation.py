@@ -3,8 +3,8 @@ import pandas as pd
 from src.evaluation.algorithm_metadata import ALGORITHM_VALIDATION_SPECS
 from src.evaluation.validation import (
     STATUS_FAIL,
-    STATUS_SKIPPED,
     STATUS_WARNING,
+    CheckKind,
     ValidationThresholds,
     validate_adaptive_beats_rule_based,
     validate_oracle_not_worse_than_adaptive,
@@ -51,13 +51,13 @@ def test_adaptive_rule_based_delta_uses_latest_common_training_episode():
         algorithm_specs=(SPEC,),
     )[0]
 
-    assert check.status == STATUS_FAIL
+    assert check.status == STATUS_WARNING
     assert check.training_episode == 2000
     assert check.observed_value == -5.0
     assert check.details["rule_based_training_episode"] == 2000
 
 
-def test_oracle_gap_skips_rows_without_a_common_training_episode():
+def test_oracle_gap_fails_integrity_without_a_common_training_episode():
     rows = pd.DataFrame(
         [
             make_row(SPEC.adaptive_agent, "tight", 1000, 5.0),
@@ -72,7 +72,8 @@ def test_oracle_gap_skips_rows_without_a_common_training_episode():
         algorithm_specs=(SPEC,),
     )[0]
 
-    assert check.status == STATUS_SKIPPED
+    assert check.status == STATUS_FAIL
+    assert check.check_type == CheckKind.INTEGRITY
     assert check.training_episode is None
     assert "No common training_episode" in check.message
     assert check.details["training_episodes_by_matchup"] == {
@@ -102,7 +103,7 @@ def test_generalization_delta_uses_latest_common_training_episode():
         algorithm_specs=(SPEC,),
     )[0]
 
-    assert check.status == STATUS_FAIL
+    assert check.status == STATUS_WARNING
     assert check.observed_value == 0.0
     assert check.details["deltas_by_variant"] == {opponent_name: -3.0}
     assert check.details["training_episodes_by_variant"] == {opponent_name: 2000}

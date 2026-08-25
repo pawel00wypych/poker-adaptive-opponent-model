@@ -107,6 +107,25 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--expected-model-seeds",
+        type=int,
+        nargs="+",
+        default=None,
+        help=(
+            "Exact model-seed set required in every learned-agent matchup. "
+            "For the final thesis protocol use: 42 123 456 789 2026."
+        ),
+    )
+    parser.add_argument(
+        "--expected-games-per-matchup",
+        type=_positive_int,
+        default=None,
+        help=(
+            "Exact number of raw games required in every matchup block. "
+            "For the final thesis protocol use 500."
+        ),
+    )
+    parser.add_argument(
         "--max-std-across-seeds-bb",
         type=float,
         default=5.0,
@@ -119,6 +138,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "Minimum number of distinct simulation replicates required "
             "for each baseline-only matchup."
         ),
+    )
+    parser.add_argument(
+        "--expected-evaluation-replicates",
+        type=_positive_int,
+        default=None,
+        help="Exact replicate count required for baseline-only matchups.",
+    )
+    parser.add_argument(
+        "--require-manifest",
+        action="store_true",
+        help="Require the companion .summary.json evaluation manifest.",
     )
     parser.add_argument(
         "--max-std-across-evaluation-replicates-bb",
@@ -236,10 +266,18 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         min_classifier_accuracy=args.min_classifier_accuracy,
         min_classifier_coverage=args.min_classifier_coverage,
         min_seeds_per_matchup=args.min_seeds_per_matchup,
+        expected_model_seeds=(
+            tuple(args.expected_model_seeds)
+            if args.expected_model_seeds is not None
+            else None
+        ),
+        expected_games_per_matchup=args.expected_games_per_matchup,
         max_std_across_seeds_bb=args.max_std_across_seeds_bb,
         min_evaluation_replicates_per_matchup=(
             args.min_evaluation_replicates_per_matchup
         ),
+        expected_evaluation_replicates=args.expected_evaluation_replicates,
+        require_manifest=args.require_manifest,
         max_std_across_evaluation_replicates_bb=(
             args.max_std_across_evaluation_replicates_bb
         ),
@@ -314,9 +352,9 @@ def main() -> int:
         print(path)
 
     counts = report.status_counts()
-    print(f"Validation status: {'PASS' if report.passed else 'FAIL'} {counts}")
+    print(f"Technical validation status: {report.technical_status} {counts}")
 
-    return 0 if report.passed else 1
+    return 0 if report.technically_valid else 1
 
 
 if __name__ == "__main__":

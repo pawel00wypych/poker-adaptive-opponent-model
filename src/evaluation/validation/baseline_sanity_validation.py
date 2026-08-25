@@ -19,6 +19,7 @@ from src.evaluation.validation.common import (
     STATUS_PASS,
     STATUS_SKIPPED,
     STATUS_WARNING,
+    CheckKind,
     ValidationCheckResult,
     ValidationThresholds,
     _find_row,
@@ -66,6 +67,7 @@ def validate_baseline_matchup_coverage(
         ValidationCheckResult(
             check_name="Baseline sanity: Required matchup coverage",
             status=STATUS_PASS if complete else STATUS_FAIL,
+            check_type=CheckKind.INTEGRITY,
             category="baseline_matchup_coverage",
             message=(
                 "All 9 baseline-vs-baseline matchups are present."
@@ -192,6 +194,7 @@ def validate_baseline_pair_reciprocity(
                 ValidationCheckResult(
                     check_name=check_name,
                     status=STATUS_FAIL,
+                    check_type=CheckKind.INTEGRITY,
                     category="baseline_pair_reciprocity",
                     agent_name=first_agent,
                     opponent_name=second_agent,
@@ -297,6 +300,7 @@ def validate_minimum_evaluation_replicate_coverage(
                     if replicate_count >= minimum_replicates
                     else STATUS_FAIL
                 ),
+                check_type=CheckKind.INTEGRITY,
                 category="evaluation_replicate_coverage",
                 agent_name=agent_name,
                 opponent_name=opponent_name,

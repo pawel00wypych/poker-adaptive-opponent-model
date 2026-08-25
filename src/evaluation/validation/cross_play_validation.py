@@ -13,6 +13,7 @@ from src.evaluation.validation.common import (
     STATUS_FAIL,
     STATUS_PASS,
     STATUS_WARNING,
+    CheckKind,
     ValidationCheckResult,
     ValidationThresholds,
     _find_row,
@@ -77,6 +78,7 @@ def validate_cross_play_matchup_coverage(
         ValidationCheckResult(
             check_name=("Learned-agent cross-play: Required adaptive matchup coverage"),
             status=status,
+            check_type=CheckKind.INTEGRITY,
             category="cross_play_matchup_coverage",
             message=(
                 "All required directed adaptive-vs-adaptive matchups are present."

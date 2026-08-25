@@ -57,6 +57,15 @@ def test_json_report_serializes_all_missing_values_as_null(tmp_path):
     assert "NaN" not in raw_json
     assert '"observed_value": null' in raw_json
     assert payload["thresholds"]["max_std_across_seeds_bb"] is None
+    assert payload["schema_version"] == 2
+    assert payload["technical_status"] == "PASS"
+    assert payload["technically_valid"] is True
+    assert payload["integrity_check_counts"]["FAIL"] == 0
+    assert payload["diagnostic_check_counts"]["PASS"] == 1
+    assert payload["diagnostic_warning_counts"] == 0
+    assert payload["skipped_check_counts"] == 0
+    assert payload["checks"][0]["check_type"] == "diagnostic"
+    assert payload["checks"][0]["blocking"] is False
     assert payload["checks"][0]["observed_value"] is None
     assert payload["checks"][0]["threshold"] is None
     assert payload["checks"][0]["details"]["missing_float"] is None

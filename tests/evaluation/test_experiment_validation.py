@@ -23,6 +23,8 @@ from src.experiments.validation.validate_evaluation_results import (
 REQUIRED_RESULT_COLUMNS = {
     "training_run": "sample_run",
     "experiment_id": "sample_experiment",
+    "checkpoint_episode": None,
+    "evaluation_replicate_id": None,
     "final_stack": 220,
     "initial_stack": 200,
     "profit": 20,
@@ -72,6 +74,8 @@ def make_game_row(
             "agent_name": agent,
             "opponent_name": opponent,
             "game_id": game_id,
+            "matchup_game_index": game_id,
+            "evaluation_seed": 100_000 + int(seed) * 100 + game_id,
             "profit_bb": profit_bb,
             "hands_played": hands_played,
             "won_game": won_game,
@@ -246,7 +250,7 @@ def test_validate_evaluation_results_generates_expected_statuses(tmp_path):
     assert "Monte Carlo: Adaptive exploits TightPlayer" in check_names
 
 
-def test_validate_evaluation_results_fails_when_adaptive_loses_to_rule_based(
+def test_adaptive_loss_to_rule_based_is_a_non_blocking_diagnostic(
     tmp_path,
 ):
     csv_path = tmp_path / "training_episode_results.csv"
@@ -259,12 +263,12 @@ def test_validate_evaluation_results_fails_when_adaptive_loses_to_rule_based(
 
     report = validate_evaluation_results(csv_path)
 
-    failing_checks = [check for check in report.checks if check.status == STATUS_FAIL]
+    warnings = [check for check in report.checks if check.status == STATUS_WARNING]
 
-    assert not report.passed
+    assert report.technically_valid
     assert any(
         check.check_name == "Monte Carlo: Adaptive beats rule-based vs calling"
-        for check in failing_checks
+        for check in warnings
     )
 
 
@@ -343,6 +347,17 @@ def test_validation_cli_parser_accepts_threshold_overrides():
             "75",
             "--min-seeds-per-matchup",
             "5",
+            "--expected-model-seeds",
+            "42",
+            "123",
+            "456",
+            "789",
+            "2026",
+            "--expected-games-per-matchup",
+            "500",
+            "--expected-evaluation-replicates",
+            "5",
+            "--require-manifest",
             "--max-std-across-seeds-bb",
             "7",
             "--always-raise-adaptive-warning-gap-bb",
@@ -369,6 +384,10 @@ def test_validation_cli_parser_accepts_threshold_overrides():
     assert args.require_all_algorithms is True
     assert thresholds.min_classifier_accuracy == 75.0
     assert thresholds.min_seeds_per_matchup == 5
+    assert thresholds.expected_model_seeds == (42, 123, 456, 789, 2026)
+    assert thresholds.expected_games_per_matchup == 500
+    assert thresholds.expected_evaluation_replicates == 5
+    assert thresholds.require_manifest is True
     assert thresholds.max_std_across_seeds_bb == 7.0
     assert thresholds.always_raise_adaptive_warning_gap_bb == 4.0
     assert thresholds.high_always_raise_mean_profit_bb == 17.0
@@ -503,7 +522,7 @@ def test_head_to_head_validation_warns_for_always_raise_stress_test(
     )
 
 
-def test_head_to_head_validation_fails_when_adaptive_loses_to_rule_based(
+def test_head_to_head_loss_to_rule_based_is_a_non_blocking_diagnostic(
     tmp_path,
 ):
     csv_path = tmp_path / "head_to_head_results.csv"
@@ -521,9 +540,10 @@ def test_head_to_head_validation_fails_when_adaptive_loses_to_rule_based(
 
     assert any(
         check.check_name == "Monte Carlo: Adaptive beats RuleBasedPlayer"
-        and check.status == STATUS_FAIL
+        and check.status == STATUS_WARNING
         for check in report.checks
     )
+    assert report.technically_valid
 
 
 def write_sample_generalization_csv(path):
@@ -714,7 +734,7 @@ def test_generalization_validation_warns_for_oracle_gap_and_classifier(
     assert "Monte Carlo: Aggressive extreme robustness check" in warnings
 
 
-def test_generalization_validation_fails_when_adaptive_is_not_positive(
+def test_negative_generalization_result_is_a_non_blocking_diagnostic(
     tmp_path,
 ):
     csv_path = tmp_path / "generalization_results.csv"
@@ -732,10 +752,10 @@ def test_generalization_validation_fails_when_adaptive_is_not_positive(
 
     assert any(
         check.check_name == "Monte Carlo: Adaptive positive on generalization variants"
-        and check.status == STATUS_FAIL
+        and check.status == STATUS_WARNING
         for check in report.checks
     )
-    assert not report.passed
+    assert report.technically_valid
 
 
 def test_generalization_validation_cli_parser_accepts_thresholds():

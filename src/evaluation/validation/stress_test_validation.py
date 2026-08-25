@@ -14,7 +14,6 @@ from src.evaluation.constants import (
     RULE_BASED_AGENT,
 )
 from src.evaluation.validation.common import (
-    STATUS_FAIL,
     STATUS_PASS,
     STATUS_WARNING,
     ValidationCheckResult,
@@ -99,7 +98,9 @@ def validate_stress_test_profitability(
                     ValidationCheckResult(
                         check_name=check_name,
                         status=(
-                            STATUS_PASS if mean_profit_bb >= threshold else STATUS_FAIL
+                            STATUS_PASS
+                            if mean_profit_bb >= threshold
+                            else STATUS_WARNING
                         ),
                         category="stress_test_profitability",
                         algorithm_name=spec.algorithm_name,

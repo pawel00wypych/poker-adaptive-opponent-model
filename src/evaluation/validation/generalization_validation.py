@@ -23,6 +23,7 @@ from src.evaluation.validation.common import (
     STATUS_PASS,
     STATUS_SKIPPED,
     STATUS_WARNING,
+    CheckKind,
     ValidationCheckResult,
     ValidationThresholds,
     _find_row,
@@ -143,7 +144,7 @@ def validate_generalization_adaptive_positive_variants(
         results.append(
             ValidationCheckResult(
                 check_name=check_name,
-                status=STATUS_PASS if observed >= threshold else STATUS_FAIL,
+                status=STATUS_PASS if observed >= threshold else STATUS_WARNING,
                 category="generalization_profitability",
                 algorithm_name=spec.algorithm_name,
                 agent_name=spec.adaptive_agent,
@@ -178,11 +179,13 @@ def validate_generalization_adaptive_beats_agent(
     min_successful_variants: int,
     check_name: str,
     category: str,
-    fail_on_underperformance: bool = True,
+    fail_on_underperformance: bool | None = None,
     opponents: Iterable[str] = GENERALIZATION_OPPONENTS,
     algorithm_specs: Iterable[AlgorithmValidationSpec] | None = None,
     seed_rows: pd.DataFrame | None = None,
 ) -> list[ValidationCheckResult]:
+    # Retained for API compatibility. Underperformance is always diagnostic.
+    del fail_on_underperformance
     results: list[ValidationCheckResult] = []
 
     for spec in _algorithm_specs(final_rows, algorithm_specs):
@@ -286,6 +289,11 @@ def validate_generalization_adaptive_beats_agent(
                 ValidationCheckResult(
                     check_name=full_check_name,
                     status=(STATUS_FAIL if has_pairing_failure else STATUS_SKIPPED),
+                    check_type=(
+                        CheckKind.INTEGRITY
+                        if has_pairing_failure
+                        else CheckKind.DIAGNOSTIC
+                    ),
                     category=category,
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
@@ -313,15 +321,24 @@ def validate_generalization_adaptive_beats_agent(
         )
         if has_pairing_failure:
             status = STATUS_FAIL
+            check_type = CheckKind.INTEGRITY
         elif passed:
             status = STATUS_PASS
+            check_type = CheckKind.DIAGNOSTIC
         else:
-            status = STATUS_FAIL if fail_on_underperformance else STATUS_WARNING
+            status = STATUS_WARNING
+            check_type = CheckKind.DIAGNOSTIC
 
         results.append(
             ValidationCheckResult(
                 check_name=full_check_name,
                 status=status,
+                check_type=check_type,
+                hypothesis_id=(
+                    "H2"
+                    if category == "generalization_adaptive_delta_vs_general"
+                    else None
+                ),
                 category=category,
                 algorithm_name=spec.algorithm_name,
                 agent_name=spec.adaptive_agent,
@@ -462,6 +479,7 @@ def validate_generalization_oracle_gap(
                 ValidationCheckResult(
                     check_name=check_name,
                     status=status,
+                    hypothesis_id="H3",
                     category="generalization_oracle_gap",
                     algorithm_name=spec.algorithm_name,
                     agent_name=spec.adaptive_agent,
@@ -770,7 +788,6 @@ def validate_generalization_results_from_final_rows(
             ),
             check_name=("Adaptive beats fixed general on generalization variants"),
             category="generalization_adaptive_delta_vs_general",
-            fail_on_underperformance=True,
             opponents=opponents,
             algorithm_specs=specs,
             seed_rows=seed_rows,
@@ -786,7 +803,6 @@ def validate_generalization_results_from_final_rows(
             ),
             check_name=("Adaptive beats rule-based on generalization variants"),
             category="generalization_adaptive_delta_vs_rule_based",
-            fail_on_underperformance=False,
             opponents=opponents,
             algorithm_specs=specs,
             seed_rows=seed_rows,
@@ -809,12 +825,8 @@ def validate_generalization_results_from_final_rows(
             algorithm_specs=specs,
         )
     )
-    checks.extend(
-        validate_generalization_matching_specialists(
-            final_rows,
-            thresholds,
-        )
-    )
+    # Matching fixed specialists remain an optional ablation and intentionally
+    # do not participate in the main thesis validation suite.
     checks.extend(
         validate_always_raise_outperforms_adaptive(
             aligned_comparison_rows,

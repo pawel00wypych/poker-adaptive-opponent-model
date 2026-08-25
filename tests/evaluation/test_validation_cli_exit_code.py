@@ -11,6 +11,7 @@ import pytest
 from src.evaluation.validation import (
     STATUS_FAIL,
     STATUS_PASS,
+    CheckKind,
     ValidationCheckResult,
     ValidationReport,
     ValidationThresholds,
@@ -29,6 +30,11 @@ def make_report(status: str) -> ValidationReport:
             ValidationCheckResult(
                 check_name="sample",
                 status=status,
+                check_type=(
+                    CheckKind.INTEGRITY
+                    if status == STATUS_FAIL
+                    else CheckKind.DIAGNOSTIC
+                ),
                 message="sample result",
                 category="sample",
             )
@@ -95,7 +101,10 @@ def test_main_returns_exit_code_from_validation_result(
     assert exit_code == expected_exit_code
     assert created_formats == ["markdown", "json"]
     assert "training_episode" not in validation_calls[0]
-    assert f"Validation status: {expected_label}" in capsys.readouterr().out
+    assert (
+        f"Technical validation status: {expected_label}"
+        in capsys.readouterr().out
+    )
 
 
 def test_module_returns_nonzero_exit_code_and_keeps_failure_report(tmp_path):
@@ -125,6 +134,6 @@ def test_module_returns_nonzero_exit_code_and_keeps_failure_report(tmp_path):
 
     report_path = output_dir / "experiment_validation.json"
     assert completed.returncode == 1
-    assert "Validation status: FAIL" in completed.stdout
+    assert "Technical validation status: FAIL" in completed.stdout
     assert report_path.exists()
     assert json.loads(report_path.read_text(encoding="utf-8"))["passed"] is False
