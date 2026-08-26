@@ -36,3 +36,5 @@ dist/
 *.tmp
 
 *.md
+!final_experiment_guidelines.md
+!README.md

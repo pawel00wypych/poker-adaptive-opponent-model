@@ -230,11 +230,11 @@ ORACLE_AGENTS = tuple(ORACLE_AGENT_TO_ADAPTIVE_AGENT.keys())
 
 # The Oracle gap measures what an agent loses by classifying the opponent
 # imperfectly and switching policies late. It is only defined for agents that
-# actually switch. From finalny_zestaw_eksperymentow.md:
+# actually switch. From final_experiment_guidelines.md:
 #
-#   "Oracle nie ma sensu dla policy_general_*, rule_based, always_call
-#    i always_raise, poniewaz te agenty nie przelaczaja sie miedzy
-#    specjalistami."
+#   "The Oracle is not meaningful for policy_general_*, rule_based,
+#    always_call, and always_raise, because these agents do not switch
+#    between specialists."
 #
 # The same reasoning excludes the fixed specialists: they play one policy for
 # the whole game and never classify anything. Do not re-add them - a number

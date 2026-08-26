@@ -34,7 +34,7 @@ from src.experiments.evaluation.protocol_cli import (
 )
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 
-# Experiment 1 of finalny_zestaw_eksperymentow.md: the four adaptive agents,
+# Experiment 1 of final_experiment_guidelines.md: the four adaptive agents,
 # their oracle benchmarks, the four non-adaptive general policies, and the
 # three sanity baselines. Defaulting to a narrower set meant running the
 # documented experiment required undocumented flags, and made an incomplete
