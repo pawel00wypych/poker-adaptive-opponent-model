@@ -1,7 +1,7 @@
 from dataclasses import dataclass, replace
 
 from src.training.constants import (
-    ALPHA_MODE_CONSTANT,
+    ALPHA_MODE_SQRT_VISIT,
     EPSILON_SCHEDULE_LINEAR,
 )
 
@@ -34,7 +34,7 @@ class TrainingConfig:
 
     episodes: int = 10_000
     alpha: float = 0.1
-    alpha_mode: str = ALPHA_MODE_CONSTANT
+    alpha_mode: str = ALPHA_MODE_SQRT_VISIT
 
     epsilon_start: float = 0.5
     epsilon_min: float = 0.05
@@ -54,6 +54,7 @@ class TrainingConfig:
     # then the seed and policy directories, via src/training/model_paths.py, so
     # that a default run lands where the evaluators look.
     model_root_directory: str = "results/models"
+    gamma: float = 1.0
 
     @property
     def default_seed(self) -> int:
@@ -68,6 +69,9 @@ class TrainingConfig:
     def __post_init__(self) -> None:
         if self.episodes <= 0:
             raise ValueError("episodes must be greater than zero")
+
+        if not 0.0 <= self.gamma <= 1.0:
+            raise ValueError("gamma must be in range [0, 1]")
 
         if not self.seeds:
             raise ValueError("seeds must not be empty")
@@ -113,6 +117,7 @@ VERIFICATION_CONFIG = replace(
 TRAINING_CONFIG_PRESETS = {
     "final": FINAL_CONFIG,
     "verification": VERIFICATION_CONFIG,
+    "extended": FINAL_CONFIG,
 }
 
 DEFAULT_TRAINING_CONFIG_PRESET = "final"

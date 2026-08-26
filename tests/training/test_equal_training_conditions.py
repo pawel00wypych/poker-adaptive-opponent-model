@@ -239,6 +239,24 @@ def test_default_checkpoints_fit_inside_the_default_budget(monkeypatch):
     assert max(args.checkpoint_episodes) <= args.episodes
 
 
+def test_td_cli_allows_short_runs_when_checkpoints_are_disabled(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_q_learning_training",
+            "--episodes",
+            "2",
+            "--no-checkpoints",
+        ],
+    )
+
+    args = _td_cli_args()
+
+    assert args.episodes == 2
+    assert args.checkpoints is False
+
+
 def test_both_training_clis_expose_the_learning_rate_schedule(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["run_monte_carlo_suite"])
     monte_carlo_args = run_monte_carlo_suite.parse_args()
@@ -247,3 +265,4 @@ def test_both_training_clis_expose_the_learning_rate_schedule(monkeypatch):
     td_args = _td_cli_args()
 
     assert monte_carlo_args.alpha_mode == td_args.alpha_mode
+    assert monte_carlo_args.alpha_mode == "sqrt_visit"

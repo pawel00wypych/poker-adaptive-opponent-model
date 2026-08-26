@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from src.config import GameConfig
 from src.evaluation.constants import POLICY_CALLING_AGENT
 from src.evaluation.runners.generalization_evaluator import (
     ADAPTIVE_MC_AGENT,
@@ -269,8 +270,10 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
     monkeypatch,
 ):
     calls = []
+    game_configs = []
 
     def fake_evaluate_single_generalization_game(**kwargs):
+        game_configs.append(kwargs["game_config"])
         calls.append(
             (
                 kwargs["tested_agent_name"],
@@ -309,6 +312,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
         tested_agents=(POLICY_GENERAL_MC_AGENT, ADAPTIVE_MC_AGENT),
         eval_seed_base=400_000,
         output_path=tmp_path / "generalization.csv",
+        game_config=GameConfig(max_round=7),
     )
 
     rows = evaluate_generalization_bundle(
@@ -323,6 +327,7 @@ def test_evaluate_generalization_bundle_runs_all_matchups(
     assert [row["game_id"] for row in rows] == list(range(8))
     assert [call[3] for call in calls] == [0, 1] * 4
     assert rows[0]["evaluation_type"] == "generalization"
+    assert {game.max_round for game in game_configs} == {7}
 
 
 def test_write_generalization_rows_creates_csv_with_metadata(tmp_path):

@@ -1,6 +1,6 @@
 import csv
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from pypokerengine.api.game import (
@@ -97,6 +97,7 @@ class CrossPlayEvaluationConfig:
     eval_seed_base: int
     output_path: Path
     include_self_play: bool = False
+    game_config: GameConfig = field(default_factory=GameConfig)
 
 
 def cross_play_agent_category(
@@ -326,7 +327,7 @@ def evaluate_cross_play_bundle(
     bundle: ModelBundle,
     config: CrossPlayEvaluationConfig,
 ) -> list[dict]:
-    game_config = GameConfig()
+    game_config = config.game_config
     rows: list[dict] = []
 
     game_id = 0

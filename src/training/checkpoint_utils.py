@@ -37,6 +37,26 @@ def build_checkpoint_episodes(
     return checkpoints
 
 
+def resolve_checkpoint_episodes(
+    *,
+    total_episodes: int,
+    configured_checkpoints: Iterable[int],
+    checkpoints_enabled: bool,
+    checkpoint_interval: int | None,
+) -> tuple[int, ...]:
+    if not checkpoints_enabled:
+        return ()
+    return tuple(
+        sorted(
+            build_checkpoint_episodes(
+                total_episodes=total_episodes,
+                configured_checkpoints=configured_checkpoints,
+                checkpoint_interval=checkpoint_interval,
+            )
+        )
+    )
+
+
 def build_checkpoint_path(
     checkpoint_directory: str,
     model_name: str,

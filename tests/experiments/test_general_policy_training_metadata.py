@@ -15,6 +15,10 @@ import pytest
 from src.agents.monte_carlo_agent import MonteCarloAgent
 from src.agents.q_learning_agent import QLearningAgent
 from src.config import GameConfig
+from src.experiment_protocol import (
+    FINAL_EXPERIMENT_CONFIG,
+    build_protocol_provenance,
+)
 from src.experiments.training.run_general_policy_training import (
     build_metadata,
     run_general_policy_training,
@@ -23,6 +27,12 @@ from src.experiments.training.run_specialist_training import build_training_meta
 from src.rl.model_io import load_model_metadata
 from src.training.td_trainer import TDTrainingSpec, build_td_metadata
 from src.training.training_metadata import save_json
+
+PROVENANCE = build_protocol_provenance(
+    FINAL_EXPERIMENT_CONFIG,
+    source_revision="test-revision",
+    source_dirty=False,
+)
 
 COMMON = dict(
     completed_episodes=2,
@@ -33,6 +43,7 @@ COMMON = dict(
     game_config=GameConfig(),
     duration_seconds=1.5,
     total_hands=10,
+    provenance=PROVENANCE,
 )
 
 
@@ -69,6 +80,7 @@ def _td_metadata():
         duration_seconds=1.5,
         total_hands=10,
         opponent_counter=Counter({"tight": 2}),
+        provenance=PROVENANCE,
     )
 
 
@@ -114,6 +126,23 @@ def test_general_policy_metadata_reports_throughput():
     assert metadata["hands_per_second"] == 10 / 1.5
 
 
+def test_all_training_metadata_records_the_frozen_protocol():
+    for metadata in (
+        _monte_carlo_general_metadata(),
+        _monte_carlo_specialist_metadata(),
+        _td_metadata(),
+    ):
+        assert metadata["protocol_id"] == "thesis-final-v2"
+        assert metadata["preset_name"] == "final"
+        assert metadata["experiment_config_hash"] == (
+            FINAL_EXPERIMENT_CONFIG.config_hash
+        )
+        assert metadata["training_config_hash"] == (
+            FINAL_EXPERIMENT_CONFIG.training_config_hash
+        )
+        assert metadata["source_revision"] == "test-revision"
+
+
 def test_throughput_is_zero_rather_than_dividing_by_zero():
     metadata = build_metadata(
         agent=MonteCarloAgent(),
@@ -126,6 +155,7 @@ def test_throughput_is_zero_rather_than_dividing_by_zero():
         game_config=GameConfig(),
         duration_seconds=0.0,
         total_hands=0,
+        provenance=PROVENANCE,
     )
 
     assert metadata["mean_hands_per_episode"] == 0.0
@@ -224,6 +254,13 @@ def test_final_model_still_writes_its_sidecar(tmp_path, monkeypatch):
     _run_short_training(tmp_path)
 
     assert (tmp_path / "final.json").exists()
+    assert (tmp_path / "experiment_config.json").exists()
+
+    protocol = json.loads(
+        (tmp_path / "experiment_config.json").read_text(encoding="utf-8")
+    )
+    assert protocol["preset_name"] == "custom"
+    assert protocol["experiment_config"]["training"]["episodes"] == 2
 
 
 def test_save_json_round_trips(tmp_path):

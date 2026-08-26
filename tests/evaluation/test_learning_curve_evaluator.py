@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -85,6 +86,29 @@ def test_build_checkpoint_bundle_marks_diagnostic_source(tmp_path):
     assert bundle.model_source == "checkpoint"
     assert bundle.training_episode is None
     assert bundle.checkpoint_episode == 5000
+
+
+def test_partial_legacy_checkpoint_sidecars_remain_readable(tmp_path):
+    create_checkpoint_files(tmp_path, seed=42, episode=5000)
+    sidecar = (
+        tmp_path
+        / "seed_42"
+        / "specialist_tight"
+        / "checkpoints"
+        / "specialist_tight_episodes_5000_seed_42.json"
+    )
+    sidecar.write_text(
+        json.dumps({"seed": 42, "completed_episodes": 5000}),
+        encoding="utf-8",
+    )
+
+    bundle = build_checkpoint_model_bundle(
+        tmp_path,
+        seed=42,
+        checkpoint_episode=5000,
+    )
+
+    assert bundle.protocol_id is None
 
 
 def test_discovery_keeps_multiple_learning_curve_points(tmp_path):

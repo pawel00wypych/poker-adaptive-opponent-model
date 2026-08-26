@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Sequence
 
+from src.config import DEFAULT_TRAINING_CONFIG_PRESET
 from src.experiments.training.td_cli import (
     TDTrainingCliSpec,
     parse_td_training_args,
@@ -16,6 +17,7 @@ from src.training.q_learning_trainer import (
     model_run_name,
     run_q_learning_model_training,
 )
+from src.training.constants import ALPHA_MODE_SQRT_VISIT
 
 Q_LEARNING_CLI_SPEC = TDTrainingCliSpec(
     algorithm_name=Q_LEARNING_ALGORITHM_NAME,
@@ -51,6 +53,7 @@ def run_q_learning_training(
     models: Sequence[str],
     epsilon_schedule: str,
     alpha: float | None,
+    alpha_mode: str = ALPHA_MODE_SQRT_VISIT,
     gamma: float,
     output_dir: str,
     checkpoint_episodes: Sequence[int] | None,
@@ -61,6 +64,7 @@ def run_q_learning_training(
     player_log_interval: int,
     engine_verbose: bool,
     log_interval: int,
+    config_preset: str = DEFAULT_TRAINING_CONFIG_PRESET,
 ) -> dict:
     return run_td_training(
         spec=Q_LEARNING_CLI_SPEC,
@@ -69,6 +73,7 @@ def run_q_learning_training(
         models=models,
         epsilon_schedule=epsilon_schedule,
         alpha=alpha,
+        alpha_mode=alpha_mode,
         gamma=gamma,
         output_dir=output_dir,
         checkpoint_episodes=checkpoint_episodes,
@@ -79,6 +84,7 @@ def run_q_learning_training(
         player_log_interval=player_log_interval,
         engine_verbose=engine_verbose,
         log_interval=log_interval,
+        config_preset=config_preset,
     )
 
 

@@ -1,7 +1,7 @@
 import csv
 import random
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from pypokerengine.api.game import (
@@ -116,6 +116,7 @@ class GeneralizationEvaluationConfig:
     tested_agents: tuple[str, ...]
     eval_seed_base: int
     output_path: Path
+    game_config: GameConfig = field(default_factory=GameConfig)
 
 
 def validate_generalization_agent(
@@ -328,7 +329,7 @@ def evaluate_generalization_bundle(
     bundle: ModelBundle,
     config: GeneralizationEvaluationConfig,
 ) -> list[dict]:
-    game_config = GameConfig()
+    game_config = config.game_config
     rows: list[dict] = []
 
     game_id = 0

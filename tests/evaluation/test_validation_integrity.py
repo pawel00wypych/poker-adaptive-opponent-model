@@ -2,6 +2,13 @@ import json
 
 import pandas as pd
 
+from src.evaluation.validation.config import IntegrityRequirements
+from src.evaluation.validation.context import EvaluationManifest
+from src.evaluation.validation.integrity import validate_manifest
+from src.experiment_protocol import (
+    FINAL_EXPERIMENT_CONFIG,
+    build_protocol_provenance,
+)
 from src.evaluation.validation import (
     STATUS_FAIL,
     STATUS_PASS,
@@ -281,3 +288,172 @@ def test_legacy_failure_check_infers_integrity():
 
     assert check.check_type == CheckKind.INTEGRITY
     assert check.blocking
+
+
+def test_present_protocol_snapshot_is_rehashed_even_without_strict_mode(tmp_path):
+    provenance = build_protocol_provenance(
+        FINAL_EXPERIMENT_CONFIG,
+        source_revision="revision",
+        source_dirty=False,
+    ).to_dict()
+    provenance["experiment_config_hash"] = "tampered"
+    rows = pd.DataFrame(
+        {
+            "model_seed": [42],
+            "agent_name": ["adaptive_mc"],
+            "opponent_name": ["tight"],
+        }
+    )
+    manifest = EvaluationManifest(
+        path=tmp_path / "results.summary.json",
+        values={
+            "row_count": 1,
+            "games": 500,
+            "seeds": [42],
+            "evaluation_seed_namespace": 1,
+            "model_training_config_hash": (
+                FINAL_EXPERIMENT_CONFIG.training_config_hash
+            ),
+            "model_source_dirty": [False],
+            **provenance,
+        },
+    )
+
+    check = validate_manifest(
+        rows,
+        manifest,
+        IntegrityRequirements(),
+        "training-opponent",
+    )[0]
+
+    assert check.status == STATUS_FAIL
+    assert any(
+        "experiment_config_hash" in error
+        for error in check.details["errors"]
+    )
+
+
+def test_frozen_final_manifest_enforcement_accepts_exact_protocol(tmp_path):
+    provenance = build_protocol_provenance(
+        FINAL_EXPERIMENT_CONFIG,
+        source_revision="revision",
+        source_dirty=False,
+    ).to_dict()
+    rows = pd.DataFrame(
+        {
+            "model_seed": list(FINAL_EXPERIMENT_CONFIG.training.seeds),
+            "training_episode": [10_000] * 5,
+            "agent_name": ["adaptive_mc"] * 5,
+            "opponent_name": ["tight"] * 5,
+        }
+    )
+    manifest = EvaluationManifest(
+        path=tmp_path / "results.summary.json",
+        values={
+            "row_count": 5,
+            "games": 500,
+            "seeds": list(FINAL_EXPERIMENT_CONFIG.training.seeds),
+            "evaluation_seed_namespace": 1,
+            "model_training_config_hash": (
+                FINAL_EXPERIMENT_CONFIG.training_config_hash
+            ),
+            "model_source_dirty": [False],
+            **provenance,
+        },
+    )
+
+    check = validate_manifest(
+        rows,
+        manifest,
+        ValidationThresholds(
+            enforce_frozen_final_protocol=True
+        ).integrity_requirements,
+        "training-opponent",
+    )[0]
+
+    assert check.status == STATUS_PASS
+
+
+def test_frozen_final_manifest_rejects_dirty_source(tmp_path):
+    provenance = build_protocol_provenance(
+        FINAL_EXPERIMENT_CONFIG,
+        source_revision="revision",
+        source_dirty=True,
+    ).to_dict()
+    rows = pd.DataFrame(
+        {
+            "model_seed": list(FINAL_EXPERIMENT_CONFIG.training.seeds),
+            "training_episode": [10_000] * 5,
+            "agent_name": ["adaptive_mc"] * 5,
+            "opponent_name": ["tight"] * 5,
+        }
+    )
+    manifest = EvaluationManifest(
+        path=tmp_path / "results.summary.json",
+        values={
+            "row_count": 5,
+            "games": 500,
+            "seeds": list(FINAL_EXPERIMENT_CONFIG.training.seeds),
+            "evaluation_seed_namespace": 1,
+            "model_training_config_hash": (
+                FINAL_EXPERIMENT_CONFIG.training_config_hash
+            ),
+            "model_source_dirty": [True],
+            **provenance,
+        },
+    )
+
+    check = validate_manifest(
+        rows,
+        manifest,
+        ValidationThresholds(
+            enforce_frozen_final_protocol=True
+        ).integrity_requirements,
+        "training-opponent",
+    )[0]
+
+    assert check.status == STATUS_FAIL
+    assert any("clean source tree" in error for error in check.details["errors"])
+
+
+def test_frozen_final_manifest_rejects_skipped_agents(tmp_path):
+    provenance = build_protocol_provenance(
+        FINAL_EXPERIMENT_CONFIG,
+        source_revision="revision",
+        source_dirty=False,
+    ).to_dict()
+    rows = pd.DataFrame(
+        {
+            "model_seed": list(FINAL_EXPERIMENT_CONFIG.training.seeds),
+            "training_episode": [10_000] * 5,
+            "agent_name": ["adaptive_mc"] * 5,
+            "opponent_name": ["tight"] * 5,
+        }
+    )
+    manifest = EvaluationManifest(
+        path=tmp_path / "results.summary.json",
+        values={
+            "row_count": 5,
+            "games": 500,
+            "seeds": list(FINAL_EXPERIMENT_CONFIG.training.seeds),
+            "evaluation_seed_namespace": 1,
+            "model_training_config_hash": (
+                FINAL_EXPERIMENT_CONFIG.training_config_hash
+            ),
+            "model_source_dirty": [False],
+            "skipped_agents": {"adaptive_q_learning": "q_learning"},
+            **provenance,
+        },
+    )
+
+    check = validate_manifest(
+        rows,
+        manifest,
+        ValidationThresholds(
+            enforce_frozen_final_protocol=True
+        ).integrity_requirements,
+        "training-opponent",
+    )[0]
+
+    assert check.status == STATUS_FAIL
+    assert any("skipped agents" in error for error in check.details["errors"])

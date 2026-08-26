@@ -11,6 +11,7 @@ class IntegrityRequirements:
     expected_games_per_matchup: int | None = None
     expected_evaluation_replicates: int | None = None
     require_manifest: bool = False
+    enforce_frozen_final_protocol: bool = False
 
 
 @dataclass(frozen=True)
@@ -79,18 +80,39 @@ class ValidationThresholds:
     expected_games_per_matchup: int | None = None
     expected_evaluation_replicates: int | None = None
     require_manifest: bool = False
+    enforce_frozen_final_protocol: bool = False
 
     @property
     def integrity_requirements(self) -> IntegrityRequirements:
+        from src.experiment_protocol import FINAL_EXPERIMENT_CONFIG
+
+        frozen = self.enforce_frozen_final_protocol
         return IntegrityRequirements(
-            min_seeds_per_matchup=self.min_seeds_per_matchup,
+            min_seeds_per_matchup=(
+                len(FINAL_EXPERIMENT_CONFIG.training.seeds)
+                if frozen
+                else self.min_seeds_per_matchup
+            ),
             min_evaluation_replicates_per_matchup=(
                 self.min_evaluation_replicates_per_matchup
             ),
-            expected_model_seeds=self.expected_model_seeds,
-            expected_games_per_matchup=self.expected_games_per_matchup,
-            expected_evaluation_replicates=self.expected_evaluation_replicates,
-            require_manifest=self.require_manifest,
+            expected_model_seeds=(
+                FINAL_EXPERIMENT_CONFIG.training.seeds
+                if frozen
+                else self.expected_model_seeds
+            ),
+            expected_games_per_matchup=(
+                FINAL_EXPERIMENT_CONFIG.evaluation.games_per_matchup
+                if frozen
+                else self.expected_games_per_matchup
+            ),
+            expected_evaluation_replicates=(
+                FINAL_EXPERIMENT_CONFIG.evaluation.baseline_evaluation_replicates
+                if frozen
+                else self.expected_evaluation_replicates
+            ),
+            require_manifest=self.require_manifest or frozen,
+            enforce_frozen_final_protocol=frozen,
         )
 
     @property
@@ -102,6 +124,7 @@ class ValidationThresholds:
             "expected_games_per_matchup",
             "expected_evaluation_replicates",
             "require_manifest",
+            "enforce_frozen_final_protocol",
         }
         return DiagnosticThresholds(
             **{

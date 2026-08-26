@@ -1,5 +1,4 @@
 import argparse
-import json
 from concurrent.futures import (
     ProcessPoolExecutor,
     as_completed,
@@ -24,6 +23,14 @@ from src.evaluation.runners.model_evaluator import (
     evaluate_training_opponent_bundle,
     partition_agents_by_support,
     write_rows,
+)
+from src.experiment_protocol import TRAINING_OPPONENT_EVALUATION
+from src.experiments.evaluation.protocol_cli import (
+    attach_model_provenance,
+    add_evaluation_protocol_arguments,
+    model_provenance_summary,
+    resolve_evaluation_protocol,
+    save_evaluation_summary,
 )
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 
@@ -101,12 +108,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
 
-    parser.add_argument(
-        "--games",
-        type=int,
-        default=200,
-        help="Games per matchup.",
-    )
+    add_evaluation_protocol_arguments(parser)
 
     parser.add_argument(
         "--agents",
@@ -148,13 +150,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--eval-seed-base",
-        type=int,
-        default=100_000,
-        help=("Base seed used to make evaluation reproducible."),
-    )
-
-    parser.add_argument(
         "--fail-on-incomplete",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -165,7 +160,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
 
-    args = parser.parse_args(argv)
+    args = resolve_evaluation_protocol(
+        parser.parse_args(argv),
+        evaluation_type=TRAINING_OPPONENT_EVALUATION,
+    )
 
     if args.games <= 0:
         parser.error("--games must be greater than zero")
@@ -200,8 +198,6 @@ def save_summary(
     evaluated_agents: tuple[str, ...],
     skipped_agents: dict[str, str],
 ) -> None:
-    summary_path = output_path.with_suffix(".summary.json")
-
     summary = {
         "output_path": str(output_path),
         "training_run_dir": arguments.training_run_dir,
@@ -221,18 +217,13 @@ def save_summary(
         "bundle_count": bundle_count,
         "row_count": row_count,
         "duration_seconds": duration_seconds,
+        **model_provenance_summary(arguments),
     }
-
-    with summary_path.open(
-        "w",
-        encoding="utf-8",
-    ) as file:
-        json.dump(
-            summary,
-            file,
-            indent=2,
-            ensure_ascii=False,
-        )
+    save_evaluation_summary(
+        output_path=output_path,
+        summary=summary,
+        provenance=arguments.protocol_provenance,
+    )
 
 
 RUN_DIRECTORY_FLAG_FOR_ALGORITHM = {
@@ -316,6 +307,7 @@ def main() -> None:
         raise SystemExit(
             "No complete final model bundles found for the requested seeds."
         )
+    attach_model_provenance(args, bundles)
 
     config = TrainingOpponentEvaluationConfig(
         games_per_matchup=args.games,
@@ -323,6 +315,7 @@ def main() -> None:
         tested_agents=tuple(args.agents),
         eval_seed_base=args.eval_seed_base,
         output_path=output_path,
+        game_config=args.experiment_config.game,
     )
 
     evaluated_agents, skipped_agents = resolve_agent_support(

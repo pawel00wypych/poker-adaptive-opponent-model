@@ -151,6 +151,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Require the companion .summary.json evaluation manifest.",
     )
     parser.add_argument(
+        "--enforce-frozen-final-protocol",
+        action="store_true",
+        help=(
+            "Require the current frozen final protocol, its manifest, five model "
+            "seeds, 500 games per matchup and five baseline replicates."
+        ),
+    )
+    parser.add_argument(
         "--max-std-across-evaluation-replicates-bb",
         type=float,
         default=5.0,
@@ -278,6 +286,7 @@ def build_thresholds(args: argparse.Namespace) -> ValidationThresholds:
         ),
         expected_evaluation_replicates=args.expected_evaluation_replicates,
         require_manifest=args.require_manifest,
+        enforce_frozen_final_protocol=args.enforce_frozen_final_protocol,
         max_std_across_evaluation_replicates_bb=(
             args.max_std_across_evaluation_replicates_bb
         ),
@@ -326,7 +335,14 @@ def main() -> int:
         thresholds=thresholds,
         validation_mode=args.validation_mode,
         algorithm_specs=algorithm_specs_from_keys(args.algorithms),
-        require_all_algorithms=args.require_all_algorithms,
+        require_all_algorithms=(
+            args.require_all_algorithms
+            or getattr(
+                args,
+                "enforce_frozen_final_protocol",
+                False,
+            )
+        ),
     )
 
     created_paths = []

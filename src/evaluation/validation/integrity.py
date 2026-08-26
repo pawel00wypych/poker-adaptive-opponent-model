@@ -5,6 +5,12 @@ from collections.abc import Iterable
 import numpy as np
 import pandas as pd
 
+from src.experiment_protocol import (
+    FINAL_EXPERIMENT_CONFIG,
+    HEAD_TO_HEAD_EVALUATION,
+    experiment_config_hash_from_snapshot,
+    training_config_hash_from_snapshot,
+)
 from src.evaluation.validation.config import IntegrityRequirements
 from src.evaluation.validation.context import EvaluationManifest
 from src.evaluation.validation.models import (
@@ -874,6 +880,151 @@ def validate_manifest(
                 )
     elif not replicate_rows.empty and requirements.require_manifest:
         errors.append("manifest evaluation_replicates is unavailable")
+
+    protocol_fields = (
+        "protocol_id",
+        "preset_name",
+        "experiment_config_hash",
+        "training_config_hash",
+        "experiment_config",
+        "source_revision",
+        "source_dirty",
+    )
+    present_protocol_fields = [
+        field for field in protocol_fields if field in manifest.values
+    ]
+    if present_protocol_fields and len(present_protocol_fields) != len(
+        protocol_fields
+    ):
+        missing = sorted(set(protocol_fields) - set(present_protocol_fields))
+        errors.append(f"protocol provenance is incomplete: missing {missing}")
+    elif present_protocol_fields:
+        snapshot = manifest.values["experiment_config"]
+        if not isinstance(snapshot, dict):
+            errors.append("experiment_config must be an object")
+        else:
+            try:
+                calculated_experiment_hash = (
+                    experiment_config_hash_from_snapshot(snapshot)
+                )
+                calculated_training_hash = training_config_hash_from_snapshot(
+                    snapshot
+                )
+            except (KeyError, TypeError, ValueError) as error:
+                errors.append(f"experiment_config is malformed: {error}")
+            else:
+                if (
+                    manifest.values["experiment_config_hash"]
+                    != calculated_experiment_hash
+                ):
+                    errors.append(
+                        "experiment_config_hash does not match experiment_config"
+                    )
+                if (
+                    manifest.values["training_config_hash"]
+                    != calculated_training_hash
+                ):
+                    errors.append(
+                        "training_config_hash does not match experiment_config"
+                    )
+        source_revision = manifest.values.get("source_revision")
+        if not isinstance(source_revision, str) or not source_revision.strip():
+            errors.append("source_revision must be a non-empty string")
+        source_dirty = manifest.values.get("source_dirty")
+        if source_dirty is not None and not isinstance(source_dirty, bool):
+            errors.append("source_dirty must be a boolean or null")
+
+        model_training_hash = manifest.values.get(
+            "model_training_config_hash"
+        )
+        if not model_rows.empty:
+            if model_training_hash is None:
+                if requirements.enforce_frozen_final_protocol:
+                    errors.append(
+                        "frozen final validation requires model protocol metadata"
+                    )
+            elif model_training_hash != manifest.values["training_config_hash"]:
+                errors.append(
+                    "model_training_config_hash does not match the evaluation "
+                    "training_config_hash"
+                )
+            if requirements.enforce_frozen_final_protocol:
+                if manifest.values.get("model_source_dirty") != [False]:
+                    errors.append(
+                        "frozen final validation requires models from a clean "
+                        "source tree"
+                    )
+    elif requirements.enforce_frozen_final_protocol:
+        errors.append("frozen final validation requires protocol provenance")
+
+    if requirements.enforce_frozen_final_protocol and present_protocol_fields:
+        if manifest.values.get("source_dirty") is not False:
+            errors.append(
+                "frozen final validation requires a clean source tree"
+            )
+        if manifest.values.get("protocol_id") != (
+            FINAL_EXPERIMENT_CONFIG.protocol_id
+        ):
+            errors.append(
+                "protocol_id is not "
+                f"{FINAL_EXPERIMENT_CONFIG.protocol_id}"
+            )
+        if manifest.values.get("experiment_config_hash") != (
+            FINAL_EXPERIMENT_CONFIG.config_hash
+        ):
+            errors.append(
+                "experiment_config_hash does not match the frozen final protocol"
+            )
+        if manifest.values.get("training_config_hash") != (
+            FINAL_EXPERIMENT_CONFIG.training_config_hash
+        ):
+            errors.append(
+                "training_config_hash does not match the frozen final protocol"
+            )
+        expected_mode = (
+            HEAD_TO_HEAD_EVALUATION
+            if validation_mode == BASELINE_SANITY_MODE
+            else validation_mode
+        )
+        try:
+            expected_namespace = (
+                FINAL_EXPERIMENT_CONFIG.evaluation.seed_namespace(expected_mode)
+            )
+        except ValueError:
+            expected_namespace = None
+        observed_namespace = manifest.values.get(
+            "evaluation_seed_namespace",
+            manifest.values.get("eval_seed_base"),
+        )
+        if (
+            expected_namespace is not None
+            and observed_namespace != expected_namespace
+        ):
+            errors.append(
+                f"evaluation seed namespace must be {expected_namespace}"
+            )
+        skipped_agents = manifest.values.get("skipped_agents")
+        if isinstance(skipped_agents, dict) and skipped_agents:
+            errors.append(
+                "frozen final validation does not allow skipped agents"
+            )
+        if not model_rows.empty:
+            if "training_episode" not in model_rows.columns:
+                observed_training_episodes: set[int] = set()
+            else:
+                observed_training_episodes = {
+                    int(value)
+                    for value in pd.to_numeric(
+                        model_rows["training_episode"],
+                        errors="coerce",
+                    ).dropna()
+                }
+            if observed_training_episodes != {
+                FINAL_EXPERIMENT_CONFIG.training.episodes
+            }:
+                errors.append(
+                    "training_episode must equal the frozen 10000-episode budget"
+                )
 
     valid = not errors
     return [
