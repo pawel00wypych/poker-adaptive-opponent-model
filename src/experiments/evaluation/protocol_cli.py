@@ -138,7 +138,12 @@ def save_evaluation_summary(
 def attach_model_provenance(
     args: argparse.Namespace,
     bundles,
-) -> None:
+) -> list:
+    """Validate model provenance and label bundles with the evaluation preset.
+
+    Model provenance remains unchanged. This distinction matters for the
+    ``extended`` preset, which evaluates models whose source preset is ``final``.
+    """
     bundle_list = list(bundles)
     hashes = {
         bundle.training_config_hash
@@ -215,6 +220,14 @@ def attach_model_provenance(
         args.model_training_config_hash = None
         args.model_source_revisions = []
         args.model_source_dirty = []
+
+    return [
+        replace(
+            bundle,
+            evaluation_run_name=args.experiment_config.preset_name,
+        )
+        for bundle in bundle_list
+    ]
 
 
 def model_provenance_summary(

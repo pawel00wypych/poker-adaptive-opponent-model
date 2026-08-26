@@ -238,7 +238,7 @@ def main() -> None:
         raise SystemExit(
             "No complete model bundles found for the requested seeds/checkpoints."
         )
-    attach_model_provenance(args, bundles)
+    bundles = attach_model_provenance(args, bundles)
 
     config = LearningCurveEvaluationConfig(
         games_per_matchup=args.games,

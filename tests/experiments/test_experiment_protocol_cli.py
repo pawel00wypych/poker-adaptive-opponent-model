@@ -187,6 +187,29 @@ def test_custom_trained_models_rebase_evaluation_to_custom_protocol():
     )
 
 
+@pytest.mark.parametrize(
+    ("evaluation_preset", "model_config"),
+    [
+        ("verification", VERIFICATION_EXPERIMENT_CONFIG),
+        ("final", FINAL_EXPERIMENT_CONFIG),
+        ("extended", FINAL_EXPERIMENT_CONFIG),
+    ],
+)
+def test_evaluation_labels_models_with_current_preset(
+    evaluation_preset,
+    model_config,
+):
+    args = parse_generalization(
+        ["--training-run-dir", "run", "--config", evaluation_preset]
+    )
+    source_bundle = _bundle_with_protocol(model_config)
+
+    labelled_bundles = attach_model_provenance(args, [source_bundle])
+
+    assert labelled_bundles[0].preset_name == model_config.preset_name
+    assert labelled_bundles[0].evaluation_run_name == evaluation_preset
+
+
 def test_clean_and_unknown_model_dirtiness_cannot_be_mixed():
     clean = _bundle_with_protocol(FINAL_EXPERIMENT_CONFIG, source_dirty=False)
     unknown = replace(clean, seed=123, source_dirty=None)
