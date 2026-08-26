@@ -36,6 +36,38 @@ def test_rule_based_player_calls_when_call_is_free():
     assert amount == 0
 
 
+def test_free_big_blind_check_preserves_engine_call_level():
+    player = RuleBasedPlayer()
+    player.uuid = "uuid-bb"
+    valid_actions = [
+        {"action": "fold", "amount": 0},
+        {"action": "call", "amount": 10},
+        {"action": "raise", "amount": {"min": 20, "max": 100}},
+    ]
+    round_state = {
+        "street": "preflop",
+        "action_histories": {
+            "preflop": [
+                {
+                    "action": "BIGBLIND",
+                    "amount": 10,
+                    "add_amount": 5,
+                    "uuid": "uuid-bb",
+                }
+            ]
+        },
+    }
+
+    action, amount = player.declare_action(
+        valid_actions,
+        hole_card=[],
+        round_state=round_state,
+    )
+
+    assert action == "call"
+    assert amount == 10
+
+
 def test_rule_based_player_folds_expensive_call():
     player = RuleBasedPlayer()
 

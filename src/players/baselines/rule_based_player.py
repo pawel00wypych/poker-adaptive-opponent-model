@@ -53,7 +53,9 @@ class RuleBasedPlayer(PlayerTemplate):
         )
 
         if call_action and call_amount == 0:
-            return "call", 0
+            # Decisions use the real cost, but the engine reply needs the
+            # original bet level even when matching it costs nothing.
+            return call_action["action"], call_action["amount"]
 
         if call_amount >= self.fold_threshold and fold_action:
             return "fold", fold_action["amount"]
