@@ -220,7 +220,7 @@ def main() -> None:
         raise SystemExit(
             "No complete final model bundles found for the requested seeds."
         )
-    attach_model_provenance(args, bundles)
+    bundles = attach_model_provenance(args, bundles)
 
     config = StressTestEvaluationConfig(
         games_per_matchup=args.games,

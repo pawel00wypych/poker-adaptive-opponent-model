@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -240,8 +241,12 @@ def test_build_game_seed_uses_final_training_episode():
 
 
 def test_final_result_row_has_final_source_and_no_checkpoint(tmp_path):
+    bundle = replace(
+        final_bundle(tmp_path),
+        evaluation_run_name="verification",
+    )
     row = build_result_row(
-        bundle=final_bundle(tmp_path),
+        bundle=bundle,
         tested_agent_name="adaptive_mc",
         opponent_name="calling",
         game_id=3,
@@ -257,6 +262,7 @@ def test_final_result_row_has_final_source_and_no_checkpoint(tmp_path):
     )
 
     assert row["profit_bb"] == 5.0
+    assert row["training_run"] == "verification"
     assert row["model_source"] == "final"
     assert row["training_episode"] == 5000
     assert row["checkpoint_episode"] is None

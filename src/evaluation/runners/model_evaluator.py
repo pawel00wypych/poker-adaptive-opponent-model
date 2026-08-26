@@ -81,6 +81,7 @@ class ModelBundle:
     double_q_learning_calling_model_path: Path | None = None
     protocol_id: str | None = None
     preset_name: str | None = None
+    evaluation_run_name: str | None = None
     experiment_config_hash: str | None = None
     training_config_hash: str | None = None
     source_revision: str | None = None
@@ -983,7 +984,11 @@ def build_result_row(
             "evaluation_replicate_id must be empty for trained model bundles"
         )
 
-    training_run = bundle.training_run_directory.name if bundle is not None else None
+    training_run = None
+    if bundle is not None:
+        training_run = (
+            bundle.evaluation_run_name or bundle.training_run_directory.name
+        )
     model_seed = bundle.seed if bundle is not None else None
     model_source = bundle.model_source if bundle is not None else None
     training_episode = bundle.training_episode if bundle is not None else None
