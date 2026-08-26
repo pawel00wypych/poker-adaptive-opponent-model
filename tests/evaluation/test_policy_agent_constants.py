@@ -118,9 +118,9 @@ def test_algorithm_specs_and_constants_agree():
 
 
 @pytest.mark.parametrize("agent", sorted(FIXED_SPECIALIST_AGENTS))
-def test_every_fixed_specialist_is_in_the_default_rosters(agent):
-    """Availability without inclusion would leave the asymmetry in the results."""
-    assert agent in DEFAULT_GENERALIZATION_AGENTS
+def test_fixed_specialists_are_optional_in_generalization(agent):
+    """The thesis matrix keeps specialist transfer as an optional ablation."""
+    assert agent not in DEFAULT_GENERALIZATION_AGENTS
     assert agent in DEFAULT_HEAD_TO_HEAD_AGENTS
 
 

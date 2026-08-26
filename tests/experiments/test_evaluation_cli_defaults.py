@@ -1,6 +1,6 @@
 """The evaluation CLI should run the documented experiment by default.
 
-Experiment 1 of finalny_zestaw_eksperymentow.md names fifteen agents. The CLI
+Experiment 1 of final_experiment_guidelines.md names fifteen agents. The CLI
 defaulted to three, so running the documented experiment required undocumented
 flags and an incomplete result set was easy to produce by accident.
 
@@ -16,20 +16,35 @@ from pathlib import Path
 import pytest
 
 from src.evaluation.runners.model_evaluator import ModelBundle
+from src.experiments.evaluation.run_generalization_evaluation import (
+    parse_args as parse_generalization_args,
+)
 from src.experiments.evaluation.run_training_opponent_evaluation import parse_args
 
-GUIDELINES = Path("finalny_zestaw_eksperymentow.md")
+GUIDELINES = Path("final_experiment_guidelines.md")
 
 
 def _guideline_agents_for_experiment_one():
     lines = GUIDELINES.read_text(encoding="utf-8").splitlines()
-    start = next(i for i, line in enumerate(lines) if line.startswith("# 1."))
-    end = next(
-        i for i, line in enumerate(lines) if i > start and line.startswith("# 2.")
+    groups_start = next(
+        i for i, line in enumerate(lines) if line.startswith("# 1.")
     )
-    block = "\n".join(lines[start:end])
+    groups_end = next(
+        i
+        for i, line in enumerate(lines)
+        if i > groups_start and line.startswith("# 2.")
+    )
+    group_rows = [
+        line
+        for line in lines[groups_start:groups_end]
+        if re.match(r"^\| `[AOGB]` \|", line)
+    ]
 
-    return set(re.findall(r"^(\w+) vs \w+$", block, flags=re.M))
+    return {
+        agent
+        for row in group_rows
+        for agent in re.findall(r"`([a-z][a-z0-9_]*)`", row)
+    }
 
 
 def _bundle(*, q_learning=False, sarsa=False, double_q_learning=False):
@@ -60,10 +75,34 @@ def _bundle(*, q_learning=False, sarsa=False, double_q_learning=False):
 
 
 def test_default_agents_match_the_guideline_experiment():
-    """Parsed from the guidelines so the two cannot drift apart."""
+    """The central agent-group table and CLI defaults cannot drift apart."""
     namespace = parse_args(["--training-run-dir", "run"])
 
     assert set(namespace.agents) == _guideline_agents_for_experiment_one()
+
+    guidelines = GUIDELINES.read_text(encoding="utf-8")
+    training_block = guidelines.split(
+        "## 5.1. Training-opponent evaluation",
+        1,
+    )[1].split("## 5.2. Generalization evaluation", 1)[0]
+    for group in ("A", "O", "G", "B"):
+        assert re.search(rf"\| [^|]+ \| `{group}` \| `T` \|", training_block)
+
+
+def test_generalization_defaults_use_the_same_main_agent_groups():
+    namespace = parse_generalization_args(["--training-run-dir", "run"])
+    guidelines = GUIDELINES.read_text(encoding="utf-8")
+    generalization_block = guidelines.split(
+        "## 5.2. Generalization evaluation",
+        1,
+    )[1].split("## 5.3. Stress-test evaluation", 1)[0]
+
+    assert set(namespace.agents) == _guideline_agents_for_experiment_one()
+    for group in ("A", "O", "G", "B"):
+        assert re.search(
+            rf"\| [^|]+ \| `{group}` \| `H` \|",
+            generalization_block,
+        )
 
 
 def test_the_default_covers_all_four_algorithms():
