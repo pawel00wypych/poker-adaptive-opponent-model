@@ -3,6 +3,7 @@ from pathlib import Path
 from src.training.checkpoint_utils import (
     build_checkpoint_episodes,
     build_checkpoint_path,
+    resolve_checkpoint_episodes,
 )
 
 
@@ -53,6 +54,26 @@ def test_checkpoint_interval():
         7_500,
         10_000,
     }
+
+
+def test_effective_checkpoint_schedule_filters_the_preset_to_a_short_run():
+    checkpoints = resolve_checkpoint_episodes(
+        total_episodes=2,
+        configured_checkpoints=(1_000, 2_500, 10_000),
+        checkpoints_enabled=True,
+        checkpoint_interval=None,
+    )
+
+    assert checkpoints == (2,)
+
+
+def test_disabled_checkpoints_produce_an_empty_protocol_schedule():
+    assert resolve_checkpoint_episodes(
+        total_episodes=10_000,
+        configured_checkpoints=(1_000, 10_000),
+        checkpoints_enabled=False,
+        checkpoint_interval=None,
+    ) == ()
 
 
 def test_checkpoint_path_contains_parameters():

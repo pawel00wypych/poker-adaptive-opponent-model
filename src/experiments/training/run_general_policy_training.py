@@ -26,7 +26,16 @@ from pypokerengine.api.game import (
 )
 
 from src.agents.monte_carlo_agent import MonteCarloAgent
-from src.config import GameConfig, TrainingConfig
+from src.config import GameConfig
+from src.experiment_protocol import (
+    DEFAULT_EXPERIMENT_CONFIG_PRESET,
+    ProtocolProvenance,
+    build_protocol_provenance,
+    experiment_config_for,
+    protocol_provenance_from_environment,
+    resolve_training_run_config,
+    validate_protocol_provenance,
+)
 from src.experiments.cli_utils import parse_training_args
 from src.experiments.constants import MODEL_TYPE_GENERAL_POLICY
 from src.players.learned.general_policy_player import (
@@ -41,8 +50,8 @@ from src.rl.rng import (
     seed_engine_stream,
 )
 from src.training.checkpoint_utils import (
-    build_checkpoint_episodes,
     build_checkpoint_path,
+    resolve_checkpoint_episodes,
 )
 from src.training.constants import ALGORITHM_KEY_MONTE_CARLO
 from src.training.epsilon_schedule import calculate_epsilon
@@ -51,7 +60,11 @@ from src.training.model_paths import (
     default_final_model_path,
 )
 from src.training.random_utils import set_global_seed
-from src.training.training_metadata import save_json
+from src.training.training_metadata import (
+    add_protocol_metadata,
+    save_json,
+    save_protocol_snapshot,
+)
 
 
 def format_duration(seconds: float) -> str:
@@ -76,6 +89,7 @@ def build_metadata(
     duration_seconds: float,
     total_hands: int,
     opponent_counter: Counter,
+    provenance: ProtocolProvenance | None = None,
 ) -> dict:
     """Build the sidecar metadata for a Monte Carlo general-policy model.
 
@@ -96,7 +110,7 @@ def build_metadata(
         else 0.0
     )
 
-    return {
+    metadata = {
         "algorithm": MonteCarloAgent.ALGORITHM_ID,
         "model_type": MODEL_TYPE_GENERAL_POLICY,
         "opponent_type": "mixed",
@@ -121,6 +135,7 @@ def build_metadata(
         ),
         "duration_seconds": duration_seconds,
     }
+    return add_protocol_metadata(metadata, provenance)
 
 
 def run_general_policy_training(
@@ -138,9 +153,12 @@ def run_general_policy_training(
     player_log_interval: int = 1,
     engine_verbose: bool = False,
     log_interval: int = 100,
+    config_preset: str = DEFAULT_EXPERIMENT_CONFIG_PRESET,
+    protocol_provenance: ProtocolProvenance | None = None,
 ) -> dict:
-    game_config = GameConfig()
-    training_config = TrainingConfig()
+    configured_experiment = experiment_config_for(config_preset)
+    game_config = configured_experiment.game
+    training_config = configured_experiment.training
 
     total_episodes = (
         episodes
@@ -195,28 +213,50 @@ def run_general_policy_training(
         if checkpoint_episodes is not None
         else training_config.checkpoint_episodes
     )
+    effective_checkpoint_episodes = resolve_checkpoint_episodes(
+        total_episodes=total_episodes,
+        configured_checkpoints=selected_checkpoint_episodes,
+        checkpoints_enabled=checkpoints_enabled,
+        checkpoint_interval=checkpoint_interval,
+    )
+    effective_config = resolve_training_run_config(
+        config_preset,
+        game=game_config,
+        episodes=total_episodes,
+        seed=training_seed,
+        alpha=training_config.alpha,
+        alpha_mode=selected_alpha_mode,
+        gamma=training_config.gamma,
+        epsilon_start=training_config.epsilon_start,
+        epsilon_min=training_config.epsilon_min,
+        epsilon_schedule=selected_schedule,
+        checkpoint_episodes=effective_checkpoint_episodes,
+    )
+    injected_provenance = (
+        protocol_provenance or protocol_provenance_from_environment()
+    )
+    if injected_provenance is not None:
+        validate_protocol_provenance(
+            injected_provenance,
+            effective_config,
+        )
+    provenance = injected_provenance or build_protocol_provenance(
+        effective_config
+    )
+    save_protocol_snapshot(Path(final_model_path).parent, provenance)
 
     set_global_seed(training_seed)
 
     agent = MonteCarloAgent(
         alpha=training_config.alpha,
+        gamma=training_config.gamma,
         epsilon=training_config.epsilon_start,
         epsilon_min=training_config.epsilon_min,
         alpha_mode=selected_alpha_mode,
     )
     agent.train()
 
-    checkpoints = (
-        build_checkpoint_episodes(
-            total_episodes=total_episodes,
-            configured_checkpoints=(
-                selected_checkpoint_episodes
-            ),
-            checkpoint_interval=checkpoint_interval,
-        )
-        if checkpoints_enabled
-        else set()
-    )
+    checkpoints = set(effective_checkpoint_episodes)
 
     opponent_counter = Counter()
     total_hands = 0
@@ -336,6 +376,7 @@ def run_general_policy_training(
                 duration_seconds=elapsed,
                 total_hands=total_hands,
                 opponent_counter=opponent_counter,
+                provenance=provenance,
             )
 
             agent.save(
@@ -363,6 +404,7 @@ def run_general_policy_training(
         duration_seconds=training_duration,
         total_hands=total_hands,
         opponent_counter=opponent_counter,
+        provenance=provenance,
     )
 
     agent.save(
@@ -423,4 +465,5 @@ if __name__ == "__main__":
         ),
         engine_verbose=args.engine_verbose,
         log_interval=args.log_interval,
+        config_preset=args.config,
     )

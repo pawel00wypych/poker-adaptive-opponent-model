@@ -11,6 +11,15 @@ from pypokerengine.api.game import (
 )
 
 from src.config import GameConfig, TrainingConfig
+from src.experiment_protocol import (
+    DEFAULT_EXPERIMENT_CONFIG_PRESET,
+    ProtocolProvenance,
+    build_protocol_provenance,
+    experiment_config_for,
+    protocol_provenance_from_environment,
+    resolve_training_run_config,
+    validate_protocol_provenance,
+)
 from src.players.learned.general_policy_player import GeneralPolicyPlayer
 from src.players.learned.specialist_policy_player import SpecialistPolicyPlayer
 from src.players.opponents.factory import (
@@ -24,8 +33,8 @@ from src.rl.rng import (
     seed_engine_stream,
 )
 from src.training.checkpoint_utils import (
-    build_checkpoint_episodes,
     build_checkpoint_path,
+    resolve_checkpoint_episodes,
 )
 from src.training.constants import (
     MODEL_TYPE_GENERAL_POLICY,
@@ -38,7 +47,11 @@ from src.training.model_paths import (
     policy_directory_name,
 )
 from src.training.random_utils import set_global_seed
-from src.training.training_metadata import save_json
+from src.training.training_metadata import (
+    add_protocol_metadata,
+    save_json,
+    save_protocol_snapshot,
+)
 
 
 class TabularTDAgent(Protocol):
@@ -161,6 +174,7 @@ def build_td_metadata(
     duration_seconds: float,
     total_hands: int,
     opponent_counter: Counter | None = None,
+    provenance: ProtocolProvenance | None = None,
 ) -> dict:
     mean_hands_per_episode = (
         total_hands / completed_episodes
@@ -200,7 +214,7 @@ def build_td_metadata(
     if opponent_counter is not None:
         metadata["opponents"] = dict(opponent_counter)
 
-    return metadata
+    return add_protocol_metadata(metadata, provenance)
 
 
 def build_training_player(
@@ -274,7 +288,7 @@ def run_td_model_training(
     epsilon_schedule: str | None = None,
     alpha: float | None = None,
     alpha_mode: str | None = None,
-    gamma: float = 1.0,
+    gamma: float | None = None,
     output_path: str | None = None,
     checkpoint_directory: str | None = None,
     checkpoint_episodes: Iterable[int] | None = None,
@@ -285,9 +299,12 @@ def run_td_model_training(
     player_log_interval: int = 1,
     engine_verbose: bool = False,
     log_interval: int = 100,
+    config_preset: str = DEFAULT_EXPERIMENT_CONFIG_PRESET,
+    protocol_provenance: ProtocolProvenance | None = None,
 ) -> dict:
-    game_config = GameConfig()
-    training_config = TrainingConfig()
+    configured_experiment = experiment_config_for(config_preset)
+    game_config = configured_experiment.game
+    training_config = configured_experiment.training
 
     total_episodes = (
         episodes
@@ -338,6 +355,7 @@ def run_td_model_training(
         if alpha_mode is not None
         else training_config.alpha_mode
     )
+    selected_gamma = gamma if gamma is not None else training_config.gamma
 
     final_model_path = (
         output_path
@@ -364,27 +382,50 @@ def run_td_model_training(
         if checkpoint_episodes is not None
         else training_config.checkpoint_episodes
     )
+    effective_checkpoint_episodes = resolve_checkpoint_episodes(
+        total_episodes=total_episodes,
+        configured_checkpoints=selected_checkpoint_episodes,
+        checkpoints_enabled=checkpoints_enabled,
+        checkpoint_interval=checkpoint_interval,
+    )
+    effective_config = resolve_training_run_config(
+        config_preset,
+        game=game_config,
+        episodes=total_episodes,
+        seed=training_seed,
+        alpha=selected_alpha,
+        alpha_mode=selected_alpha_mode,
+        gamma=selected_gamma,
+        epsilon_start=training_config.epsilon_start,
+        epsilon_min=training_config.epsilon_min,
+        epsilon_schedule=selected_schedule,
+        checkpoint_episodes=effective_checkpoint_episodes,
+    )
+    injected_provenance = (
+        protocol_provenance or protocol_provenance_from_environment()
+    )
+    if injected_provenance is not None:
+        validate_protocol_provenance(
+            injected_provenance,
+            effective_config,
+        )
+    provenance = injected_provenance or build_protocol_provenance(
+        effective_config
+    )
+    save_protocol_snapshot(Path(final_model_path).parent, provenance)
 
     set_global_seed(training_seed)
 
     agent = spec.agent_factory(
         alpha=selected_alpha,
         alpha_mode=selected_alpha_mode,
-        gamma=gamma,
+        gamma=selected_gamma,
         epsilon=training_config.epsilon_start,
         epsilon_min=training_config.epsilon_min,
     )
     agent.train()
 
-    checkpoints = (
-        build_checkpoint_episodes(
-            total_episodes=total_episodes,
-            configured_checkpoints=selected_checkpoint_episodes,
-            checkpoint_interval=checkpoint_interval,
-        )
-        if checkpoints_enabled
-        else set()
-    )
+    checkpoints = set(effective_checkpoint_episodes)
 
     opponent_counter = Counter()
     total_hands = 0
@@ -503,6 +544,7 @@ def run_td_model_training(
                     if model_type == MODEL_TYPE_GENERAL_POLICY
                     else None
                 ),
+                provenance=provenance,
             )
 
             agent.save(
@@ -539,6 +581,7 @@ def run_td_model_training(
             if model_type == MODEL_TYPE_GENERAL_POLICY
             else None
         ),
+        provenance=provenance,
     )
 
     agent.save(

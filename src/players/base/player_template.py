@@ -2,6 +2,9 @@ from pypokerengine.players import BasePokerPlayer
 
 from src.config import GameConfig
 
+REWARD_VERSION = "reward_bb_v1"
+REWARD_FORMULA = "(stack_after_hand - stack_before_hand) / big_blind"
+
 
 def _read_small_blind_amount(game_info) -> int | None:
     """Pull the small blind out of the engine's game_info, or None.

@@ -1317,8 +1317,12 @@ def validate_evaluation_results(
         )
 
     thresholds = thresholds or ValidationThresholds()
+    require_all_algorithms = (
+        require_all_algorithms
+        or thresholds.enforce_frozen_final_protocol
+    )
     path = Path(input_path)
-    raw_games = pd.read_csv(path)
+    raw_games = pd.read_csv(str(path))
     try:
         manifest = EvaluationManifest.load_for_csv(path)
     except (OSError, TypeError, ValueError) as error:

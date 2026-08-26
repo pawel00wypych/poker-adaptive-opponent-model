@@ -241,3 +241,6 @@ def test_the_summary_records_which_agents_were_evaluated(tmp_path):
     assert summary["evaluated_agents"] == ["adaptive_mc", "rule_based"]
     assert summary["skipped_agents"] == {"adaptive_sarsa": "sarsa"}
     assert set(summary["requested_agents"]) == set(DEFAULT_TRAINING_OPPONENT_AGENTS)
+    assert summary["games"] == 500
+    assert summary["evaluation_seed_namespace"] == 1
+    assert summary["protocol_id"] == "thesis-final-v2"

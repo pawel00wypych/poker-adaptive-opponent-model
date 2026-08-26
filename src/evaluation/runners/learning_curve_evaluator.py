@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
+from src.config import GameConfig
 from src.evaluation.constants import CHECKPOINT_PREFIXES, MODEL_DIRECTORIES
 from src.evaluation.runners.model_evaluator import (
     ModelBundle,
@@ -11,6 +12,8 @@ from src.evaluation.runners.model_evaluator import (
     build_model_bundle_from_paths,
     discover_seed_directories,
     evaluate_training_opponent_bundle,
+    load_bundle_protocol_metadata,
+    merge_bundle_protocol_metadata,
     parse_seed_from_directory,
     validate_model_paths,
     write_rows,
@@ -24,6 +27,7 @@ class LearningCurveEvaluationConfig:
     tested_agents: tuple[str, ...]
     eval_seed_base: int
     output_path: Path
+    game_config: GameConfig = field(default_factory=GameConfig)
 
 
 def checkpoint_filename(
@@ -123,6 +127,25 @@ def build_checkpoint_model_bundle(
         checkpoint_episode=checkpoint_episode,
         bundle_name="Double Q-learning",
     )
+    protocol_rows = [
+        load_bundle_protocol_metadata(
+            paths.values(),
+            bundle_name="Monte Carlo",
+        )
+    ]
+    for bundle_name, algorithm_paths in (
+        ("Q-learning", q_learning_paths),
+        ("SARSA", sarsa_paths),
+        ("Double Q-learning", double_q_learning_paths),
+    ):
+        if algorithm_paths is not None:
+            protocol_rows.append(
+                load_bundle_protocol_metadata(
+                    algorithm_paths.values(),
+                    bundle_name=bundle_name,
+                )
+            )
+    protocol_metadata = merge_bundle_protocol_metadata(protocol_rows)
 
     return build_model_bundle_from_paths(
         training_run_directory=root,
@@ -136,6 +159,7 @@ def build_checkpoint_model_bundle(
         sarsa_paths=sarsa_paths,
         double_q_learning_run_directory=double_q_learning_run_directory,
         double_q_learning_paths=double_q_learning_paths,
+        protocol_metadata=protocol_metadata,
     )
 
 
@@ -189,6 +213,7 @@ def evaluate_learning_curve_bundle(
             tested_agents=config.tested_agents,
             eval_seed_base=config.eval_seed_base,
             output_path=config.output_path,
+            game_config=config.game_config,
         ),
     )
 

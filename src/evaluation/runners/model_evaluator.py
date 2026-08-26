@@ -1,7 +1,7 @@
 import csv
 import json
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -16,6 +16,10 @@ from src.agents.q_learning_agent import QLearningAgent
 from src.agents.sarsa_agent import SarsaAgent
 from src.config import GameConfig
 from src.evaluation.algorithm_metadata import ALGORITHM_VALIDATION_SPECS
+from src.experiment_protocol import (
+    experiment_config_hash_from_snapshot,
+    training_config_hash_from_snapshot,
+)
 from src.evaluation.constants import MODEL_DIRECTORIES
 from src.evaluation.player_factory import (
     EvaluationAgentLoaders,
@@ -75,6 +79,13 @@ class ModelBundle:
     double_q_learning_tight_model_path: Path | None = None
     double_q_learning_aggressive_model_path: Path | None = None
     double_q_learning_calling_model_path: Path | None = None
+    protocol_id: str | None = None
+    preset_name: str | None = None
+    experiment_config_hash: str | None = None
+    training_config_hash: str | None = None
+    source_revision: str | None = None
+    source_dirty: bool | None = None
+    experiment_config: dict[str, object] | None = None
 
     def __post_init__(self) -> None:
         if self.episode <= 0:
@@ -205,6 +216,7 @@ class TrainingOpponentEvaluationConfig:
     eval_seed_base: int
     output_path: Path
     include_rule_based: bool = True
+    game_config: GameConfig = field(default_factory=GameConfig)
 
 
 def final_model_path(
@@ -329,6 +341,136 @@ def final_training_episode(
     return completed_episodes.pop()
 
 
+PROTOCOL_METADATA_FIELDS = (
+    "protocol_id",
+    "preset_name",
+    "experiment_config_hash",
+    "training_config_hash",
+    "experiment_config",
+    "source_revision",
+    "source_dirty",
+)
+
+
+def load_bundle_protocol_metadata(
+    paths: Iterable[Path],
+    *,
+    bundle_name: str,
+) -> dict[str, object] | None:
+    model_paths = tuple(paths)
+    metadata_paths = [path.with_suffix(".json") for path in model_paths]
+    existing_metadata = [path.exists() for path in metadata_paths]
+    if not any(existing_metadata):
+        return None
+    if not all(existing_metadata):
+        existing_rows = [
+            load_final_model_metadata(path)
+            for path, exists in zip(
+                model_paths,
+                existing_metadata,
+                strict=True,
+            )
+            if exists
+        ]
+        if not any(
+            any(field in metadata for field in PROTOCOL_METADATA_FIELDS)
+            for metadata in existing_rows
+        ):
+            return None
+        missing = [
+            str(path)
+            for path, exists in zip(
+                metadata_paths,
+                existing_metadata,
+                strict=True,
+            )
+            if not exists
+        ]
+        raise ValueError(
+            f"{bundle_name} contains partial model sidecars: {missing}."
+        )
+    metadata_rows = [load_final_model_metadata(path) for path in model_paths]
+    present_counts = {
+        field: sum(field in metadata for metadata in metadata_rows)
+        for field in PROTOCOL_METADATA_FIELDS
+    }
+    if all(count == 0 for count in present_counts.values()):
+        return None
+    incomplete = {
+        field: count
+        for field, count in present_counts.items()
+        if count != len(metadata_rows)
+    }
+    if incomplete:
+        raise ValueError(
+            f"{bundle_name} model metadata contains partial protocol "
+            f"provenance: {incomplete}."
+        )
+
+    first = metadata_rows[0]
+    for field in PROTOCOL_METADATA_FIELDS:
+        values = [metadata[field] for metadata in metadata_rows]
+        if any(value != values[0] for value in values[1:]):
+            raise ValueError(
+                f"{bundle_name} models use inconsistent {field} values."
+            )
+
+    snapshot = first["experiment_config"]
+    if not isinstance(snapshot, dict):
+        raise TypeError(
+            f"{bundle_name} experiment_config must be a JSON object."
+        )
+    calculated_experiment_hash = experiment_config_hash_from_snapshot(snapshot)
+    calculated_training_hash = training_config_hash_from_snapshot(snapshot)
+    if first["experiment_config_hash"] != calculated_experiment_hash:
+        raise ValueError(
+            f"{bundle_name} experiment_config_hash does not match its snapshot."
+        )
+    if first["training_config_hash"] != calculated_training_hash:
+        raise ValueError(
+            f"{bundle_name} training_config_hash does not match its snapshot."
+        )
+    source_dirty = first["source_dirty"]
+    if source_dirty is not None and not isinstance(source_dirty, bool):
+        raise TypeError(
+            f"{bundle_name} source_dirty must be a boolean or null."
+        )
+
+    return {
+        field: first[field]
+        for field in PROTOCOL_METADATA_FIELDS
+    }
+
+
+def merge_bundle_protocol_metadata(
+    metadata: Iterable[dict[str, object] | None],
+) -> dict[str, object] | None:
+    values = list(metadata)
+    present = [value for value in values if value is not None]
+    if not present:
+        return None
+    if len(present) != len(values):
+        raise ValueError(
+            "Final algorithm bundles mix legacy models with protocol-aware models."
+        )
+    first = present[0]
+    for value in present[1:]:
+        for field in (
+            "protocol_id",
+            "preset_name",
+            "experiment_config_hash",
+            "training_config_hash",
+            "source_revision",
+            "source_dirty",
+        ):
+            if value[field] != first[field]:
+                raise ValueError(
+                    "Final algorithm bundles use inconsistent "
+                    f"{field} values."
+                )
+    return first
+
+
 def build_model_bundle_from_paths(
     *,
     training_run_directory: str | Path,
@@ -342,6 +484,7 @@ def build_model_bundle_from_paths(
     sarsa_paths: dict[str, Path] | None = None,
     double_q_learning_run_directory: str | Path | None = None,
     double_q_learning_paths: dict[str, Path] | None = None,
+    protocol_metadata: dict[str, object] | None = None,
 ) -> ModelBundle:
     root = Path(training_run_directory)
     q_learning_root = (
@@ -418,6 +561,41 @@ def build_model_bundle_from_paths(
             if double_q_learning_paths is not None
             else None
         ),
+        protocol_id=(
+            str(protocol_metadata["protocol_id"])
+            if protocol_metadata is not None
+            else None
+        ),
+        preset_name=(
+            str(protocol_metadata["preset_name"])
+            if protocol_metadata is not None
+            else None
+        ),
+        experiment_config_hash=(
+            str(protocol_metadata["experiment_config_hash"])
+            if protocol_metadata is not None
+            else None
+        ),
+        training_config_hash=(
+            str(protocol_metadata["training_config_hash"])
+            if protocol_metadata is not None
+            else None
+        ),
+        source_revision=(
+            str(protocol_metadata["source_revision"])
+            if protocol_metadata is not None
+            else None
+        ),
+        source_dirty=(
+            protocol_metadata["source_dirty"]
+            if protocol_metadata is not None
+            else None
+        ),
+        experiment_config=(
+            dict(protocol_metadata["experiment_config"])
+            if protocol_metadata is not None
+            else None
+        ),
     )
 
 
@@ -437,6 +615,12 @@ def build_final_model_bundle(
             bundle_name="Monte Carlo",
         )
     }
+    provenance_rows: list[dict[str, object] | None] = [
+        load_bundle_protocol_metadata(
+            paths.values(),
+            bundle_name="Monte Carlo",
+        )
+    ]
 
     optional_specs = (
         ("Q-learning", q_learning_run_directory),
@@ -459,6 +643,12 @@ def build_final_model_bundle(
                 bundle_name=bundle_name,
             )
         )
+        provenance_rows.append(
+            load_bundle_protocol_metadata(
+                algorithm_paths.values(),
+                bundle_name=bundle_name,
+            )
+        )
         optional_paths.append(algorithm_paths)
 
     if len(episodes) != 1:
@@ -468,6 +658,7 @@ def build_final_model_bundle(
         )
 
     q_learning_paths, sarsa_paths, double_q_learning_paths = optional_paths
+    protocol_metadata = merge_bundle_protocol_metadata(provenance_rows)
     return build_model_bundle_from_paths(
         training_run_directory=root,
         seed=seed,
@@ -480,6 +671,7 @@ def build_final_model_bundle(
         sarsa_paths=sarsa_paths,
         double_q_learning_run_directory=double_q_learning_run_directory,
         double_q_learning_paths=double_q_learning_paths,
+        protocol_metadata=protocol_metadata,
     )
 
 
@@ -985,7 +1177,7 @@ def evaluate_training_opponent_bundle(
     bundle: ModelBundle,
     config: TrainingOpponentEvaluationConfig,
 ) -> list[dict]:
-    game_config = GameConfig()
+    game_config = config.game_config
     rows: list[dict] = []
 
     game_id = 0

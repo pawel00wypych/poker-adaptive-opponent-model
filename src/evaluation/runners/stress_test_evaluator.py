@@ -1,6 +1,6 @@
 import csv
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from pypokerengine.api.game import (
@@ -111,6 +111,7 @@ class StressTestEvaluationConfig:
     tested_agents: tuple[str, ...]
     eval_seed_base: int
     output_path: Path
+    game_config: GameConfig = field(default_factory=GameConfig)
 
 
 def validate_stress_test_agent(
@@ -314,7 +315,7 @@ def evaluate_stress_test_bundle(
     bundle: ModelBundle,
     config: StressTestEvaluationConfig,
 ) -> list[dict]:
-    game_config = GameConfig()
+    game_config = config.game_config
     rows: list[dict] = []
 
     game_id = 0

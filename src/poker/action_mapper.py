@@ -1,5 +1,14 @@
 from typing import Any
 
+ACTION_VERSION = "action_v1"
+ACTION_NAMES = (
+    "fold",
+    "call_or_check",
+    "minimum_raise",
+)
+INVALID_RAISE_FALLBACK = "call_or_check"
+FREE_FOLD_FALLBACK = "check"
+
 
 class ActionMapper:
     """

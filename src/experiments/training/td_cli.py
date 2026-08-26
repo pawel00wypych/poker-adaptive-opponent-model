@@ -1,5 +1,6 @@
 import argparse
 from dataclasses import dataclass
+from dataclasses import replace
 from pathlib import Path
 from time import perf_counter
 from typing import Callable, Sequence
@@ -9,14 +10,24 @@ from src.config import (
     TRAINING_CONFIG_PRESETS,
     training_config_for,
 )
+from src.experiment_protocol import (
+    ProtocolProvenance,
+    build_protocol_provenance,
+    experiment_config_for,
+    protocol_metadata,
+    resolve_effective_config,
+)
 from src.experiments.constants import MODEL_TYPES
 from src.training.constants import (
-    ALPHA_MODE_CONSTANT,
     SUPPORTED_ALPHA_MODES,
     SUPPORTED_EPSILON_SCHEDULES,
 )
+from src.training.checkpoint_utils import resolve_checkpoint_episodes
 from src.training.td_trainer import format_duration
-from src.training.training_metadata import save_json
+from src.training.training_metadata import (
+    save_json,
+    save_protocol_snapshot,
+)
 
 
 @dataclass(frozen=True)
@@ -87,7 +98,7 @@ def parse_td_training_args(
     parser.add_argument(
         "--epsilon-schedule",
         choices=SUPPORTED_EPSILON_SCHEDULES,
-        default=SUPPORTED_EPSILON_SCHEDULES[0],
+        default=None,
     )
 
     parser.add_argument(
@@ -100,7 +111,7 @@ def parse_td_training_args(
     parser.add_argument(
         "--alpha-mode",
         choices=SUPPORTED_ALPHA_MODES,
-        default=ALPHA_MODE_CONSTANT,
+        default=None,
         help=(
             "Learning-rate schedule. constant uses a fixed alpha, "
             "visit_count uses 1/N(s,a), and sqrt_visit uses 1/sqrt(N(s,a)). "
@@ -111,7 +122,7 @@ def parse_td_training_args(
     parser.add_argument(
         "--gamma",
         type=float,
-        default=1.0,
+        default=None,
         help=f"{spec.display_name} discount factor.",
     )
 
@@ -215,6 +226,15 @@ def apply_training_config_preset(args: argparse.Namespace) -> None:
     if args.checkpoint_episodes is None:
         args.checkpoint_episodes = list(config.checkpoint_episodes)
 
+    if args.epsilon_schedule is None:
+        args.epsilon_schedule = config.epsilon_schedule
+
+    if args.alpha_mode is None:
+        args.alpha_mode = config.alpha_mode
+
+    if args.gamma is None:
+        args.gamma = config.gamma
+
 
 def validate_td_training_args(
     *,
@@ -252,7 +272,11 @@ def validate_td_training_args(
             "--checkpoint-interval must be greater than zero"
         )
 
-    if args.checkpoint_episodes is not None:
+    if (
+        args.checkpoints
+        and args.checkpoint_interval is None
+        and args.checkpoint_episodes is not None
+    ):
         if any(
             episode <= 0
             for episode in args.checkpoint_episodes
@@ -313,6 +337,8 @@ def run_td_training(
     player_log_interval: int,
     engine_verbose: bool,
     log_interval: int,
+    config_preset: str = DEFAULT_TRAINING_CONFIG_PRESET,
+    protocol_provenance: ProtocolProvenance | None = None,
 ) -> dict:
     output_root = Path(output_dir)
     output_root.mkdir(
@@ -322,6 +348,36 @@ def run_td_training(
 
     started_at = perf_counter()
     results: list[dict] = []
+    configured_experiment = experiment_config_for(config_preset)
+    configured_training = configured_experiment.training
+    effective_checkpoint_episodes = resolve_checkpoint_episodes(
+        total_episodes=episodes,
+        configured_checkpoints=(
+            checkpoint_episodes
+            if checkpoint_episodes is not None
+            else configured_training.checkpoint_episodes
+        ),
+        checkpoints_enabled=checkpoints_enabled,
+        checkpoint_interval=checkpoint_interval,
+    )
+    effective_training = replace(
+        configured_training,
+        episodes=episodes,
+        seeds=tuple(seeds),
+        alpha=(alpha if alpha is not None else configured_training.alpha),
+        alpha_mode=alpha_mode,
+        gamma=gamma,
+        epsilon_schedule=epsilon_schedule,
+        checkpoint_episodes=effective_checkpoint_episodes,
+    )
+    effective_config = resolve_effective_config(
+        config_preset,
+        training=effective_training,
+    )
+    provenance = protocol_provenance or build_protocol_provenance(
+        effective_config
+    )
+    save_protocol_snapshot(output_root, provenance)
 
     for seed in seeds:
         for model_type in models:
@@ -352,6 +408,8 @@ def run_td_training(
                 player_log_interval=player_log_interval,
                 engine_verbose=engine_verbose,
                 log_interval=log_interval,
+                config_preset=config_preset,
+                protocol_provenance=provenance,
             )
 
             results.append(
@@ -379,6 +437,7 @@ def run_td_training(
         "duration_seconds": duration_seconds,
         "duration": format_duration(duration_seconds),
         "jobs": results,
+        **protocol_metadata(provenance),
     }
 
     save_json(
@@ -419,4 +478,5 @@ def run_td_cli(spec: TDTrainingCliSpec) -> dict:
         player_log_interval=args.player_log_interval,
         engine_verbose=args.engine_verbose,
         log_interval=args.log_interval,
+        config_preset=args.config,
     )

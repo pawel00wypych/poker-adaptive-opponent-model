@@ -8,7 +8,7 @@ from concurrent.futures import (
     ThreadPoolExecutor,
     as_completed,
 )
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from time import perf_counter
@@ -19,15 +19,24 @@ from src.config import (
     TRAINING_CONFIG_PRESETS,
     training_config_for,
 )
+from src.experiment_protocol import (
+    ProtocolProvenance,
+    build_protocol_provenance,
+    experiment_config_for,
+    protocol_metadata,
+    resolve_effective_config,
+)
 from src.experiments.constants import (
     MODEL_TYPE_GENERAL_POLICY,
     MODEL_TYPES,
 )
 from src.training.constants import (
-    ALPHA_MODE_CONSTANT,
+    ALPHA_MODE_SQRT_VISIT,
     SUPPORTED_ALPHA_MODES,
     SUPPORTED_EPSILON_SCHEDULES,
 )
+from src.training.checkpoint_utils import resolve_checkpoint_episodes
+from src.training.training_metadata import save_protocol_snapshot
 
 
 @dataclass(frozen=True)
@@ -39,7 +48,9 @@ class TrainingJob:
     checkpoint_episodes: tuple[int, ...]
     experiment_directory: str
     log_interval: int
-    alpha_mode: str = ALPHA_MODE_CONSTANT
+    alpha_mode: str = ALPHA_MODE_SQRT_VISIT
+    config_preset: str = DEFAULT_TRAINING_CONFIG_PRESET
+    protocol_provenance: ProtocolProvenance | None = None
 
     @property
     def run_name(self) -> str:
@@ -144,13 +155,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--epsilon-schedule",
         choices=SUPPORTED_EPSILON_SCHEDULES,
-        default=SUPPORTED_EPSILON_SCHEDULES[0],
+        default=None,
     )
 
     parser.add_argument(
         "--alpha-mode",
         choices=SUPPORTED_ALPHA_MODES,
-        default=ALPHA_MODE_CONSTANT,
+        default=None,
         help=(
             "Monte Carlo learning-rate mode. constant uses fixed alpha, "
             "visit_count uses 1/N(s,a), and sqrt_visit uses "
@@ -226,6 +237,12 @@ def parse_args() -> argparse.Namespace:
     if args.checkpoint_episodes is None:
         args.checkpoint_episodes = list(config.checkpoint_episodes)
 
+    if args.epsilon_schedule is None:
+        args.epsilon_schedule = config.epsilon_schedule
+
+    if args.alpha_mode is None:
+        args.alpha_mode = config.alpha_mode
+
     if args.episodes <= 0:
         parser.error(
             "--episodes must be greater than zero"
@@ -270,6 +287,8 @@ def build_command(job: TrainingJob) -> list[str]:
     common_arguments = [
         "--episodes",
         str(job.episodes),
+        "--config",
+        job.config_preset,
         "--seed",
         str(job.seed),
         "--epsilon-schedule",
@@ -325,6 +344,16 @@ def run_job(job: TrainingJob) -> JobResult:
 
     environment = os.environ.copy()
     environment["PYTHONHASHSEED"] = str(job.seed)
+    if job.protocol_provenance is not None:
+        environment["EXPERIMENT_PROTOCOL_PROVENANCE"] = json.dumps(
+            job.protocol_provenance.to_dict(),
+            ensure_ascii=True,
+        )
+        environment["GIT_COMMIT"] = job.protocol_provenance.source_revision
+        if job.protocol_provenance.source_dirty is not None:
+            environment["EXPERIMENT_SOURCE_DIRTY"] = str(
+                job.protocol_provenance.source_dirty
+            ).lower()
 
     start = perf_counter()
 
@@ -402,7 +431,9 @@ def build_jobs(
     experiment_directory: str,
     log_interval: int,
     rerun_existing: bool,
-    alpha_mode: str = ALPHA_MODE_CONSTANT,
+    alpha_mode: str = ALPHA_MODE_SQRT_VISIT,
+    config_preset: str = DEFAULT_TRAINING_CONFIG_PRESET,
+    protocol_provenance: ProtocolProvenance | None = None,
 ) -> tuple[list[TrainingJob], list[TrainingJob]]:
     runnable: list[TrainingJob] = []
     skipped: list[TrainingJob] = []
@@ -425,12 +456,15 @@ def build_jobs(
                     experiment_directory
                 ),
                 log_interval=log_interval,
+                config_preset=config_preset,
+                protocol_provenance=protocol_provenance,
             )
 
             if (
                 job.final_model_path.exists()
                 and not rerun_existing
             ):
+                validate_existing_job_provenance(job)
                 skipped.append(job)
             else:
                 runnable.append(job)
@@ -438,15 +472,81 @@ def build_jobs(
     return runnable, skipped
 
 
+def validate_existing_job_provenance(job: TrainingJob) -> None:
+    if job.protocol_provenance is None:
+        return
+    base_expected = {
+        **job.protocol_provenance.to_dict(),
+        "seed": job.seed,
+    }
+    required_artifacts = [
+        (
+            job.final_model_path,
+            {
+                **base_expected,
+                "completed_episodes": job.episodes,
+            },
+        )
+    ]
+    required_artifacts.extend(
+        (
+            job.checkpoint_directory
+            / (
+                f"{job.run_name}_episodes_{episode}"
+                f"_seed_{job.seed}.pkl"
+            ),
+            {
+                **base_expected,
+                "completed_episodes": episode,
+            },
+        )
+        for episode in job.checkpoint_episodes
+    )
+    for model_path, expected in required_artifacts:
+        metadata_path = model_path.with_suffix(".json")
+        if not model_path.exists() or not metadata_path.exists():
+            raise ValueError(
+                "Cannot skip an incomplete protocol-aware training job: "
+                f"{model_path}. Use --rerun-existing."
+            )
+        with metadata_path.open(encoding="utf-8") as file:
+            metadata = json.load(file)
+        if not isinstance(metadata, dict):
+            raise TypeError(
+                f"Model metadata must be an object: {metadata_path}"
+            )
+        mismatches = {
+            key: {
+                "expected": value,
+                "observed": metadata.get(key),
+            }
+            for key, value in expected.items()
+            if metadata.get(key) != value
+        }
+        if mismatches:
+            raise ValueError(
+                "Existing model provenance does not match the requested run: "
+                f"{metadata_path}: {mismatches}. Use --rerun-existing."
+            )
+
 def save_manifest(
     path: Path,
     arguments: argparse.Namespace,
     jobs: Sequence[TrainingJob],
+    provenance: ProtocolProvenance | None = None,
 ) -> None:
+    serialized_arguments = {
+        key: (
+            asdict(value)
+            if hasattr(value, "__dataclass_fields__")
+            else value
+        )
+        for key, value in vars(arguments).items()
+    }
     manifest = {
         "created_at": datetime.now().isoformat(),
         "python_executable": sys.executable,
-        "arguments": vars(arguments),
+        "arguments": serialized_arguments,
         "jobs": [
             {
                 "model_type": job.model_type,
@@ -464,6 +564,7 @@ def save_manifest(
             }
             for job in jobs
         ],
+        **(protocol_metadata(provenance) if provenance is not None else {}),
     }
 
     path.parent.mkdir(
@@ -500,6 +601,26 @@ def print_result(result: JobResult) -> None:
 
 def main() -> None:
     args = parse_args()
+    configured_experiment = experiment_config_for(args.config)
+    effective_checkpoint_episodes = resolve_checkpoint_episodes(
+        total_episodes=args.episodes,
+        configured_checkpoints=args.checkpoint_episodes,
+        checkpoints_enabled=True,
+        checkpoint_interval=None,
+    )
+    effective_training = replace(
+        configured_experiment.training,
+        episodes=args.episodes,
+        seeds=tuple(args.seeds),
+        epsilon_schedule=args.epsilon_schedule,
+        alpha_mode=args.alpha_mode,
+        checkpoint_episodes=effective_checkpoint_episodes,
+    )
+    effective_config = resolve_effective_config(
+        args.config,
+        training=effective_training,
+    )
+    provenance = build_protocol_provenance(effective_config)
 
     experiment_name = (
         args.experiment_name
@@ -530,7 +651,10 @@ def main() -> None:
         ),
         log_interval=args.log_interval,
         rerun_existing=args.rerun_existing,
+        config_preset=args.config,
+        protocol_provenance=provenance,
     )
+    save_protocol_snapshot(experiment_directory, provenance)
 
     all_jobs = [
         *runnable_jobs,
@@ -544,6 +668,7 @@ def main() -> None:
         ),
         arguments=args,
         jobs=all_jobs,
+        provenance=provenance,
     )
 
     print(
@@ -641,6 +766,7 @@ def main() -> None:
             asdict(result)
             for result in results
         ],
+        **protocol_metadata(provenance),
     }
 
     summary_path = (

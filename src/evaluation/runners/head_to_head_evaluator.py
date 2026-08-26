@@ -1,6 +1,6 @@
 import csv
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from pypokerengine.api.game import (
@@ -98,6 +98,7 @@ class HeadToHeadEvaluationConfig:
     eval_seed_base: int
     output_path: Path
     evaluation_replicates: int = 5
+    game_config: GameConfig = field(default_factory=GameConfig)
 
     def __post_init__(self) -> None:
         if self.games_per_matchup <= 0:
@@ -309,7 +310,7 @@ def evaluate_head_to_head_bundle(
     bundle: ModelBundle,
     config: HeadToHeadEvaluationConfig,
 ) -> list[dict]:
-    game_config = GameConfig()
+    game_config = config.game_config
     rows: list[dict] = []
 
     game_id = 0
@@ -427,7 +428,7 @@ def evaluate_baseline_replicate(
     evaluation_replicate_id: int,
     config: HeadToHeadEvaluationConfig,
 ) -> list[dict]:
-    game_config = GameConfig()
+    game_config = config.game_config
     rows: list[dict] = []
     tested_agents = baseline_tested_agents(config.tested_agents)
     games_per_replicate = (

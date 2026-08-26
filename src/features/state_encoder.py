@@ -7,6 +7,17 @@ from src.features.poker_context_encoder import (
     PokerContextEncoder,
 )
 
+STATE_VERSION = "state_v2"
+STATE_FIELDS = (
+    "street",
+    "hand_strength_bin",
+    "pair_strength_bin",
+    "pot_bucket",
+    "pot_odds_bin",
+    "spr_bin",
+    "is_small_blind",
+)
+
 
 class StateEncoder:
     """Discretised state used by every tabular policy.

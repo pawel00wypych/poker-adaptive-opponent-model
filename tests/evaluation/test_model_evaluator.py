@@ -3,6 +3,10 @@ from pathlib import Path
 
 import pytest
 
+from src.experiment_protocol import (
+    FINAL_EXPERIMENT_CONFIG,
+    build_protocol_provenance,
+)
 from src.evaluation.runners.model_evaluator import (
     ModelBundle,
     TrainingOpponentEvaluationConfig,
@@ -29,7 +33,17 @@ def create_final_bundle_files(
     *,
     seed: int,
     completed_episodes: int,
+    include_protocol: bool = False,
 ) -> None:
+    protocol = (
+        build_protocol_provenance(
+            FINAL_EXPERIMENT_CONFIG,
+            source_revision="test-revision",
+            source_dirty=False,
+        ).to_dict()
+        if include_protocol
+        else {}
+    )
     for directory_name in POLICIES:
         model_path = root / f"seed_{seed}" / directory_name / "final.pkl"
         model_path.parent.mkdir(parents=True, exist_ok=True)
@@ -39,6 +53,7 @@ def create_final_bundle_files(
                 {
                     "seed": seed,
                     "completed_episodes": completed_episodes,
+                    **protocol,
                 }
             ),
             encoding="utf-8",
@@ -115,6 +130,56 @@ def test_build_final_bundle_uses_metadata_training_episode(tmp_path):
     assert all(path.name == "final.pkl" for path in bundle.agent_paths().values())
 
 
+def test_final_bundle_exposes_consistent_protocol_metadata(tmp_path):
+    create_final_bundle_files(
+        tmp_path,
+        seed=42,
+        completed_episodes=10_000,
+        include_protocol=True,
+    )
+
+    bundle = build_final_model_bundle(tmp_path, seed=42)
+
+    assert bundle.protocol_id == "thesis-final-v2"
+    assert bundle.experiment_config_hash == FINAL_EXPERIMENT_CONFIG.config_hash
+    assert bundle.training_config_hash == (
+        FINAL_EXPERIMENT_CONFIG.training_config_hash
+    )
+    assert bundle.source_revision == "test-revision"
+
+
+def test_final_bundle_rejects_partial_protocol_metadata(tmp_path):
+    create_final_bundle_files(
+        tmp_path,
+        seed=42,
+        completed_episodes=10_000,
+        include_protocol=True,
+    )
+    metadata_path = tmp_path / "seed_42" / "specialist_calling" / "final.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata.pop("training_config_hash")
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="partial protocol provenance"):
+        build_final_model_bundle(tmp_path, seed=42)
+
+
+def test_final_bundle_rejects_mixed_source_dirty_provenance(tmp_path):
+    create_final_bundle_files(
+        tmp_path,
+        seed=42,
+        completed_episodes=10_000,
+        include_protocol=True,
+    )
+    metadata_path = tmp_path / "seed_42" / "specialist_calling" / "final.json"
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["source_dirty"] = True
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="source_dirty"):
+        build_final_model_bundle(tmp_path, seed=42)
+
+
 def test_final_discovery_returns_one_bundle_per_seed_even_with_training_episodes(
     tmp_path,
 ):
@@ -166,9 +231,9 @@ def test_final_discovery_skips_incomplete_seed_by_default(tmp_path):
 
 
 def test_build_game_seed_uses_final_training_episode():
-    first = build_game_seed(100_000, 42, 5000, 7)
-    second = build_game_seed(100_000, 42, 5000, 7)
-    different_episode = build_game_seed(100_000, 42, 5001, 7)
+    first = build_game_seed(1, 42, 5000, 7)
+    second = build_game_seed(1, 42, 5000, 7)
+    different_episode = build_game_seed(1, 42, 5001, 7)
 
     assert first == second
     assert first != different_episode

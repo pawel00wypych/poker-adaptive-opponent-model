@@ -1,5 +1,9 @@
 import argparse
 
+from src.experiment_protocol import (
+    DEFAULT_EXPERIMENT_CONFIG_PRESET,
+    EXPERIMENT_CONFIG_PRESETS,
+)
 from src.poker.constants import TRAINING_OPPONENT_TYPES
 from src.training.constants import (
     SUPPORTED_ALPHA_MODES,
@@ -10,6 +14,12 @@ from src.training.constants import (
 def add_common_training_arguments(
     parser: argparse.ArgumentParser,
 ) -> None:
+    parser.add_argument(
+        "--config",
+        choices=sorted(EXPERIMENT_CONFIG_PRESETS),
+        default=DEFAULT_EXPERIMENT_CONFIG_PRESET,
+        help="Versioned experiment protocol preset.",
+    )
     parser.add_argument(
         "--progress",
         action=argparse.BooleanOptionalAction,
