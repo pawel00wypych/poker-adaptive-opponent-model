@@ -499,6 +499,69 @@ source_dirty
 final models to be used in extended evaluation without
 retraining.
 
+## 3.9. End-to-end Pipeline
+
+The complete experiment is executed through one orchestrator:
+
+```powershell
+python -m src.experiments.run_thesis_pipeline `
+  --config verification `
+  --workers 1
+```
+
+Available presets:
+
+```text
+verification -> short training, complete evaluation and all reports
+final        -> final training, complete evaluation and all reports
+extended     -> reuse final models and rerun final-model evaluations with 1000 games
+```
+
+Example final and extended runs:
+
+```powershell
+python -m src.experiments.run_thesis_pipeline `
+  --config final `
+  --workers 4
+
+python -m src.experiments.run_thesis_pipeline `
+  --config extended `
+  --final-pipeline-dir results/pipelines/final `
+  --workers 4
+```
+
+The pipeline is fail-fast. A failed stage stops all descendants. A run can be
+continued with:
+
+```powershell
+python -m src.experiments.run_thesis_pipeline `
+  --config verification `
+  --resume
+```
+
+Resume skips only stages that previously succeeded, still have matching command
+and configuration fingerprints, and retain every expected output. Rerunning an
+invalidated stage also reruns its descendants.
+
+Progress is written simultaneously to the console and `pipeline.log`. Training
+uses periodic episode-level messages, evaluation reports progress per model
+bundle or simulation replicate, and the pipeline reports stage elapsed time and
+an approximate remaining time.
+
+Each run produces:
+
+```text
+pipeline.log
+pipeline_manifest.json
+pipeline_summary.json
+models/
+evaluations/
+reports/
+```
+
+Cross-play includes the primary `A x A` matrix, the optional `G x G` matrix, and
+both directions of each same-algorithm `A_X <-> G_X` pair.
+
 # 4. Common Methodology
 
 ## 4.1. Seeds and Replicates

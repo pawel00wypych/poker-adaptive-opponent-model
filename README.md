@@ -4,6 +4,20 @@ Research project for testing adaptive strategy selection in heads-up Texas Hold'
 The project combines behavioural opponent classification with tabular
 reinforcement-learning agents.
 
+## Complete experiment pipeline
+
+Run the complete short rehearsal, including training, all evaluations,
+validations, and reports:
+
+```powershell
+python -m src.experiments.run_thesis_pipeline --config verification --workers 1
+```
+
+Use `--config final` for the thesis run. Use `--config extended
+--final-pipeline-dir results/pipelines/final` to reuse final models with the
+extended evaluation budget. Add `--resume` to continue a failed or interrupted
+pipeline. Progress is written to both the console and `pipeline.log`.
+
 The project is developed as part of a master's thesis:
 
 > Dynamic strategy adaptation in imperfect-information games using
